@@ -1,0 +1,27 @@
+# 多租户认证配置
+# 认证方式：Authorization: Bearer <apiKey> 或 ?apiKey=<key>
+# 未提供或无效 API Key 将返回 401（生产环境）
+#
+# 支持两种模式：
+#   1) tenant.apiKey  — 机构级密钥（userId=default）
+#   2) tenant.users[].apiKey — 用户级密钥（数据按用户隔离）
+#
+tenants:
+  - id: default
+    name: "默认租户"
+    apiKey: "x-pilot-default-key"
+    users:
+      - id: default
+        name: "默认用户"
+        apiKey: "x-pilot-default-key"
+
+#   - id: school-demo
+#     name: "示范职业技术学院"
+#     apiKey: "x-pilot-school-demo"
+#     users:
+#       - id: teacher-zhang
+#         name: "张老师"
+#         apiKey: "x-pilot-zhang"
+#       - id: teacher-li
+#         name: "李老师"
+#         apiKey: "x-pilot-li"

@@ -1,0 +1,628 @@
+curl --location --request GET 'http://35.232.154.66:5125/v1/conversations?user=20201011&limit=100' \
+--header 'Authorization: Bearer app-jTJNNtHCS6fMlJDRQG4gYURE' \
+--header 'User-Agent: Apifox/1.0.0 (https://apifox.com)' \
+--header 'Accept: */*' \
+--header 'Host: 35.232.154.66:5125' \
+--header 'Connection: keep-alive'
+
+
+{
+    "limit": 100,
+    "has_more": false,
+    "data": [
+        {
+            "id": "52cfd9e4-d00d-4173-abb1-133b5d74ad54",
+            "name": "介绍X-Pilot视频",
+            "inputs": {
+                "user_files": [
+                    {
+                        "dify_model_identity": "__dify__file__",
+                        "id": null,
+                        "tenant_id": "72305e0d-3ec5-4ff1-871b-3f11ee2f754a",
+                        "type": "document",
+                        "transfer_method": "remote_url",
+                        "remote_url": "https://server.x-pilot.cn/static/meta-doc/docx/8fcb8ad37ba89408a8045a613bab6f1a.docx",
+                        "related_id": null,
+                        "filename": "8fcb8ad37ba89408a8045a613bab6f1a.docx",
+                        "extension": ".docx",
+                        "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                        "size": 4552695
+                    }
+                ],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"5c353fdb312f4888836a9a5680099ef0\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1769587450,
+            "updated_at": 1769587622
+        },
+        {
+            "id": "09417004-7e5d-44a9-b3b2-a8e1393eb2b1",
+            "name": "毫米波雷达",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"zh\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"7f92f8afb8ec43bf81429cc1c9199cb1\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768767168,
+            "updated_at": 1768767524
+        },
+        {
+            "id": "43b519d8-9643-468b-a8cc-3247fbf8c62a",
+            "name": "AI赋能教育行业",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768725298,
+            "updated_at": 1768754701
+        },
+        {
+            "id": "3841fe04-b482-4f79-8067-f7c5ffff35a7",
+            "name": "艺术来源生活",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768742410,
+            "updated_at": 1768750996
+        },
+        {
+            "id": "f59b75f9-9cb4-4425-ab33-95af4970e6fe",
+            "name": "科普火山喷发",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768742380,
+            "updated_at": 1768744741
+        },
+        {
+            "id": "748d5dbd-e899-4cb7-a455-4783878639e1",
+            "name": "AI赋能教育行业",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768742388,
+            "updated_at": 1768744737
+        },
+        {
+            "id": "5b72b99a-a4d1-4f4b-94d1-e7753002d4c3",
+            "name": "AI赋能教育行业",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768738607,
+            "updated_at": 1768738607
+        },
+        {
+            "id": "b264c0ea-b19b-49b1-98b9-d7e9242141ba",
+            "name": "科普火山喷发",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768738594,
+            "updated_at": 1768738593
+        },
+        {
+            "id": "917dceb9-93ef-46a9-bb17-b356cb7e9a82",
+            "name": "宇宙的生命起源",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768738589,
+            "updated_at": 1768738589
+        },
+        {
+            "id": "34492db0-3d59-448d-8cb6-92d1156e01cc",
+            "name": "宇宙的生命起源",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768736284,
+            "updated_at": 1768736283
+        },
+        {
+            "id": "14268370-4427-4182-8c05-a6efb1ddfa0e",
+            "name": "毫米波雷达的科普视频",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768736260,
+            "updated_at": 1768736259
+        },
+        {
+            "id": "4f562ee0-46c4-4d8c-b84e-10ffec0850b6",
+            "name": "二元一次方程",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768725344,
+            "updated_at": 1768725343
+        },
+        {
+            "id": "491b5270-6b22-4d65-b605-0853bc92bba2",
+            "name": "科普火山喷发",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768725324,
+            "updated_at": 1768725324
+        },
+        {
+            "id": "baffe0d5-a2d4-4ce3-af48-219dea0ad3d9",
+            "name": "AI赋能教育行业",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768721785,
+            "updated_at": 1768721784
+        },
+        {
+            "id": "496e091b-1875-4f70-b2fa-e92ede1c31ad",
+            "name": "Agent Skill：赋能未来",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768720826,
+            "updated_at": 1768721604
+        },
+        {
+            "id": "68a3a81e-15fc-45f1-ad46-b62bac02c863",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768720253,
+            "updated_at": 1768720547
+        },
+        {
+            "id": "d9fc8233-540d-4bd7-bd9c-485b2b3651da",
+            "name": "Agent Skill：赋能未来",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768720258,
+            "updated_at": 1768720257
+        },
+        {
+            "id": "9abebbf3-2bd9-4794-9202-823002fca06c",
+            "name": "Agent Skill：赋能未来",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"zh\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"7f92f8afb8ec43bf81429cc1c9199cb1\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768567434,
+            "updated_at": 1768639313
+        },
+        {
+            "id": "7b4e430f-2a00-4d40-8960-fd51e5f96349",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"zh\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"7f92f8afb8ec43bf81429cc1c9199cb1\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768563582,
+            "updated_at": 1768566329
+        },
+        {
+            "id": "cf9514d2-22ca-42d7-a2bd-a7137d4fc798",
+            "name": "Agent Skill：赋能未来",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768565620,
+            "updated_at": 1768566321
+        },
+        {
+            "id": "06039152-c100-4681-b824-d38f6a3601f4",
+            "name": "Agent Skill：赋能未来",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768565944,
+            "updated_at": 1768566308
+        },
+        {
+            "id": "a4485470-903c-48b4-9a0b-3b01adf5be0e",
+            "name": "Agent Skill：赋能未来",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768565952,
+            "updated_at": 1768566189
+        },
+        {
+            "id": "0e642b89-9ee1-43a0-8cf7-4bf52006c878",
+            "name": "什么是agent skill",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768562769,
+            "updated_at": 1768564193
+        },
+        {
+            "id": "cf22f603-052a-4f78-a5e2-4cd9b224560e",
+            "name": "什么是agent skill",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768563569,
+            "updated_at": 1768564143
+        },
+        {
+            "id": "c668c0c7-15be-4d53-be28-d0297eeaceea",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"ar\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"5b67899dc9a34685ae09c94c890a606f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768562807,
+            "updated_at": 1768563285
+        },
+        {
+            "id": "7cf90e70-d0fe-4319-9507-af559f1ac2cf",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"zh\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"5c353fdb312f4888836a9a5680099ef0\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768562834,
+            "updated_at": 1768563247
+        },
+        {
+            "id": "221cae4b-2cc4-4543-bae7-843cfcce513c",
+            "name": "毫米波雷达的视频",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768558774,
+            "updated_at": 1768559076
+        },
+        {
+            "id": "3b184054-9b28-493c-8cec-e099094db45d",
+            "name": "什么是agent skill",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"6717a74323274cb296ea9a0da654c977\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768558932,
+            "updated_at": 1768559074
+        },
+        {
+            "id": "68da1744-52c6-4b66-9101-462951b1ce02",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"c2623f0c075b4492ac367989aee1576f\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768556327,
+            "updated_at": 1768558760
+        },
+        {
+            "id": "7edd9a0f-4ddf-4b27-8f18-9d33ae976ca7",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"acc8237220d8470985ec9be6c4c480a9\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768556350,
+            "updated_at": 1768556371
+        },
+        {
+            "id": "b7f87571-5097-475b-a09f-a65fc07d295d",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768548687,
+            "updated_at": 1768548686
+        },
+        {
+            "id": "8fcbc640-ff94-4912-9f8e-933ca9a41222",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768547544,
+            "updated_at": 1768547544
+        },
+        {
+            "id": "5245312d-a7d0-4c35-a93e-69e28ec02c92",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768547536,
+            "updated_at": 1768547536
+        },
+        {
+            "id": "ad45ebf4-9e60-42bd-b85d-a0819dbdb7f9",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768536604,
+            "updated_at": 1768538978
+        },
+        {
+            "id": "9527294e-3e2f-4455-8481-1e4cdc24e299",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768536602,
+            "updated_at": 1768536601
+        },
+        {
+            "id": "e780d7fb-2f8b-4bb7-a942-b54ea68336d0",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768536353,
+            "updated_at": 1768536353
+        },
+        {
+            "id": "2d7d09bc-abb9-4b57-9b94-0be7c74ba574",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768536349,
+            "updated_at": 1768536348
+        },
+        {
+            "id": "068c0896-6a87-4e99-94ef-6250f841be3c",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768536342,
+            "updated_at": 1768536341
+        },
+        {
+            "id": "f57d22f3-4d17-48ec-9e25-9c0fd22aa7fe",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768471797,
+            "updated_at": 1768473090
+        },
+        {
+            "id": "2686d5e9-1505-4b49-9c76-172ad6e774f0",
+            "name": "人才培养方案",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768471833,
+            "updated_at": 1768471833
+        },
+        {
+            "id": "d2b1429e-4f85-4762-b305-367c7ad2d969",
+            "name": "ai IDE讲解",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768471809,
+            "updated_at": 1768471808
+        },
+        {
+            "id": "1c3750ee-f23d-419c-97c2-700c88081354",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768467370,
+            "updated_at": 1768467370
+        },
+        {
+            "id": "81be6e8f-a559-4d39-9221-b27298ef4ad0",
+            "name": "二元一次方程组（需要生动的视频元素）",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768467357,
+            "updated_at": 1768467357
+        },
+        {
+            "id": "3d6ce7f0-0c5e-4d95-980b-f9ad5e075e1a",
+            "name": "二元一次方程组",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768467023,
+            "updated_at": 1768467023
+        },
+        {
+            "id": "e54a7e32-ecdf-46fd-9a78-2876ad9204c4",
+            "name": "毫米波雷达科普视频",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768467009,
+            "updated_at": 1768467009
+        },
+        {
+            "id": "269e4981-fcf5-4a31-8122-79a06d7c22c5",
+            "name": "火山喷发",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768466994,
+            "updated_at": 1768466994
+        },
+        {
+            "id": "058a1a68-3c2e-4b31-a942-9e8b00046f49",
+            "name": "火山喷发",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768458569,
+            "updated_at": 1768458569
+        },
+        {
+            "id": "11a2f324-95e5-4e28-9f46-fe4b277d4c4a",
+            "name": "二元一次方程",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768308468,
+            "updated_at": 1768446430
+        },
+        {
+            "id": "052e3b40-3ccd-407a-8bbc-d896dca50b72",
+            "name": "火山喷发",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768307921,
+            "updated_at": 1768307920
+        },
+        {
+            "id": "5523601a-f241-4f1b-979f-b7c9e0da5cf0",
+            "name": "太阳系行星",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"en\",\"config.video_modes\":\"concise-highlight\"}"
+            },
+            "status": "normal",
+            "introduction": "",
+            "created_at": 1768302344,
+            "updated_at": 1768302496
+        }
+    ]
+}

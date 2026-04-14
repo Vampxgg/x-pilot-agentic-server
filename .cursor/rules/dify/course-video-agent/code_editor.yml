@@ -1,0 +1,2863 @@
+app:
+  description: 编辑代码
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: workflow
+  name: code_editor
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: hjlarry/storage:0.0.2@d105c624fd07bd315befe907461d81d71009638833b41e559f6ee37666a6e546
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/vertex_ai:0.0.42@9a2a23a56ae16637aa7a456f5cd947c77e290f282eb9d78e3463af4a7a806857
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: eft/redis:1.0.3@bac89a1d03ca694e856b58341cbb34094af7ca9425ef4e39bed85fbd27284df8
+    version: null
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables: []
+  environment_variables:
+  - description: 标题
+    id: dd9e5ff1-6d2c-4511-8766-bc188704185c
+    name: title
+    selector:
+    - env
+    - title
+    value: '""'
+    value_type: string
+  - description: ''
+    id: 8a89a3a2-4191-4dc8-9a7e-b1f5bda92c5f
+    name: 'NULL'
+    selector:
+    - env
+    - 'NULL'
+    value: '  '
+    value_type: string
+  - description: ''
+    id: 1e0bf35c-9101-446d-af03-677158ddd1d6
+    name: user_id_ceshi
+    selector:
+    - env
+    - user_id_ceshi
+    value: aad230d3-6ac8-40f5-ae62-6440de5712fa_ceshi
+    value_type: string
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768376501695'
+        sourceType: iteration-start
+        targetType: llm
+      id: 1768376501695start-source-1768376506340-target
+      selected: false
+      source: 1768376501695start
+      sourceHandle: source
+      target: '1768376506340'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: 1768376449816-source-1768382286533-target
+      selected: false
+      source: '1768376449816'
+      sourceHandle: source
+      target: '1768382286533'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: iteration
+        targetType: code
+      id: 1768376501695-source-1768385110630-target
+      selected: false
+      source: '1768376501695'
+      sourceHandle: source
+      target: '1768385110630'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768376501695'
+        sourceType: llm
+        targetType: code
+      id: 1768376506340-source-1768385581878-target
+      selected: false
+      source: '1768376506340'
+      sourceHandle: source
+      target: '1768385581878'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: end
+      id: 1768377491840-source-1768388281254-target
+      selected: false
+      source: '1768377491840'
+      sourceHandle: source
+      target: '1768388281254'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: code
+      id: 1768382286533-source-1768466944747-target
+      selected: false
+      source: '1768382286533'
+      sourceHandle: source
+      target: '1768466944747'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: if-else
+      id: 1768466944747-source-1768552909868-target
+      selected: false
+      source: '1768466944747'
+      sourceHandle: source
+      target: '1768552909868'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: iteration
+      id: 1768552909868-true-1768376501695-target
+      selected: false
+      source: '1768552909868'
+      sourceHandle: 'true'
+      target: '1768376501695'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: code
+      id: 1768552909868-false-1768385110630-target
+      selected: false
+      source: '1768552909868'
+      sourceHandle: 'false'
+      target: '1768385110630'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: tool
+      id: 1768385110630-source-17685581905160-target
+      selected: false
+      source: '1768385110630'
+      sourceHandle: source
+      target: '17685581905160'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: tool
+      id: 1768376433549-source-1769235188438-target
+      selected: false
+      source: '1768376433549'
+      sourceHandle: source
+      target: '1769235188438'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: tool
+      id: 1768376433549-source-1768381959909-target
+      selected: false
+      source: '1768376433549'
+      sourceHandle: source
+      target: '1768381959909'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: tool
+      id: 1768385110630-source-1769235242191-target
+      selected: false
+      source: '1768385110630'
+      sourceHandle: source
+      target: '1769235242191'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: tool
+      id: 1768385110630-source-1769235271620-target
+      selected: false
+      source: '1768385110630'
+      sourceHandle: source
+      target: '1769235271620'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: tool
+        targetType: code
+      id: 1769235242191-source-1768377491840-target
+      selected: false
+      source: '1769235242191'
+      sourceHandle: source
+      target: '1768377491840'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: tool
+        targetType: code
+      id: 1768381959909-source-1769235948427-target
+      selected: false
+      source: '1768381959909'
+      sourceHandle: source
+      target: '1769235948427'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: tool
+        targetType: code
+      id: 1769235188438-source-1769235948427-target
+      selected: false
+      source: '1769235188438'
+      sourceHandle: source
+      target: '1769235948427'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: llm
+      id: 1769235948427-source-1768376449816-target
+      source: '1769235948427'
+      sourceHandle: source
+      target: '1768376449816'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: tool
+        targetType: code
+      id: 17685581905160-source-17692361065320-target
+      source: '17685581905160'
+      sourceHandle: source
+      target: '17692361065320'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: tool
+        targetType: code
+      id: 1769235271620-source-17692361065320-target
+      source: '1769235271620'
+      sourceHandle: source
+      target: '17692361065320'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: code
+        targetType: code
+      id: 17692361065320-source-1768377491840-target
+      source: '17692361065320'
+      sourceHandle: source
+      target: '1768377491840'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: tool
+        targetType: code
+      id: 1768381959909-fail-branch-1769235948427-target
+      source: '1768381959909'
+      sourceHandle: fail-branch
+      target: '1769235948427'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: tool
+        targetType: code
+      id: 17685581905160-fail-branch-17692361065320-target
+      source: '17685581905160'
+      sourceHandle: fail-branch
+      target: '17692361065320'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        selected: false
+        title: 用户输入
+        type: start
+        variables:
+        - default: ''
+          hint: ''
+          label: user_intent
+          max_length: null
+          options: []
+          placeholder: ''
+          required: true
+          type: paragraph
+          variable: user_intent
+        - default: ''
+          hint: ''
+          label: conversation_id
+          max_length: null
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: conversation_id
+        - default: ''
+          hint: ''
+          label: projectId
+          max_length: null
+          options: []
+          placeholder: ''
+          required: true
+          type: text-input
+          variable: projectId
+      height: 161
+      id: '1768376433549'
+      position:
+        x: -216.44801355390706
+        y: 261
+      positionAbsolute:
+        x: -216.44801355390706
+        y: 261
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gemini-3-flash-preview
+          provider: langgenius/vertex_ai/vertex_ai
+        prompt_template:
+        - id: cf2eefa6-a021-47a7-b69b-f328e91d6977
+          role: system
+          text: '# Dify 节点1 Prompt：场景变更定位与细化要求生成（多场景 + 插入）
+
+
+
+            你是“Remotion 场景代码二次编辑”的**变更规划器**。
+
+
+
+            你的任务：
+
+            - 根据 **用户的修改需求** + **现有场景代码数组 `code_array`**
+
+            - 判断需要修改哪些场景（可多个）
+
+            - 为每个需要修改的场景输出**可执行**的细化修改要求
+
+            - 如需要新增场景，用特殊键描述“插入位置”与“新增场景要求”
+
+
+
+            > 重要：你**只输出 JSON**，不要输出 Markdown、解释、代码块。
+
+
+
+            ---
+
+
+
+            ## 1) 输入（Input JSON）
+
+
+
+            你会收到一个 JSON，对字段名要“尽可能兼容”，但以下两项是必须信息：
+
+
+
+            - `edit_request`: string（用户自然语言修改需求）
+
+            - `code_array`: string[]（每个元素是一段完整 TSX 场景代码字符串；索引为 0-based）
+
+
+
+            允许出现的可选字段（如果有就利用，用于更准确定位）：
+
+            - `video_title`: string
+
+            - `video_style`: object（全片风格约束，如配色/字体/语气）
+
+            - `constraints`: object（例如时长、字幕位置、语言等）
+
+
+
+            如果你收到的字段名不同（例如 `user_request` / `instruction` / `scenes_code_array`），请自行映射到上述语义。
+
+
+
+            ---
+
+
+
+            ## 2) 输出（Output JSON，仅此结构）
+
+
+
+            你必须输出一个 JSON，结构固定：
+
+
+
+            ```json
+
+            {
+
+              "scene_indexes": [0],
+
+              "delete_indexes": [2],
+
+              "requirements_by_index": {
+
+                "0": { "action": "modify", "detailed_requirements": ["..."] },
+
+                "2": { "action": "delete", "change_summary": "用户要求删除此场景" },
+
+                "__insert_after__:1": { "action": "insert", "detailed_requirements":
+            ["..."] }
+
+              }
+
+            }
+
+            ```
+
+
+
+            ### 2.1 scene_indexes
+
+            - **0-based**，与 `code_array` 下标一致
+
+            - **升序、去重**
+
+            - 仅包含“已有场景”的索引（数字）。
+
+              - 插入场景不对应现有索引，不需要出现在 `scene_indexes`。
+
+              - 但插入操作的锚点索引（例如 `2`）若也需要修改，则应在 `scene_indexes` 里出现。
+
+
+
+            ### 2.2 requirements_by_index 的键（Key）
+
+            `requirements_by_index` 是一个对象（map），键必须是以下两类之一：
+
+
+
+            1) **已有场景修改**：用字符串数字键
+
+            - 例如：`"0"`、`"2"`（对应 `code_array[0]`、`code_array[2]`）
+
+
+
+            2) **插入新场景**：用特殊键（支持插入到任意位置）
+
+            - `"__insert_before__:i"`：在现有第 `i` 个场景**之前**插入
+
+            - `"__insert_after__:i"`：在现有第 `i` 个场景**之后**插入
+
+
+
+            其中 `i` 为 0-based 下标。
+
+
+
+            > 例：`"__insert_after__:2"` 表示插入位置在原 `code_array[2]` 之后。
+
+
+
+            ### 2.3 requirements_by_index 的值（Value）
+
+            你必须输出“可执行、可验收”的细化要求对象。建议结构如下（可扩展字段，但不要改变外层结构）：
+
+
+
+            ### 2.4 与节点2（并行单场景编辑器）的对接约定（务必遵守）
+
+
+
+            节点2是**并行迭代器**：每次只处理一个场景或一个插入项。
+
+
+
+            - 对于修改项（键为数字字符串，例如 `"2"`）：
+
+              - 迭代器应传给节点2：
+
+                - `scene_index: 2`
+
+                - `original_scene_code: code_array[2]`
+
+                - `requirements: requirements_by_index["2"]`
+
+              - 节点2输出：`{"scene_index":2,"scene_code":"...tsx..."}`
+
+
+
+            - 对于插入项（键为特殊键，例如 `"__insert_after__:2"` / `"__insert_before__:2"`）：
+
+              - 迭代器应传给节点2：
+
+                - `scene_index: -1`
+
+                - `insert_key: "__insert_after__:2"`（原样透传）
+
+                - `requirements: requirements_by_index["__insert_after__:2"]`
+
+              - 节点2输出：`{"scene_index":-1,"insert_key":"__insert_after__:2","scene_code":"...tsx..."}`
+
+
+
+            > 重要：插入项不对应原 `code_array` 的某个下标，所以必须使用 `scene_index:-1 + insert_key` 来回传给汇总器。
+
+
+
+
+            #### A) 修改场景（action=modify）
+
+            ```json
+
+            {
+
+              "action": "modify",
+
+              "scene_intent_summary": "一句话概括当前场景主要在讲什么/展示什么",
+
+              "change_summary": "一句话概括要改动的核心目标",
+
+              "detailed_requirements": [
+
+                "必须改什么（可操作、可落地）",
+
+                "需要保留什么（避免破坏既有逻辑）",
+
+                "涉及文案/布局/动画/配色的具体改法"
+
+              ],
+
+              "must_keep": [
+
+                "需要保持不变的 API/组件/结构（例如必须保留 default export、必须保留 Subtitle 层等）"
+
+              ],
+
+              "acceptance_checks": [
+
+                "验收点：修改后用户肉眼能确认的结果",
+
+                "验收点：不引入新依赖、不破坏渲染安全"
+
+              ],
+
+              "notes": [
+
+                "任何假设/歧义处理（必须写出来）"
+
+              ]
+
+            }
+
+            ```
+
+
+
+            #### B) 插入新场景（action=insert）
+
+            ```json
+
+            {
+
+              "action": "insert",
+
+              "new_scene_purpose": "新增场景的叙事目的/承接关系",
+
+              "duration_hint_seconds": 3,
+
+              "detailed_requirements": [
+
+                "新增场景要呈现的核心信息",
+
+                "视觉风格要求（与前后场景一致）",
+
+                "字幕/标题/主内容布局要求",
+
+                "需要避免的风险（重叠、出界、遮挡字幕等）"
+
+              ],
+
+              "acceptance_checks": [
+
+                "插入后整体叙事更顺，且不会与前后重复",
+
+                "代码满足渲染安全与 strict TS"
+
+              ],
+
+              "notes": [
+
+                "任何假设/歧义处理"
+
+              ]
+
+            }
+
+            ```
+
+
+
+            #### C) 删除场景（action=delete）
+
+            ```json
+
+            {
+
+              "action": "delete",
+
+              "scene_intent_summary": "一句话概括被删除场景的原有内容",
+
+              "change_summary": "描述删除该场景的原因，例如：用户要求删除，或内容重复/过时"
+
+            }
+
+            ```
+
+
+
+            ---
+
+
+
+            ## 3) 选择需要修改哪些场景（你的工作方法）
+
+
+
+            你必须按以下策略定位：
+
+
+
+            1. **快速扫描所有 code_array**（从 `0..N-1`）：
+
+               - 识别每个场景的“意图”：标题/核心文案/图表/动画/示例代码/背景风格
+
+               - 识别是否含有与用户需求相关的关键词（文案、数值、配色、logo、术语等）
+
+
+
+            2. **最小变更原则**：
+
+               - 能只改 1 个场景就不要改 3 个
+
+               - 但如果是全片一致性需求（例如统一术语、统一主色/字体、全片加角标），你应当把所有受影响场景都列入
+
+
+
+            3. **插入优先于大改结构**：
+
+               - 若用户需求是“补一段解释/过渡/总结”，优先用插入新场景，而不是强行塞进已有场景导致拥挤
+
+
+
+            4. **避免引发大规模重写**：
+
+               - 不要要求“重命名所有组件/重排整个工程结构”
+
+               - 你的输出必须能让节点2仅通过修改/插入数组元素完成
+
+
+
+            ---
+
+
+
+            ## 4) 必须继承的渲染/代码安全约束（写进要求里）
+
+
+
+            你输出的 `detailed_requirements` 必须显式包含或暗含这些硬约束（节点2会据此改码）：
+
+
+
+            - 场景根节点必须是 `AbsoluteFill`，且必须显式设置 `background` / `backgroundColor`
+
+            - 主布局优先 `flex/grid`，避免大量 `position:absolute`，避免重叠/出界
+
+            - 字幕：`Subtitle` 不要再包 `Sequence` 做双重时间控制；字幕应在最上层
+
+            - 动画必须帧驱动：`useCurrentFrame` + `interpolate/spring`；禁止 CSS transition/animation；禁止
+            `setTimeout/setInterval`
+
+            - `interpolate(..., { easing })` 的 `easing` 必须是函数；禁止 `easing: spring(...)`；不要使用不存在的
+            `Easing.expo`
+
+            - TypeScript strict：避免隐式 `any`、避免未使用导入、必须是可解析 TSX
+
+            - 不要引入/猜测不存在的第三方导出；不输出任何安装命令
+
+            - 远程图片/视频必须有失败兜底；图片要有语义字段（`alt/title/aria-label/data-caption` 至少一个）
+
+
+
+            参考规范来源：`src/generator-scene-code.md`
+
+
+
+            ---
+
+
+
+            ## 5) 示例（多场景修改 + 插入 + 删除）
+
+
+
+            ### 输入示例（节选）
+
+            ```json
+
+            {
+
+              "edit_request": "把第1幕的标题改成‘概率分布直觉’，删除第2幕，并在第1幕后插入一个3秒过渡总结，提醒观众下一幕会讲‘正态分布’。",
+
+              "code_array": ["...scene0 tsx...", "...scene1 tsx...", "...scene2 tsx..."]
+
+            }
+
+            ```
+
+
+
+            ### 输出示例（你必须只输出 JSON）
+
+            ```json
+
+            {
+
+              "scene_indexes": [0],
+
+              "delete_indexes": [1],
+
+              "requirements_by_index": {
+
+                "0": {
+
+                  "action": "modify",
+
+                  "scene_intent_summary": "开场引入概念并展示大标题",
+
+                  "change_summary": "更新标题文案并确保布局不溢出",
+
+                  "detailed_requirements": [
+
+                    "把主标题文案改为：概率分布直觉",
+
+                    "标题仍需居中且不遮挡字幕区域（底部预留字幕空间）",
+
+                    "不要引入新依赖；保持 AbsoluteFill 根节点与显式背景"
+
+                  ],
+
+                  "must_keep": ["保留 default export 场景组件；保留 Subtitle 层在最上层"],
+
+                  "acceptance_checks": ["标题正确更新且画面无重叠/出界", "TSX 可编译且 strict TS 不报错"],
+
+                  "notes": ["假设第0个场景就是用户说的‘第1幕’（0-based）"]
+
+                },
+
+                "1": {
+
+                    "action": "delete",
+
+                    "scene_intent_summary": "原场景是一个关于X的图表示例",
+
+                    "change_summary": "根据用户需求删除此场景"
+
+                },
+
+                "__insert_after__:0": {
+
+                  "action": "insert",
+
+                  "new_scene_purpose": "在进入正态分布前做3秒过渡总结",
+
+                  "duration_hint_seconds": 3,
+
+                  "detailed_requirements": [
+
+                    "新增场景文案：‘小结：我们已经建立了分布的直觉。接下来进入正态分布。’",
+
+                    "视觉风格与前后场景一致（字体/配色/背景基调一致）",
+
+                    "布局简洁：标题 + 一句总结，避免拥挤；字幕不遮挡",
+
+                    "动画用帧驱动淡入/滑入，禁止 CSS transition/animation"
+
+                  ],
+
+                  "acceptance_checks": ["插入后叙事更顺畅且不与前后重复", "代码渲染安全且不崩溃"],
+
+                  "notes": ["插入点选择在第1幕之后：原索引0之后"]
+
+                }
+
+              }
+
+            }
+
+            ```
+
+
+
+            ---
+
+
+
+            ## 6) 最终输出要求（再强调一次）
+
+
+
+            - 只输出 **一个 JSON**
+
+            - 不要输出解释、不要输出 Markdown、不要输出 TSX 代码
+
+            - `scene_indexes` 必须 0-based 且与 `code_array` 下标一致
+
+            - 插入只能用：`__insert_before__:i` / `__insert_after__:i`'
+        - id: 5d5acf1e-d84e-41f2-810a-28e1aa1da8cd
+          role: user
+          text: '`edit_request`:{{#1768376433549.user_intent#}}
+
+            `code_array`:{{#1769235948427.result#}}'
+        selected: false
+        title: LLM
+        type: llm
+        vision:
+          enabled: false
+      height: 88
+      id: '1768376449816'
+      position:
+        x: 719.8093387907759
+        y: 282
+      positionAbsolute:
+        x: 719.8093387907759
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        error_handle_mode: remove-abnormal-output
+        flatten_output: true
+        height: 176
+        is_parallel: true
+        iterator_input_type: array[object]
+        iterator_selector:
+        - '1768466944747'
+        - no_del_assembly_result
+        output_selector:
+        - '1768385581878'
+        - arg1_obj
+        output_type: array[object]
+        parallel_nums: 10
+        selected: false
+        start_node_id: 1768376501695start
+        title: 迭代
+        type: iteration
+        width: 642.528503004688
+      height: 176
+      id: '1768376501695'
+      position:
+        x: 1699.3849313639282
+        y: 290.22233382726847
+      positionAbsolute:
+        x: 1699.3849313639282
+        y: 290.22233382726847
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 643
+      zIndex: 1
+    - data:
+        desc: ''
+        isInIteration: true
+        selected: false
+        title: ''
+        type: iteration-start
+      draggable: false
+      height: 48
+      id: 1768376501695start
+      parentId: '1768376501695'
+      position:
+        x: 24
+        y: 68
+      positionAbsolute:
+        x: 1723.3849313639282
+        y: 358.22233382726847
+      selectable: false
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom-iteration-start
+      width: 44
+      zIndex: 1002
+    - data:
+        context:
+          enabled: false
+          variable_selector: []
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768376501695'
+        model:
+          completion_params:
+            temperature: 0.7
+          mode: chat
+          name: gemini-3.1-pro-preview
+          provider: langgenius/vertex_ai/vertex_ai
+        prompt_template:
+        - id: 6d27263c-de9e-4550-9b19-94467084f5cc
+          role: system
+          text: "# Dify 节点2 Prompt：单场景代码修改/新增（并行迭代器节点）\n\n\n你是“Remotion 场景代码二次编辑”的**单场景代码编辑器**。\n\
+            \n\n你的任务（非常重要）：\n- 每次只处理 **一个**场景代码（modify）或 **一个**插入项（insert）\n- 严格遵守\
+            \ `src/generator-scene-code.md` 的约定与安全规范（否则非常容易编译/渲染失败）\n\n\n> 重要：你**只输出\
+            \ JSON**，不要输出 Markdown、解释、代码块。\n\n\n---\n\n\n## \U0001F4CB 输入格式（Input\
+            \ JSON）\n\n\n你会收到一个 JSON。字段名可能略有差异，但你必须能识别以下语义。\n\n\n### A) 修改已有场景（modify）\n\
+            推荐输入结构（你通常会同时拿到这些信息）：\n\n\n```json\n{\n  \"edit_request\": \"用户自然语言修改需求（可选，但建议提供）\"\
+            ,\n  \"scene_index\": 2,\n  \"original_scene_code\": \"(原始 TSX 场景代码字符串)\"\
+            ,\n  \"requirements\": { \"action\": \"modify\", \"detailed_requirements\"\
+            : [\"...\"] },\n  \"video\": { \"...\": \"可选：完整视频 JSON（用于跨场景一致性与去重）\"\
+            \ }\n}\n```\n\n\n### B) 插入新场景（insert）\n推荐输入结构：\n\n\n```json\n{\n  \"edit_request\"\
+            : \"用户自然语言修改需求（可选）\",\n  \"scene_index\": -1,\n  \"insert_key\": \"__insert_after__:2\"\
+            ,\n  \"requirements\": { \"action\": \"insert\", \"detailed_requirements\"\
+            : [\"...\"] },\n  \"video\": { \"...\": \"可选：完整视频 JSON\" },\n  \"context\"\
+            : {\n    \"before_scene_code\": \"(可选：插入点前一个场景 TSX)\",\n    \"after_scene_code\"\
+            : \"(可选：插入点后一个场景 TSX)\"\n  }\n}\n```\n\n\n### 你必须遵守的输入解读规则\n- `scene_index`\
+            \ 为 **0-based**（modify 时），严格对应原 `code_array` 的下标\n- insert 时固定为 `scene_index:\
+            \ -1`，并且必须带 `insert_key`\n- `requirements` 就是节点1输出的 `requirements_by_index[索引或insert_key]`\n\
+            \n\n---\n\n\n## \U0001F4E4 输出格式（Output JSON，仅此结构）\n\n\n你必须输出一个 JSON：\n\
+            \n\n### A) modify 输出\n```json\n{\n  \"scene_index\": 2,\n  \"scene_code\"\
+            : \"(修改后的 TSX 场景代码)\"\n}\n```\n\n\n### B) insert 输出\n```json\n{\n  \"\
+            scene_index\": -1,\n  \"insert_key\": \"__insert_after__:2\",\n  \"scene_code\"\
+            : \"(新增的 TSX 场景代码)\"\n}\n```\n\n\n> 禁止输出任何额外字段（例如 `code_array`、解释文本、文件名、diff）。\n\
+            \n\n---\n\n\n## ✅ 你必须做的事情\n\n\n### 1) 单场景原则（最重要）\n- 你每次只输出 **一个**场景的 TSX\
+            \ 代码（`scene_code`）\n- 禁止输出多场景、禁止顺带生成其他场景\n\n\n### 2) modify：最小改动编辑\n当\
+            \ `requirements.action = \"modify\"`：\n- 以 `original_scene_code` 为基准做**最小改动**\n\
+            - 只实现 `requirements.detailed_requirements` 里要求的改动\n- 其他内容尽量原样保留（不要为了“重构/美化”而大改结构）\n\
+            \n\n### 3) insert：生成一个新的场景代码\n当 `requirements.action = \"insert\"`：\n\
+            - 生成一个**全新的** TSX 场景代码（`scene_code`）\n- 该 TSX 必须可直接参与构建与渲染\n- 叙事与视觉风格需与前后场景一致（如果给了\
+            \ `video` / `context.before_scene_code/after_scene_code`，必须利用）\n\n\n###\
+            \ ❗修改时硬性约束（命中即判为错误输出，必须重写）\n- modify 时禁止引入新的第三方库/新 API（除非原代码已使用）\n- 若原代码未使用\
+            \ d3-force，禁止新增 d3-force（避免 `forceZ` 等不存在 API）\n- `easing` 只能使用 `Easing.inOut(Easing.cubic)`\
+            \ / `Easing.out(Easing.cubic)` / `Easing.linear` 等已知成员\n- 只要不确定 API 是否存在，必须回退为\"\
+            静态布局 / 无动画\"版本\n- `interpolate()` 的 `inputRange` 只允许严格递增；反向效果必须通过 `outputRange`\
+            \ 实现\n- `interpolate()` 必须使用 `t ∈ [0, 1]` 的安全模板\n- **禁止直接导入 `lucide-react`**（任何图标都不允许）：`import\
+            \ { ... } from \"lucide-react\"` 是硬性错误\n- **必须使用 `SafeIcon` 组件**，白名单：`play`、`pause`、`download`、`arrowRight`、`chevronRight`、`zap`、`lightbulb`、`bookOpen`、`graduationCap`\n\
+            - 如果修改时发现代码中有 `lucide-react` 导入，必须删除并改用 `SafeIcon`\n- **禁止直接使用 `<Canvas>`\
+            \ from `@react-three/fiber`**：必须使用 `<FullCanvas>` from `../components`\n\
+              - 原因：Remotion Studio 预览窗口使用 CSS `transform: scale()` 缩放，直接使用 Canvas\
+            \ 会导致 Three.js 渲染器尺寸错误（使用缩放后的容器尺寸而非实际视频尺寸）\n  - FullCanvas 内部使用 `useVideoConfig()`\
+            \ 自动设置正确的 Canvas 尺寸，确保在预览和实际渲染中都能正常工作\n  - 如果修改时发现代码中有 `import { Canvas\
+            \ } from \"@react-three/fiber\"` 或 `<Canvas>` 标签且没有使用 `FullCanvas`，必须：\n\
+                1. 删除：`import { Canvas } from \"@react-three/fiber\"`\n    2. 添加：`import\
+            \ { FullCanvas } from \"../components\"`\n    3. 替换：`<Canvas>` → `<FullCanvas>`，`</Canvas>`\
+            \ → `</FullCanvas>`\n- **禁止访问不存在的 theme 属性**：必须使用 `theme.colors.primary`、`theme.colors.background`\
+            \ 等，禁止访问 `theme.colorPalette`、`theme.primary_color`、`theme.backgroundBase`\
+            \ 等\n\n\n---\n\n\n## \U0001F9E0 跨场景一致性与去重\n\n\n\n## \U0001F3A8 核心原则\n\n\
+            \n### 1. 直接编写标准 React 代码\n**不要导入自定义组件**（只允许 `Subtitle` / `SafeArea` /\
+            \ `SafeIcon`），直接使用第三方库和原生 HTML/CSS。\n\n\n\n### 2. 布局与渲染安全规范（避免重叠 / 背景错误\
+            \ / 元素混乱）\n\n\n#### ✅ 必须遵守的根布局\n- **每个场景根节点必须是**：`<AbsoluteFill>`\n- **必须显式设置背景**：`backgroundColor`\
+            \ 或 `background`（禁止依赖透明背景）\n- **建议统一**：`overflow: \"hidden\"` 防止元素跑出画面\n\
+            \n\n推荐骨架（所有场景统一使用）：\n```tsx\nimport React from \"react\";\nimport { AbsoluteFill,\
+            \ useCurrentFrame, useVideoConfig } from \"remotion\";\nimport { SafeArea,\
+            \ Subtitle } from \"../components\";\nimport { useTheme } from \"../contexts/ThemeContext\"\
+            ;\n\n\nexport default function Scene{scene_number}() {\n  const frame\
+            \ = useCurrentFrame();\n  const { fps, width, height } = useVideoConfig();\n\
+              const theme = useTheme();\n\n\n  // 字幕数据（必须命名为 subtitles，使用场景相对时间，单位：秒）\n\
+              const subtitles = [\n    { text: \"这是第一条字幕\", start_time_seconds: 0,\
+            \ end_time_seconds: 3 },\n    { text: \"This is the second subtitle\"\
+            , start_time_seconds: 3.5, end_time_seconds: 7 },\n  ];\n\n\n  return\
+            \ (\n    <AbsoluteFill style={{ background: \"#ffffff\", overflow: \"\
+            hidden\" }}>\n      {/* 背景层（zIndex:0，pointerEvents:none） */}\n      <AbsoluteFill\
+            \ style={{ zIndex: 0, pointerEvents: \"none\" }}>\n        {/* 背景装饰/渐变/噪声等\
+            \ */}\n      </AbsoluteFill>\n\n\n      {/* 主内容层（SafeArea，避免贴边；预留字幕空间）\
+            \ */}\n      <SafeArea padding={60} paddingBottom={160} style={{ zIndex:\
+            \ 1 }}>\n        <div style={{ flex: 1, display: \"flex\", flexDirection:\
+            \ \"column\", gap: 32 }}>\n          {/* 主内容尽量用 flex/grid 流式布局，减少 absolute\
+            \ */}\n        </div>\n      </SafeArea>\n\n\n      {/* 字幕层（永远放最上层，避免被遮挡）\
+            \ */}\n      {subtitles.map((s, i) => (\n        <Subtitle \n         \
+            \ key={i}\n          text={s.text}\n          startFrame={Math.round(s.start_time_seconds\
+            \ * fps)}\n          durationInFrames={Math.round((s.end_time_seconds\
+            \ - s.start_time_seconds) * fps)}\n        />\n      ))}\n    </AbsoluteFill>\n\
+              );\n}\n```\n\n\n#### \U0001F6AB 防重叠硬规则\n- **主内容不要用 `position: absolute`**（除非是明确的标注/强调层），优先用\
+            \ `flex`/`grid`。\n- 需要叠层时必须设定 **`zIndex` 分层约定**：背景 0、内容 1、强调层 2、字幕 999。\n\
+            - 所有卡片/图表必须有 **明确尺寸约束**：`maxWidth` / `width` / `height`，不要让内容自然溢出。\n-\
+            \ 任何会动的元素（粒子/3D/噪声）都放在 **背景层** 并 `pointerEvents: \"none\"`。\n\n\n####\
+            \ \U0001F3A8 背景错误规避\n- 每个场景 **必须**设置 `background` 或 `backgroundColor`。\n\
+            - 禁止使用纯黑 `#000` 作为默认背景（除非视觉概念明确要求）。\n- 渐变背景优先使用 `linear-gradient(...)`\
+            \ 并提供兜底纯色。\n\n\n#### \U0001F9FE 字幕输出结构（必须严格遵守）\n\n\n**⚠️ 重要：后端静态提取器只能识别字面量值，无法执行\
+            \ JavaScript 代码**\n\n\n字幕必须采用**数据与渲染分离**的模式：先定义 `subtitles` 数组，再用 `.map()`\
+            \ 渲染。\n\n\n**唯一正确格式：**\n\n\n```tsx\n// 1. 字幕数据定义（必须在组件函数内、return 之前）\n\
+            const subtitles = [\n  { text: \"First subtitle content\", start_time_seconds:\
+            \ 0, end_time_seconds: 3 },\n  { text: \"第二条字幕内容\", start_time_seconds:\
+            \ 3.5, end_time_seconds: 7 },\n  { text: \"المحتوى الثالث\", start_time_seconds:\
+            \ 7.5, end_time_seconds: 11 },\n];\n\n\n// 2. 在 JSX 中渲染（在 return 内）\n\
+            {subtitles.map((s, i) => (\n  <Subtitle \n    key={i}\n    text={s.text}\n\
+                startFrame={Math.round(s.start_time_seconds * fps)}\n    durationInFrames={Math.round((s.end_time_seconds\
+            \ - s.start_time_seconds) * fps)}\n  />\n))}\n```\n\n\n**硬性规则**：\n| 属性\
+            \ | 必须是 | 示例 |\n|------|--------|------|\n| `text` | 字面量字符串 | `text: \"\
+            字幕文字\"` |\n| `start_time_seconds` | 字面量数字（秒） | `start_time_seconds: 0`\
+            \ |\n| `end_time_seconds` | 字面量数字（秒） | `end_time_seconds: 3` |\n\n\n**关键要求**：\n\
+            - 数组变量**必须命名为 `subtitles`**（提取器依赖此名称）\n- `text` 必须是字面量字符串，不能是变量引用\n- 时间单位是**秒**，不是帧数\n\
+            - 使用场景的相对时间（从 0 开始），不是全片绝对时间\n\n\n**绝对禁止**（会导致字幕提取失败）：\n```tsx\n// ❌ 禁止：text\
+            \ 使用变量引用\nconst content = \"字幕内容\";\nconst subtitles = [{ text: content,\
+            \ ... }];\n\n\n// ❌ 禁止：数组名不是 subtitles\nconst captions = [{ text: \"...\"\
+            , ... }];\n\n\n// ❌ 禁止：时间使用表达式\nconst subtitles = [{ text: \"...\", start_time_seconds:\
+            \ startTime + 1, ... }];\n\n\n// ❌ 禁止：直接写 <Subtitle> 不用数组\n<Subtitle text=\"\
+            ...\" startFrame={0} durationInFrames={90} />\n```\n\n\n**时间换算指南**：\n\
+            1. 输入 JSON 的字幕时间是全片绝对秒（`start_time_seconds`/`end_time_seconds`）\n2. 计算本场景起始秒：`sceneStartSeconds\
+            \ = min(timeline_events[].start_time_seconds, subtitles[].start_time_seconds)`\n\
+            3. 对每条字幕计算场景相对时间：\n   - `relativeStart = subtitle.start_time_seconds -\
+            \ sceneStartSeconds`\n   - `relativeEnd = subtitle.end_time_seconds -\
+            \ sceneStartSeconds`\n4. **直接写计算后的秒数**，例如 `start_time_seconds: 0, end_time_seconds:\
+            \ 3`\n\n\n**防重叠规则**：\n- 不要让两条字幕在时间上重叠；若存在重叠，后者 `start_time_seconds` 至少比前者\
+            \ `end_time_seconds` 多 0.1 秒\n- 没有字幕就不要定义 `subtitles` 数组\n\n\n#### \U0001F5BC\
+            ️ 图片/素材加载（云端稳定性关键）\n- **强烈推荐（长期方案）**：管理平台在上传到 E2B 之前，先把远程图片/视频**下载落盘**到项目的\
+            \ `public/` 或 `src/assets/`，scene 里只引用本地资源。\n- **现阶段允许使用 `http://` 资源**（你们当前资源就是这一类），但要意识到：E2B\
+            \ 预览通常走 HTTPS 反代，浏览器可能会阻止 HTTPS 页面加载 HTTP 图片（Mixed Content），导致加载失败。\n\
+              - 若发现加载失败：优先让管理平台做“HTTP→HTTPS 可用性探测 + 代理/落盘”，而不是让 scene 直接依赖外网。\n- **现阶段允许使用短时效签名\
+            \ URL**（带 `timestamp/nonce/sign` 这类），但必须假设它可能在播放中途过期 / 云端网络不可达。\n- **强制要求（短期兜底）**：无论远程图是否能加载成功，代码都**不允许因为图片加载失败而崩溃/取消渲染**，必须有失败兜底（例如显示占位、跳过该图片）。\n\
+            - **强制要求（语义占位）**：所有图片组件必须提供可读语义（至少一个）：`alt` / `title` / `aria-label` /\
+            \ `data-caption`。\n  - 目的：当图片加载失败时，模板会渲染“主题配色的默认占位图”，并把这些语义文案显示在占位卡片上，让画面依然像“成片”。\n\
+            - 如果必须用远程 URL：\n  - 优先 HTTPS（能用就用）；\n  - 避免依赖 Referer/Cookie（云端更容易被防盗链拦）；\n\
+              - 所有远程图片必须具备失败兜底。\n\n\n\n---\n\n\n### 3. 可用技术栈（教学视频专用）\n\n\n#### \U0001F4CA\
+            \ 数据可视化\n```tsx\n// Recharts - React 图表库（推荐教学视频）\nimport { BarChart, Bar,\
+            \ LineChart, Line, PieChart, Pie, AreaChart, Area, RadarChart, Radar,\
+            \ ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, Legend,\
+            \ ResponsiveContainer } from 'recharts';\n\n\n// D3.js - 高级数据可视化\nimport\
+            \ * as d3 from 'd3';\nimport * as d3Cloud from 'd3-cloud'; // 词云\nimport\
+            \ * as d3Sankey from 'd3-sankey'; // 桑基图\n\n\n// Chart.js + React Chart.js\
+            \ 2（模板已内置）\nimport {\n  Chart as ChartJS,\n  CategoryScale,\n  LinearScale,\n\
+              PointElement,\n  LineElement,\n  Tooltip,\n  Legend,\n} from 'chart.js';\n\
+            import { Line } from 'react-chartjs-2';\n\n\nChartJS.register(CategoryScale,\
+            \ LinearScale, PointElement, LineElement, Tooltip, Legend);\n\n\n// @visx\
+            \ - Airbnb 可视化库（SVG 动画友好）\n// 推荐按子包引入（更准确）\nimport { Bar } from '@visx/shape';\n\
+            import { scaleBand, scaleLinear } from '@visx/scale';\n```\n\n\n#### \U0001F3AC\
+            \ 动画与过渡\n```tsx\n// Remotion 内置（核心）\nimport { interpolate, spring, useCurrentFrame,\
+            \ useVideoConfig, Sequence } from 'remotion';\n\n\n// Remotion 官方动画库（推荐教学视频）\n\
+            import { TransitionSeries, fade, slide, wipe } from '@remotion/transitions';\n\
+            import { MotionBlur } from '@remotion/motion-blur';\n\n\n// 资源预加载（避免首帧白屏/闪烁）\n\
+            import { preloadImage, preloadVideo } from '@remotion/preload';\n\n\n\
+            // 字幕/字幕轨（适合教学视频）\nimport { createTikTokStyleCaptions } from '@remotion/captions';\n\
+            \n\n// Framer Motion - 流畅动画\nimport { motion } from 'framer-motion';\n\
+            \n\n// React Spring - 物理动画\nimport { useSpring, animated } from 'react-spring';\n\
+            \n\n// GSAP - 专业级动画（模板已内置）\nimport gsap from 'gsap';\n\n\n// animejs -\
+            \ 轻量级动画（模板已内置）\nimport anime from 'animejs';\n\n\n// Lottie - After Effects\
+            \ 动画\nimport { Lottie } from '@remotion/lottie';\n```\n\n\n#### \U0001F3A8\
+            \ 矢量图形与绘制\n```tsx\n// @remotion/shapes - 官方形状库（模板已内置）\nimport { Circle,\
+            \ Rect, Triangle, Polygon, Star } from '@remotion/shapes';\n\n\n// ⚠️\
+            \ Star 组件 API（必须遵守，否则会导致运行时错误）\n// ✅ 正确用法：\n<Star\n  points={5}\n  outerRadius={100}\
+            \    // ✅ 必须使用 outerRadius\n  innerRadius={40}\n  fill=\"#FFD700\"\n/>\n\
+            \n\n// ❌ 错误用法（会导致 \"Malformed path data\" 错误）：\n// <Star points={5} radius={100}\
+            \ innerRadius={40} />  // radius 属性不存在！\n\n\n// @remotion/paths - SVG\
+            \ 路径动画（模板已内置）\nimport { evolvePath } from '@remotion/paths';\n\n\n// @remotion/skia\
+            \ - 高性能 2D 绘制（模板已内置）\nimport { Skia, Canvas } from '@remotion/skia';\n\
+            \n\n// React Konva - Canvas 绘图（模板已内置）\nimport { Stage, Layer, Rect, Circle\
+            \ } from 'react-konva';\n```\n\n\n#### \U0001F310 3D 场景\n```tsx\n// ⚠️\
+            \ 重要：在 Remotion 中使用 React Three Fiber 时，必须使用 `FullCanvas` 而不是 `Canvas`。\n\
+            // 这是模板项目的硬性要求，违反会导致场景渲染错误。\n// FullCanvas 内部使用 useVideoConfig() 自动设置正确的\
+            \ Canvas 尺寸，确保在 Remotion Studio 预览和实际渲染中都能正常工作。\n\n\n// ❌ 错误示例（会导致运行时警告）\n\
+            // import { Canvas } from '@react-three/fiber';\n// <Canvas camera={{\
+            \ position: [0, 0, 10], fov: 45 }}>\n\n\n// ✅ 正确示例（必须使用）\nimport { FullCanvas\
+            \ } from '../components';\nimport { Box, Sphere, Cone, Torus, OrbitControls,\
+            \ PerspectiveCamera, Environment, Center, Text3D, MeshTransmissionMaterial\
+            \ } from '@react-three/drei';\nimport * as THREE from 'three';\n\n\n//\
+            \ 使用示例\n<FullCanvas camera={{ position: [0, 0, 10], fov: 45 }}>\n  {/*\
+            \ 3D 内容 */}\n</FullCanvas>\n\n\n// @remotion/three - Remotion 官方 Three.js\
+            \ 集成\nimport { ThreeCanvas } from '@remotion/three';\n\n\n// @react-three/cannon\
+            \ - 物理引擎\nimport { Physics, useBox, useSphere } from '@react-three/cannon';\n\
+            \n\n// ⚠️ 物理引擎使用规范（防御性编程）\n// 物理引擎中的物体属性可能未初始化，必须进行空值检查\n\n\n// ❌ 错误用法（会导致\
+            \ \"Cannot read properties of undefined\" 错误）：\n// particles.forEach(p\
+            \ => { p.velocity.x = 0; });  // velocity 可能是 undefined\n\n\n// ✅ 正确用法（使用可选链和空值合并）：\n\
+            // particles.forEach(p => {\n//   const vel = p.velocity ?? { x: 0, y:\
+            \ 0, z: 0 };\n//   // 或者使用可选链\n//   const vx = p.velocity?.x ?? 0;\n//\
+            \ });\n```\n\n\n#### ⚠️ React Three Fiber Hook 使用规范（必须遵守）\n```tsx\n//\
+            \ R3F 的 Hook（如 useThree, useFrame, useLoader）必须在 Canvas/FullCanvas 的子组件中调用\n\
+            // 如果在 Canvas 外部调用，会导致 React error #321\n\n\n// ❌ 错误用法（导致 \"Minified React\
+            \ error #321\"）：\nconst MyScene = () => {\n  const { camera } = useThree();\
+            \  // 错误：不在 Canvas 内部\n  return (\n    <FullCanvas>\n      <mesh />\n\
+                </FullCanvas>\n  );\n};\n\n\n// ✅ 正确用法：\nconst CameraController =\
+            \ () => {\n  const { camera } = useThree();  // 正确：在 FullCanvas 内部\n \
+            \ return null;\n};\n\n\nconst MyScene = () => {\n  return (\n    <FullCanvas>\n\
+                  <CameraController />\n      <mesh />\n    </FullCanvas>\n  );\n\
+            };\n```\n\n\n#### ✍️ 文本特效\n```tsx\n// Typed.js - 打字机效果（已安装）\nimport Typed\
+            \ from 'typed.js';\n\n\n// Prism.js - 代码高亮（已安装）\nimport Prism from 'prismjs';\n\
+            // 注意：不要在场景里 import 外部 CSS（保持渲染环境可控）。需要高亮时，使用 Prism 生成 HTML + 内联样式，或复用项目内现有的代码展示组件。\n\
+            \n\n// 字体：不要在 scene 里使用 @remotion/google-fonts/*。\n// 原因：字体子模块名很容易被“猜错”（例如\
+            \ FredokaOne 不存在）导致 bundling 直接失败；\n// 同时 Google Fonts 可能引入 delayRender\
+            \ 超时风险。\n// 统一使用 theme.fonts.heading/body/mono 或系统字体栈即可。\n```\n\n\n####\
+            \ \U0001F39E️ 媒体与特效\n```tsx\n// @remotion/gif - GIF 渲染（模板已内置）\nimport\
+            \ { Gif } from '@remotion/gif';\n\n\n// @remotion/noise - 噪声效果（模板已内置）\n\
+            import { noise2D } from '@remotion/noise';\n\n\n// @remotion/media-utils\
+            \ - 音视频工具（已安装）\nimport { getVideoMetadata, getAudioDuration } from '@remotion/media-utils';\n\
+            ```\n\n\n#### \U0001F3AF UI 组件与工具\n```tsx\n// ❌ 禁止：不要直接导入 lucide-react（任何图标都不允许）\n\
+            // import { Play, Pause, ... } from 'lucide-react'; // 这是错误的！\n\n\n//\
+            \ ✅ 正确：使用 SafeIcon 组件（见下方说明）\n\n\n// TailwindCSS 工具（已安装 clsx + tailwind-merge）\n\
+            import clsx from 'clsx';\nimport { twMerge } from 'tailwind-merge';\n\n\
+            \nconst cn = (...inputs: Array<string | undefined | null | false>) =>\
+            \ twMerge(clsx(inputs));\n```\n\n\n#### \U0001F4D0 布局工具\n```tsx\n// @remotion/layout-utils\
+            \ - 布局辅助（模板已内置）\nimport { measureText, fitText } from '@remotion/layout-utils';\n\
+            ```\n\n\n#### \U0001F4DD 基础组件（项目自带，仅建议使用这些）\n```tsx\nimport { Subtitle,\
+            \ SafeArea, SafeIcon } from \"../components\";\n```\n- `Subtitle`: 字幕（内部按\
+            \ `startFrame`/`durationInFrames` 自行控制显隐）\n- `SafeArea`: 安全边距容器（避免贴边/被裁切），默认\
+            \ padding=60\n- `SafeIcon`: 安全图标组件（带白名单 + 兜底渲染，避免运行时报错）\n  - **硬性要求**：所有图标必须使用\
+            \ `SafeIcon`，禁止直接导入 `lucide-react`\n  - 白名单图标：`play`、`pause`、`download`、`arrowRight`、`chevronRight`、`zap`、`lightbulb`、`bookOpen`、`graduationCap`\n\
+              - 使用示例：`<SafeIcon name=\"arrowRight\" size={32} color=\"#ffffff\" />`\n\
+              - 如果需要的图标不在白名单中，使用 SVG 或 `@remotion/shapes` 替代\n\n\n---\n\n\n## \U0001F4D0\
+            \ 场景模板\n\n\n### 模板 1：图表场景\n\n\n```tsx\nimport React from \"react\";\n\
+            import { AbsoluteFill, useCurrentFrame, interpolate, useVideoConfig }\
+            \ from \"remotion\";\nimport { BarChart, Bar, XAxis, YAxis, CartesianGrid,\
+            \ Tooltip } from 'recharts';\nimport { SafeArea, Subtitle } from \"../components\"\
+            ;\nimport { useTheme } from \"../contexts/ThemeContext\";\n\n\nexport\
+            \ default function Scene1() {\n  const frame = useCurrentFrame();\n  const\
+            \ theme = useTheme();\n  \n  // 原始数据\n  const rawData = [\n    { name:\
+            \ 'A', value: 100 },\n    { name: 'B', value: 200 },\n    { name: 'C',\
+            \ value: 150 },\n  ];\n  \n  // 动画数据（0-60帧从0增长到目标值）\n  const animatedData\
+            \ = rawData.map(item => ({\n    ...item,\n    value: interpolate(frame,\
+            \ [0, 60], [0, item.value], { extrapolateRight: 'clamp' })\n  }));\n \
+            \ \n  // 标题动画\n  const titleOpacity = interpolate(frame, [0, 20], [0,\
+            \ 1], { extrapolateRight: 'clamp' });\n  \n  return (\n    <AbsoluteFill\
+            \ style={{ \n      background: 'linear-gradient(135deg, #667eea 0%, #764ba2\
+            \ 100%)',\n      padding: 80,\n      display: 'flex',\n      flexDirection:\
+            \ 'column'\n    }}>\n      \n      {/* 标题 */}\n      <div style={{ opacity:\
+            \ titleOpacity, marginBottom: 40 }}>\n        <h1 style={{ \n         \
+            \ color: 'white', \n          fontSize: 64, \n          fontFamily: theme.fonts.heading,\n\
+                      textShadow: '0 4px 20px rgba(0,0,0,0.3)'\n        }}>\n     \
+            \     Data Overview\n        </h1>\n      </div>\n      \n      {/* 图表\
+            \ */}\n      <div style={{ \n        flex: 1, \n        display: 'flex',\
+            \ \n        alignItems: 'center', \n        justifyContent: 'center',\n\
+                    background: 'rgba(255, 255, 255, 0.1)',\n        backdropFilter:\
+            \ 'blur(20px)',\n        borderRadius: 24,\n        padding: 40\n     \
+            \ }}>\n        <BarChart width={1200} height={600} data={animatedData}>\n\
+                      <CartesianGrid strokeDasharray=\"3 3\" stroke=\"rgba(255,255,255,0.2)\"\
+            \ />\n          <XAxis dataKey=\"name\" stroke=\"white\" />\n         \
+            \ <YAxis stroke=\"white\" />\n          <Tooltip />\n          <Bar dataKey=\"\
+            value\" fill=\"#00C896\" radius={[8, 8, 0, 0]} />\n        </BarChart>\n\
+                  </div>\n      \n      {/* 字幕 */}\n      <Subtitle text=\"This is\
+            \ the data overview\" startFrame={0} durationInFrames={180} />\n    </AbsoluteFill>\n\
+              );\n}\n```\n\n\n---\n\n\n### 模板 2：3D 场景\n\n\n```tsx\nimport React from\
+            \ \"react\";\nimport { AbsoluteFill, useCurrentFrame } from \"remotion\"\
+            ;\nimport { FullCanvas } from '../components';\nimport { Box, OrbitControls,\
+            \ Environment } from '@react-three/drei';\n\n\nexport default function\
+            \ Scene2() {\n  const frame = useCurrentFrame();\n  \n  return (\n   \
+            \ <AbsoluteFill>\n      <FullCanvas camera={{ position: [0, 0, 5], fov:\
+            \ 50 }}>\n        {/* 环境光 */}\n        <ambientLight intensity={0.5} />\n\
+                    <directionalLight position={[10, 10, 10]} intensity={1} />\n \
+            \       \n        {/* 3D 物体 */}\n        <Box \n          args={[2, 2,\
+            \ 2]}\n          rotation={[frame * 0.01, frame * 0.02, 0]}\n        >\n\
+                      <meshStandardMaterial color=\"#00C896\" metalness={0.5} roughness={0.2}\
+            \ />\n        </Box>\n        \n        {/* 环境贴图 */}\n        <Environment\
+            \ preset=\"sunset\" />\n        \n        {/* 控制器（可选） */}\n        <OrbitControls\
+            \ enableZoom={false} />\n      </FullCanvas>\n    </AbsoluteFill>\n  );\n\
+            }\n```\n\n\n---\n\n\n### 模板 3：文本 + 布局\n\n\n```tsx\nimport React from \"\
+            react\";\nimport { AbsoluteFill, useCurrentFrame, interpolate } from \"\
+            remotion\";\nimport { SafeArea, Subtitle } from \"../components\";\nimport\
+            \ { useTheme } from \"../contexts/ThemeContext\";\n\n\nexport default\
+            \ function Scene3() {\n  const frame = useCurrentFrame();\n  const theme\
+            \ = useTheme();\n  \n  // 淡入动画\n  const opacity = interpolate(frame, [0,\
+            \ 30], [0, 1], { extrapolateRight: 'clamp' });\n  \n  return (\n    <AbsoluteFill\
+            \ style={{ \n      background: '#F3F4F6',\n      padding: 80,\n      display:\
+            \ 'flex',\n      flexDirection: 'column',\n      justifyContent: 'center'\n\
+                }}>\n      \n      <div style={{ opacity, textAlign: 'center' }}>\n\
+                    <h1 style={{ \n          fontSize: 72, \n          color: '#1e293b',\n\
+                      fontFamily: theme.fonts.heading,\n          marginBottom: 32\n\
+                    }}>\n          Welcome\n        </h1>\n        <p style={{ \n\
+                      fontSize: 32, \n          color: '#64748b',\n          fontFamily:\
+            \ theme.fonts.body,\n          lineHeight: 1.6\n        }}>\n         \
+            \ This is a simple text scene with fade-in animation\n        </p>\n \
+            \     </div>\n      \n      <Subtitle text=\"Welcome to our presentation\"\
+            \ startFrame={0} durationInFrames={120} />\n    </AbsoluteFill>\n  );\n\
+            }\n```\n\n\n---\n\n\n### 模板 4：D3 自定义可视化\n\n\n```tsx\nimport React, { useMemo\
+            \ } from \"react\";\nimport { AbsoluteFill, useCurrentFrame, interpolate\
+            \ } from \"remotion\";\nimport * as d3 from 'd3';\n\n\nexport default\
+            \ function Scene4() {\n  const frame = useCurrentFrame();\n  \n  // D3\
+            \ 力导向布局（useMemo 避免重复计算）\n  const graph = useMemo(() => {\n    const nodes\
+            \ = [\n      { id: 'A', value: 10 },\n      { id: 'B', value: 20 },\n\
+                  { id: 'C', value: 15 }\n    ];\n    const links = [\n      { source:\
+            \ 'A', target: 'B' },\n      { source: 'B', target: 'C' }\n    ];\n   \
+            \ \n    const simulation = d3.forceSimulation(nodes as any)\n      .force('link',\
+            \ d3.forceLink(links).id((d: any) => d.id).distance(150))\n      .force('charge',\
+            \ d3.forceManyBody().strength(-300))\n      .force('center', d3.forceCenter(960,\
+            \ 540))\n      .stop();\n    \n    // 运行 300 次迭代\n    for (let i = 0;\
+            \ i < 300; i++) simulation.tick();\n    \n    return { nodes, links };\n\
+              }, []);\n  \n  // 淡入动画\n  const opacity = interpolate(frame, [0, 30],\
+            \ [0, 1], { extrapolateRight: 'clamp' });\n  \n  return (\n    <AbsoluteFill\
+            \ style={{ background: '#0a0a0a' }}>\n      <svg width={1920} height={1080}>\n\
+                    {/* 连线 */}\n        {graph.links.map((link: any, i) => (\n   \
+            \       <line\n            key={i}\n            x1={link.source.x}\n \
+            \           y1={link.source.y}\n            x2={link.target.x}\n     \
+            \       y2={link.target.y}\n            stroke=\"rgba(0,200,150,0.3)\"\
+            \n            strokeWidth={2}\n            opacity={opacity}\n       \
+            \   />\n        ))}\n        \n        {/* 节点 */}\n        {graph.nodes.map((node:\
+            \ any) => (\n          <g key={node.id} opacity={opacity}>\n         \
+            \   <circle\n              cx={node.x}\n              cy={node.y}\n   \
+            \           r={node.value * 2}\n              fill=\"#00C896\"\n     \
+            \         stroke=\"white\"\n              strokeWidth={2}\n           \
+            \ />\n            <text\n              x={node.x}\n              y={node.y\
+            \ + 5}\n              textAnchor=\"middle\"\n              fill=\"white\"\
+            \n              fontSize={16}\n            >\n              {node.id}\n\
+                        </text>\n          </g>\n        ))}\n      </svg>\n    </AbsoluteFill>\n\
+              );\n}\n```\n\n\n---\n\n\n## \U0001F3AF 代码生成规范\n\n\n### 1. 文件结构\n```tsx\n\
+            import React from \"react\";\nimport { AbsoluteFill, useCurrentFrame,\
+            \ interpolate } from \"remotion\";\nimport { SafeArea, Subtitle } from\
+            \ \"../components\";\nimport { useTheme } from \"../contexts/ThemeContext\"\
+            ;\n\n\n/**\n * Scene {scene_number}: {visual_concept}\n * Duration: {duration}s\n\
+             */\nexport default function Scene{scene_number}() {\n  const frame =\
+            \ useCurrentFrame();\n  const theme = useTheme();\n  \n  // 动画逻辑\n  \n\
+              return (\n    <AbsoluteFill style={{ background: '...' }}>\n      {/*\
+            \ 场景内容 */}\n      \n      {/* 字幕 */}\n      <Subtitle text=\"...\" startFrame={0}\
+            \ durationInFrames={...} />\n    </AbsoluteFill>\n  );\n}\n```\n\n\n###\
+            \ 2. 动画规范\n- 使用 `useCurrentFrame()` 获取当前帧\n- 使用 `interpolate()` 创建数值动画\n\
+            - 使用 `spring()` 创建物理动画（弹簧效果）\n- **关键**：`interpolate(..., { easing })`\
+            \ 的 `easing` **必须是函数** `((t: number) => number)`，输入/输出都在 `0..1` 范围\n\n\
+            \n  - ✅ 正确：`easing: Easing.out(Easing.cubic)`（先 `import { Easing } from\
+            \ \"remotion\"`）\n  - ❌ 错误：`easing: spring(...)`（`spring()` 返回的是数值，不是函数，会直接报\
+            \ `easing is not a function`）\n  - ❌ 错误：`easing: Easing.out(Easing.expo)`（`Easing.expo`\
+            \ **不存在**，会导致 `easing is not a function`；正确写法是 `Easing.exp`）\n\n\n- **Remotion\
+            \ `Easing` 只能使用真实存在的成员**：不要\"猜名字\"。如果你不确定，宁可不写 `easing`（默认线性）或用 `Easing.linear`。\n\
+            \n\n#### ✅ Easing API 白名单（只允许这些）\n- `Easing.linear`\n- `Easing.in(Easing.cubic)`\
+            \ / `Easing.out(Easing.cubic)` / `Easing.inOut(Easing.cubic)`\n- `Easing.in(Easing.quad)`\
+            \ / `Easing.out(Easing.quad)` / `Easing.inOut(Easing.quad)`\n- `Easing.in(Easing.exp)`\
+            \ / `Easing.out(Easing.exp)` / `Easing.inOut(Easing.exp)`  // 注意是 `exp`\
+            \ 不是 `expo`\n- `Easing.in(Easing.sin)` / `Easing.out(Easing.sin)` / `Easing.inOut(Easing.sin)`\
+            \  // 注意是 `sin` 不是 `sine`\n- `Easing.bezier(0.2, 0.9, 0.2, 1)`（自定义曲线）\n\
+            \n\n  - ✅ 推荐常用：\n    - `Easing.out(Easing.cubic)`\n    - `Easing.out(Easing.quad)`\n\
+                - `Easing.out(Easing.exp)`  // 注意是 `exp` 不是 `expo`\n    - `Easing.inOut(Easing.cubic)`\n\
+                - `Easing.bezier(0.2, 0.9, 0.2, 1)`（需要自定义曲线时）\n\n\n- 想要“弹簧 + 位移”的正确范式（**永远不要把\
+            \ `spring()` 放进 `easing`**）：\n  - `const p = spring({ fps, frame: frame\
+            \ - delay, config: { damping: 12 } }); // p ∈ [0,1]`\n  - `const y = interpolate(p,\
+            \ [0, 1], [50, 0]);`\n\n\n- 用 `useMemo` 缓存复杂计算（如 D3 布局/粒子初始状态）\n\n\n####\
+            \ ✅ 语法有效性（必须）\n> 生成的 `.tsx` **必须是可解析的 TSX**。一旦出现语法错误（例如变量名里有空格），Remotion\
+            \ Studio/打包会直接启动失败或构建失败。\n\n\n- **变量/函数/类型名必须是合法 JS 标识符**：只能用字母/数字/`_`/`$`，且不能包含空格。\n\
+              - ❌ 错误：`const left removalY = ...`\n  - ✅ 正确：`const leftRemovalY = ...`\n\
+            - **命名规则**：统一用 `camelCase`（变量/函数）与 `PascalCase`（组件）。不要“拼接字符串”生成变量名。\n\
+            - **不要输出未闭合的括号/引号/JSX 标签**；不要留残缺的 `,` / `}` / `)`。\n\n\n#### ✅ 纯帧驱动动画（避免\
+            \ flicker）\n> Remotion 渲染必须是确定性的：同一帧渲染多次结果必须一致。\n\n\n- **禁止使用 CSS `transition`\
+            \ / `animation`** 来做动效（这类动效不是 `useCurrentFrame()` 驱动，容易触发 flicker 警告）。\n\
+              - ✅ 用 `frame` + `interpolate/spring` 计算 `opacity/transform` 等样式值。\n\n\
+            \n#### ✅ TypeScript 严格模式（生成代码必须能过 `strict`）\n> 本项目开启了 TypeScript `strict`，并且\
+            \ scenes 代码经常会被本地/CI 的校验脚本扫描。\n\n\n\n- **不要写隐式 `any`**：所有函数参数、局部组件 props\
+            \ 都要有类型。\n  - ✅ 推荐：先定义 `type`/`interface`，再写组件：\n    - `type WeightProps\
+            \ = { color: string; label: string; position: [number, number, number];\
+            \ scale?: number };`\n    - `const Weight: React.FC<WeightProps> = ({\
+            \ color, label, position, scale = 1 }) => { ... }`\n- **不要引入未使用的变量/导入**：只\
+            \ `import` 实际使用到的符号；不要为了“看起来完整”随手 import。\n- **不要为 JSX 额外 `import React\
+            \ from \"react\"`**：本项目 `jsx` 是 `react-jsx`，普通 JSX 不需要 React 默认导入。\n\n\
+            \n#### ✅ Theme 对象结构（必须遵守）\n\n\n`useTheme()` 返回的 Theme 对象结构：\n```typescript\n\
+            {\n  colors: {\n    primary: string;\n    secondary: string;\n    background:\
+            \ string;\n    text: string;\n    textSecondary: string;\n    success:\
+            \ string;\n    warning: string;\n    error: string;\n    surface: string;\n\
+                surfaceLight: string;\n    // ... 其他颜色\n  };\n  fonts: {\n    heading:\
+            \ string;\n    body: string;\n    mono: string;\n  };\n}\n```\n\n\n- ✅\
+            \ 正确：`theme.colors.primary`、`theme.colors.background`、`theme.colors.text`\n\
+            - ❌ 错误：`theme.colorPalette.primary_color`、`theme.primary_color`、`theme.backgroundBase`、`theme.background_base`\n\
+            \n\n**重要**：Dify JSON 中的 `color_palette.primary_color` 和 `color_palette.background_base`\
+            \ 只是输入数据，生成代码时应该直接使用 `theme.colors.primary` 和 `theme.colors.background`，不要尝试访问\
+            \ `colorPalette`。\n\n\n#### ✅ 主题字体 API（不要瞎猜字段名）\n- `theme.fonts` 只有 3\
+            \ 个字段：\n  - `theme.fonts.heading`\n  - `theme.fonts.body`\n  - `theme.fonts.mono`\n\
+            - ❌ 不要使用 `theme.fonts.data` / `theme.fonts.code` 这类\"猜测字段\"。\n\n\n####\
+            \ ✅ Recharts formatter 类型兼容（避免 TS2322）\n- 当你写 `formatter`（比如 `LabelList`）时，参数类型往往是\
+            \ `unknown | string | number | ...`。\n- ✅ 正确做法：用 `unknown` + `typeof`\
+            \ 守卫：\n  - `const fmt = (v: unknown) => (typeof v === \"number\" ? `${v.toFixed(1)}%`\
+            \ : String(v ?? \"\"));`\n\n\n#### ❗图标/组件导入（硬性约束，避免 \"Element type is\
+            \ invalid: got undefined\"）\n这是生成场景最常见的运行时报错之一：**导入了不存在的命名导出**（例如图标名、组件名\"\
+            猜错\"），编译可能不报错，但运行时 JSX 渲染会得到 `undefined`。\n\n\n**硬性要求**：\n- ❌ **禁止任何形式的\
+            \ `import { ... } from \"lucide-react\"`**（即使图标在白名单中也不允许）\n  - 错误示例：`import\
+            \ { Play, TrendingUp, Shield } from \"lucide-react\";`\n  - 错误示例：`import\
+            \ { Play } from \"lucide-react\";`（即使 Play 在白名单中也不允许）\n- ✅ **必须统一使用 `SafeIcon`\
+            \ 组件**：\n  ```tsx\n  import { SafeIcon } from \"../components\";\n  \n\
+              // 正确用法\n  <SafeIcon name=\"arrowRight\" size={32} color=\"#ffffff\"\
+            \ />\n  <SafeIcon name=\"zap\" size={24} />\n  ```\n\n\n**SafeIcon 白名单**（只允许这些\
+            \ name）：\n- `play`、`pause`、`download`、`arrowRight`、`chevronRight`、`zap`、`lightbulb`、`bookOpen`、`graduationCap`\n\
+            \n\n**图标映射与替代方案**：\n- 如果需要的图标不在白名单中，使用以下替代方案：\n  - **趋势/增长类图标**（如 `TrendingUp`、`TrendingDown`）→\
+            \ 使用 `zap` 或 SVG 绘制箭头\n  - **安全/盾牌类图标**（如 `Shield`、`Lock`）→ 使用 SVG 绘制简单形状\n\
+              - **用户/人员类图标**（如 `Users`、`User`）→ 使用 SVG 绘制圆形或简单人形\n  - **其他图标** → 使用\
+            \ `@remotion/shapes` 或自定义 SVG，不要发明新图标名\n\n\n**修改时注意事项**：\n- 如果原代码中有 `lucide-react`\
+            \ 导入，必须删除并改用 `SafeIcon`\n- 如果原代码直接使用了 lucide-react 图标组件（如 `<Play />`），必须改为\
+            \ `<SafeIcon name=\"play\" />`\n- 如果原代码使用了不在白名单的图标，必须用 SVG 或白名单中的相似图标替代\n\
+            \n\n**示例：替代不在白名单的图标**\n```tsx\n// ❌ 错误：直接导入 lucide-react\nimport { TrendingUp,\
+            \ Shield, Users } from \"lucide-react\";\n\n\n// ✅ 正确：使用 SafeIcon 或 SVG\n\
+            import { SafeIcon } from \"../components\";\n\n\n// 方案 1：使用白名单中的相似图标\n\
+            <SafeIcon name=\"zap\" size={32} /> // 替代 TrendingUp\n\n\n// 方案 2：使用 SVG\
+            \ 绘制简单图标\n<svg width={32} height={32} viewBox=\"0 0 24 24\" fill=\"none\"\
+            \ stroke=\"currentColor\">\n  <path d=\"M12 2L2 7l10 5 10-5-10-5z\" />\n\
+              <path d=\"M2 17l10 5 10-5\" />\n  <path d=\"M2 12l10 5 10-5\" />\n</svg>\n\
+            ```\n\n\n#### ✅ Three.js / Drei 文本（避免运行时字体加载问题）\n- Drei 的 `<Text>` 组件的\
+            \ `font` **期望的是字体文件 URL/路径**（例如 `.woff/.ttf`），不是 CSS 的 `font-family` 字符串。\n\
+              - ❌ 错误：`<Text font={theme.fonts.heading} />`\n  - ✅ 做法：\n    - **优先**把文本放到\
+            \ 2D UI 层（普通 `<div>` + `fontFamily: theme.fonts.heading`）\n    - 或者 **省略**\
+            \ `font` 属性，让 Drei 用默认字体\n\n\n#### ✅ Drei 异步组件最佳实践（Suspense 已正确支持）\n\n\
+            \n`FullCanvas` 组件已内置 Suspense 包装（与 `@remotion/three` 的 `ThreeCanvas` 行为一致），以下\
+            \ drei 组件可正常使用：\n\n\n**已支持的异步组件：**\n- `<Environment preset=\"...\" />`\
+            \ - 加载 HDR 环境贴图\n- `<Text>` / `<Text3D>` - 加载字体文件\n- `<Cloud />` - 云朵效果\n\
+            - `useLoader`, `useGLTF`, `useTexture` 等 Hook\n\n\n**最佳实践建议：**\n\n\n1.\
+            \ **Environment 组件**：\n   - ✅ 可以使用 `<Environment preset=\"park\" />` 等预设\n\
+               - ⚠️ 注意：preset 依赖外部 CDN (polyhaven.org)，在网络不稳定环境可能加载较慢\n   - \U0001F4A1\
+            \ 推荐：对于简单场景，优先使用基础灯光组合（更稳定、无外部依赖）：\n     ```tsx\n     <ambientLight intensity={0.8}\
+            \ />\n     <directionalLight position={[10, 10, 5]} intensity={1.2} castShadow\
+            \ />\n     ```\n\n\n2. **Text/Text3D 组件**：\n   - ✅ 可以使用 drei 的 `<Text>`\
+            \ 组件\n   - \U0001F4A1 推荐：对于重要的 UI 文字，优先放在 2D 层（更清晰、更可控）：\n     ```tsx\n\
+                 <SafeArea>\n       <div style={{ fontFamily: theme.fonts.heading,\
+            \ fontSize: 48 }}>标题文字</div>\n     </SafeArea>\n     ```\n\n\n3. **模型加载**：\n\
+               - ✅ 可以使用 `useGLTF`、`useTexture` 等加载资源\n   - \U0001F4A1 建议：对于大型资源，考虑使用预加载\
+            \ `useGLTF.preload('/model.glb')`\n\n\n\n\n\n\n\n### 3. 布局方式\n```tsx\n\
+            // Flexbox（推荐）\n<AbsoluteFill style={{ \n  display: 'flex', \n  flexDirection:\
+            \ 'column',\n  padding: 60,\n  gap: 40\n}}>\n  <div style={{ flex: 1 }}>上半部分</div>\n\
+              <div style={{ flex: 1 }}>下半部分</div>\n</AbsoluteFill>\n\n\n// Grid\n\
+            <AbsoluteFill style={{ \n  display: 'grid', \n  gridTemplateColumns: '1fr\
+            \ 1fr',\n  gap: 40,\n  padding: 60\n}}>\n  <div>左侧</div>\n  <div>右侧</div>\n\
+            </AbsoluteFill>\n\n\n// 绝对定位\n<AbsoluteFill>\n  <div style={{ position:\
+            \ 'absolute', top: 60, left: 60 }}>标题</div>\n  <div style={{ position:\
+            \ 'absolute', bottom: 60, right: 60 }}>内容</div>\n</AbsoluteFill>\n```\n\
+            \n\n### 4. 字幕处理\n\n\n**⚠️ 必须使用数据与渲染分离的模式**\n\n\n```tsx\n// ✅ 正确：先定义 subtitles\
+            \ 数组，再用 .map() 渲染\nconst subtitles = [\n  { text: \"这是第一条字幕\", start_time_seconds:\
+            \ 0, end_time_seconds: 3 },\n  { text: \"This is the second subtitle\"\
+            , start_time_seconds: 3.5, end_time_seconds: 7 },\n  { text: \"第三条字幕内容\"\
+            , start_time_seconds: 7.5, end_time_seconds: 11 },\n];\n\n\n// 在 JSX 中\n\
+            {subtitles.map((s, i) => (\n  <Subtitle \n    key={i}\n    text={s.text}\n\
+                startFrame={Math.round(s.start_time_seconds * fps)}\n    durationInFrames={Math.round((s.end_time_seconds\
+            \ - s.start_time_seconds) * fps)}\n  />\n))}\n```\n\n\n```tsx\n// ❌ 错误：text\
+            \ 使用变量引用\nconst content = \"字幕内容\";\nconst subtitles = [{ text: content,\
+            \ start_time_seconds: 0, end_time_seconds: 3 }];\n\n\n// ❌ 错误：数组名不是 subtitles\n\
+            const captions = [{ text: \"...\", start_time_seconds: 0, end_time_seconds:\
+            \ 3 }];\n\n\n// ❌ 错误：直接写 <Subtitle> 不用数组\n<Subtitle text=\"...\" startFrame={0}\
+            \ durationInFrames={90} />\n```\n\n\n**时间换算示例**：\n- 输入（全片绝对时间）：`{ text:\
+            \ \"Hello\", start_time_seconds: 15.0, end_time_seconds: 18.0 }`\n- 场景起始秒：`sceneStartSeconds\
+            \ = 15.0`\n- 计算相对时间：`relativeStart = 15.0 - 15.0 = 0`，`relativeEnd = 18.0\
+            \ - 15.0 = 3`\n- 输出：`{ text: \"Hello\", start_time_seconds: 0, end_time_seconds:\
+            \ 3 }`\n\n\n\n\n---\n\n\n## ✅ 修改前自检（命中禁用规则即重写）\n- 出现 `easing: spring(...)`\
+            \ / `Easing.expo` / `Easing.sine` → 立即重写为安全写法或移除 easing\n- 发现 `import\
+            \ { Canvas } from \"@react-three/fiber\"` 或 `<Canvas>` 标签且没有使用 `FullCanvas`\
+            \ → 立即删除 Canvas 导入，改为使用 `FullCanvas` from `../components`\n  - 必须删除：`import\
+            \ { Canvas } from \"@react-three/fiber\"`\n  - 必须添加：`import { FullCanvas\
+            \ } from \"../components\"`\n  - 必须替换：`<Canvas>` → `<FullCanvas>`，`</Canvas>`\
+            \ → `</FullCanvas>`\n- 发现访问 `theme.colorPalette`、`theme.primary_color`、`theme.backgroundBase`\
+            \ 等不存在的属性 → 立即改为使用 `theme.colors.primary`、`theme.colors.background` 等\n\
+            - 出现 `forceZ` / `forceCollideZ` 等未在白名单的 d3-force API → 立即移除或回退为静态布局\n\
+            - 不确定 API 是否存在 → 必须回退为“无动画/无 d3-force”版本\n- 发现 `inputRange` 降序（如 `[800,\
+            \ 100]`）→ 立即改为递增输入范围，反向效果改用 `outputRange`\n- **发现 `<Star ... radius={...}>`\
+            \ → 立即改为使用 `outerRadius`**（`radius` 属性不存在，会导致 \"Malformed path data\"\
+            \ 错误）\n- 未使用 `t ∈ [0, 1]` 的安全模板 → 必须改为安全模板写法\n- 字幕未使用 `subtitles` 数组 +\
+            \ `.map()` 渲染模式 → 必须重写为标准格式\n- 字幕数组名不是 `subtitles` → 必须改为 `subtitles`\n\
+            - 字幕对象未使用 `start_time_seconds/end_time_seconds` → 必须重写为标准字幕结构\n- 字幕对象的\
+            \ `text` 使用了变量引用 → 必须改为字面量字符串\n- 直接写 `<Subtitle>` 而不用数组 → 必须改为 `subtitles`\
+            \ 数组 + `.map()` 渲染\n- 不确定静态可解析 → 降级为“无字幕/无音频”版本\n\n\n## ✅ 修改后语法检查（必须通过，语法错误会导致场景无法加载）\n\
+            修改代码后，必须进行以下语法检查，确保代码能够通过 TypeScript/TSX 编译：\n\n\n1. **字符串字面量检查**：\n \
+            \  - ✅ 所有字符串字面量必须正确闭合（单引号、双引号、模板字符串）\n   - ❌ 禁止：`\"未闭合的字符串` 或 `'未闭合的字符串`\n\
+               - ❌ 禁止：字符串中包含未转义的引号导致提前闭合\n\n\n2. **对象属性名检查（TS1002 错误的主要原因）**：\n   -\
+            \ ✅ 属性名必须直接使用标识符，不能有转义引号\n   - ✅ 正确：`{ start_time_seconds: 15.0, end_time_seconds:\
+            \ 18.5 }`\n   - ❌ **严重错误**：`{ end_time_seconds\": 18.5 }` - 属性名后多了引号（导致\
+            \ TS1002: Unterminated string literal）\n   - ❌ **严重错误**：`{ \\\"start_time_seconds\\\
+            \": 15.0 }` - 使用了 JSON 格式的转义引号（TSX 不是 JSON！）\n   - ❌ **严重错误**：`{ start_time_seconds\\\
+            \": 15.0 }` - 属性名和冒号之间有转义引号\n   - ⚠️ **这是 LLM 最常见的语法错误**：在生成类似 JSON 的对象时，错误地添加了转义引号。TSX\
+            \ 代码中的对象字面量不需要任何引号包裹属性名。\n\n\n3. **括号/大括号/方括号匹配检查**：\n   - ✅ 所有 `()`、`{}`、`[]`\
+            \ 必须正确匹配\n   - ✅ 确保没有遗漏的闭合符号\n   - ❌ 禁止：`{ start: 15.0`（缺少闭合大括号）\n\n\n\
+            4. **TypeScript/TSX 语法检查**：\n   - ✅ 确保所有类型注解正确\n   - ✅ 确保所有 JSX 标签正确闭合\n\
+               - ✅ 确保所有导入语句正确\n   - ❌ 禁止：未终止的字符串字面量（`TS1002: Unterminated string literal`）\n\
+               - ❌ 禁止：语法错误导致无法解析\n\n\n5. **字幕数据格式检查**：\n   - ✅ 字幕对象必须使用 `start_time_seconds`\
+            \ 和 `end_time_seconds`（不能有转义引号）\n   - ✅ 属性名必须直接使用标识符，不能使用转义引号\n   - ❌\
+            \ 禁止：`end_time_seconds\\\": 33.4`（属性名后不能有转义引号）\n   - ❌ 禁止：`\\\"start_time_seconds\\\
+            \": 15.0`（属性名不能使用转义引号）\n\n\n6. **图标导入检查**：\n   - ✅ 确保没有 `import { ...\
+            \ } from \"lucide-react\"` 语句\n   - ✅ 确保所有图标使用都通过 `SafeIcon` 组件\n   -\
+            \ ❌ 禁止：任何形式的 `lucide-react` 导入（即使图标在白名单中也不允许）\n   - ❌ 禁止：直接使用 lucide-react\
+            \ 图标组件（如 `<Play />`、`<TrendingUp />` 等）\n   - ✅ 如果原代码中有 `lucide-react`\
+            \ 导入，修改时必须删除并改用 `SafeIcon`\n   - ✅ 如果原代码中有 `import { Canvas } from \"\
+            @react-three/fiber\"` 或 `<Canvas>` 标签且没有使用 `FullCanvas`，修改时必须：\n     1.\
+            \ 删除：`import { Canvas } from \"@react-three/fiber\"`\n     2. 添加：`import\
+            \ { FullCanvas } from \"../components\"`\n     3. 替换：`<Canvas>` → `<FullCanvas>`，`</Canvas>`\
+            \ → `</FullCanvas>`\n   - ✅ 如果原代码中访问了 `theme.colorPalette`、`theme.primary_color`、`theme.backgroundBase`\
+            \ 等不存在的属性，修改时必须改为使用 `theme.colors.primary`、`theme.colors.background` 等\n\
+            \n\n7. **禁止引入新的语法错误**：\n   - ✅ 修改代码时，必须确保不会引入新的语法错误\n   - ✅ 特别是字符串转义问题（如属性名中的转义引号）\n\
+               - ❌ 禁止：修改后代码无法通过 TypeScript 语法检查\n\n\n### ✅ interpolate 安全模板（只允许这一种写法）\n\
+            ```tsx\nconst t = Math.min(1, Math.max(0, frame / durationFrames));\n\
+            const y = interpolate(t, [0, 1], [startValue, endValue]);\n```\n\n\n##\
+            \ ✅ 检查清单\n\n\n生成代码前必须确认：\n\n\n1. ✅ 只生成 `video.scenes[scene_index]` 这一幕（单文件）\n\
+            2. ✅ 使用 `AbsoluteFill` 作为根容器\n3. ✅ 设置合适的背景色（避免纯黑 #000）\n4. ✅ 所有动画用 `useCurrentFrame()`\
+            \ 驱动\n5. ✅ `interpolate(..., { easing })` 的 `easing` 必须是函数；需要弹簧请用 `spring()`\
+            \ 先算进度再 `interpolate(progress, ...)`\n   - ✅ `Easing.exp` 才是正确成员（不要写 `Easing.expo`）\n\
+            6. ✅ 使用 `@react-three/fiber` 时必须用 `FullCanvas` from `../components`（禁止直接使用\
+            \ `<Canvas>` from `@react-three/fiber`）\n   - ✅ 必须：`import { FullCanvas\
+            \ } from \"../components\"` 然后 `<FullCanvas camera={{ position: [0, 0,\
+            \ 5], fov: 45 }}>...</FullCanvas>`\n   - ❌ 禁止：`import { Canvas } from\
+            \ \"@react-three/fiber\"` 或直接使用 `<Canvas>`\n   - 原因：Remotion Studio 预览窗口缩放导致\
+            \ Canvas 使用错误的容器尺寸，FullCanvas 使用 `useVideoConfig()` 确保正确的渲染尺寸\n   - ✅\
+            \ `FullCanvas` 已内置 Suspense 支持，drei 的 `Environment`、`Text`、`Cloud` 等异步组件可正常使用\n\
+            7. ✅ 使用 `theme.colors.primary`、`theme.colors.background` 等（禁止访问 `theme.colorPalette`、`theme.primary_color`、`theme.backgroundBase`\
+            \ 等不存在的属性）\n8. ✅ 只导入 `Subtitle`/`SafeArea`/`FullCanvas`/`SafeIcon`，不导入其他自定义组件\n\
+            9. ✅ **禁止直接导入 `lucide-react`**（任何图标都不允许），必须使用 `SafeIcon` 组件\n10. ✅ 字幕必须使用\
+            \ `const subtitles = [...]` 数组 + `.map()` 渲染模式\n   - ✅ 数组变量名必须是 `subtitles`\n\
+               - ✅ 每个对象必须包含 `text`、`start_time_seconds`、`end_time_seconds`\n   - ✅\
+            \ `text` 必须是字面量字符串，不能是变量引用\n   - ✅ 时间值必须是字面量数字（秒）\n   - ❌ 禁止直接写 `<Subtitle>`\
+            \ 组件而不用数组\n\n\n11. ✅ 使用模板已内置第三方库（Recharts, D3, Three.js 等），禁止输出安装命令\n\
+            12. ✅ 用 `useMemo` 缓存复杂计算\n13. ✅ 字幕时间使用场景相对秒数（从 0 开始），在 `.map()` 中用 `Math.round(s.start_time_seconds\
+            \ * fps)` 转为帧\n14. ✅ 主内容为字幕预留底部空间（例如 `SafeArea paddingBottom={160}`），避免遮挡\n\
+            15. ✅ **没有 `import { ... } from \"lucide-react\"` 语句**，所有图标都使用 `SafeIcon`\
+            \ 组件\n\n\n\n---\n\n\n## ❌ 禁止事项\n\n\n1. ❌ 不要导入 `src/components` 下的自定义组件（只允许\
+            \ `Subtitle` / `SafeArea` / `SafeIcon` / `FullCanvas`）\n2. ❌ **禁止直接导入\
+            \ `lucide-react`**（任何图标都不允许）：`import { ... } from \"lucide-react\"` 是硬性错误\n\
+               - 必须使用 `SafeIcon` 组件：`import { SafeIcon } from \"../components\";`\
+            \ 然后 `<SafeIcon name=\"arrowRight\" size={32} />`\n   - 如果需要的图标不在白名单中，使用\
+            \ SVG 或 `@remotion/shapes` 替代\n   - 修改时如果发现原代码有 `lucide-react` 导入，必须删除并改用\
+            \ `SafeIcon`\n3. ❌ 不要使用 `Math.random()`（用 `random()` from remotion；3D/粒子初始化也一样）\n\
+            4. ❌ 不要写 `interpolate(..., { easing: spring(...) })`（`easing` 必须是函数）\n\
+            5. ❌ 不要使用 `Easing.expo`（Remotion 里是 `Easing.exp`；写错会报 `easing is not a\
+            \ function`）\n6. ❌ 不要使用 `setInterval`/`setTimeout`（用帧驱动）\n\n\n7. ❌ 不要使用\
+            \ CSS Modules 或外部 CSS 文件\n8. ❌ 不要使用纯黑色背景（除非明确需求）\n9. ❌ 不要直接使用 `<Canvas>`\
+            \ from `@react-three/fiber`（必须改为 `<FullCanvas>` from `../components`）\n\
+               - ❌ 禁止：`import { Canvas } from \"@react-three/fiber\"` 或直接使用 `<Canvas>`\n\
+               - ✅ 必须：`import { FullCanvas } from \"../components\"` 然后使用 `<FullCanvas>`\n\
+               - 原因：Remotion Studio 预览窗口使用 CSS `transform: scale()` 缩放，直接使用 Canvas\
+            \ 会导致 Three.js 渲染器尺寸错误（使用缩放后的容器尺寸而非实际视频尺寸 1920x1080）。FullCanvas 内部使用 `useVideoConfig()`\
+            \ 自动设置正确的 Canvas 尺寸，确保在预览和实际渲染中都能正常工作。\n9. ❌ 不要让 `<Subtitle>` 使用 `Math.round(...)`\
+            \ / `fps * x` / `sub.*` 等运行时表达式\n\n\n\n---\n\n\n## \U0001F4DA 常用库参考（模板已内置\
+            \ & 可直接调用）\n\n\n> **严禁**在输出的 `scene_*.tsx` 里出现任何安装命令：`npm install` / `pnpm\
+            \ add` / `yarn add` / `npx`。\n> 生成的代码只能 `import` 本模板项目已内置的依赖（以模板 `package.json`\
+            \ 为准）。\n\n\n### 官方文档\n- [Remotion 文档](https://www.remotion.dev/docs)\n\
+            - [Remotion 第三方集成](https://www.remotion.dev/docs/third-party)\n\n\n\n\
+            ### Remotion 官方扩展（已安装，教学视频强相关）\n- `@remotion/captions`: SRT/字幕轨处理（**用于生成字幕时间轴/样式**）\n\
+            - `@remotion/preload`: 预加载图片/视频/音频（**避免首帧闪烁**）\n- `@remotion/fonts`: 自定义字体加载（可选）\n\
+            - `@remotion/player`: 网页端播放器（**不要在 scene 里用**，用于外部预览）\n- `@remotion/webcodecs`:\
+            \ WebCodecs 加速能力（渲染/编解码相关，通常无需在 scene 中直接调用）\n\n\n\n### 数据可视化\n- [Recharts\
+            \ 文档](https://recharts.org) - 简单易用的 React 图表\n- [D3.js 文档](https://d3js.org)\
+            \ - 强大的数据可视化\n- [@visx/visx 文档](https://airbnb.io/visx) - Airbnb 可视化库\n\
+            \n\n### 3D 与动画\n- [React Three Fiber](https://docs.pmnd.rs/react-three-fiber)\n\
+            - [@react-three/drei](https://drei.pmnd.rs) - Three.js 工具集\n- [Framer\
+            \ Motion](https://www.framer.com/motion) - 流畅动画\n- [React Spring](https://react-spring.io)\
+            \ - 物理动画\n- [GSAP](https://greensock.com/gsap) - 专业动画库\n\n\n### 模板项目已内置第三方库清单（Dify\
+            \ 可用）\n\n\n#### Remotion 官方扩展（已内置）\n- `@remotion/captions`：字幕轨/字幕样式生成\n\
+            - `@remotion/preload`：图片/视频预加载（避免首帧闪烁）\n- `@remotion/fonts`：字体加载（如需自定义字体，优先走模板内的稳定方案；不要在\
+            \ scene 里直接 import `@remotion/google-fonts/*`）\n- `@remotion/transitions`、`@remotion/motion-blur`：转场/运动模糊\n\
+            - `@remotion/shapes`、`@remotion/paths`、`@remotion/noise`：形状/路径动画/噪声背景\n\
+            - `@remotion/gif`：GIF 渲染\n- `@remotion/layout-utils`：文本测量与排版（`fitText`/`measureText`）\n\
+            - `@remotion/skia`：高性能 2D 绘制\n- `@remotion/three`：Three.js 与 Remotion\
+            \ 的集成\n\n\n#### 数据可视化（已内置）\n- `recharts`\n- `d3`、`d3-cloud`、`d3-sankey`\n\
+            - `@nivo/bar`、`@nivo/line`、`@nivo/heatmap`\n- `@visx/*`：通过 `@visx/visx`\
+            \ 预置（推荐按子包引入：`@visx/shape`、`@visx/scale` 等）\n- `chart.js` + `react-chartjs-2`：Chart.js\
+            \ 图表（需要先 `ChartJS.register(...)`）\n- `vis-network`：关系网络图/拓扑图\n\n\n####\
+            \ 2D/白板绘制（已内置）\n- `react-konva`\n\n\n#### 动画库（已内置）\n- `framer-motion`\n\
+            - `react-spring`\n- `gsap`\n- `animejs`\n\n\n#### 3D（已内置）\n- `three`、`@react-three/fiber`、`@react-three/drei`\n\
+            - `@react-three/cannon` + `cannon-es`\n\n\n#### 文本/代码演示（已内置）\n- `typed.js`\n\
+            - `prismjs`（不要在 scene 里 `import` 外部 CSS）\n\n\n> 如果视觉概念需要未内置库：**不要**在 scene\
+            \ 代码里写安装命令；请用上面这些库组合替代实现。\n\n\n\n---\n\n\n## \U0001F3AF 教学视频最佳实践\n\n\n\
+            ### 常见场景推荐库\n\n\n| 场景类型 | 推荐库 | 使用场景 |\n|---------|-------|---------|\n\
+            | **数据趋势** | Recharts + D3 | 折线图、柱状图、饼图 |\n| **流程图** | react-konva + @remotion/shapes\
+            \ | 流程图、思维导图 |\n| **代码演示** | Prism.js + Typed.js | 代码高亮 + 打字效果 |\n| **公式推导**\
+            \ | @remotion/paths | 绘制箭头、标注 |\n| **3D 模型** | Three.js + @react-three/drei\
+            \ | 几何体、物理模拟 |\n| **图表动画** | Recharts + interpolate | 数据增长动画 |\n| **文字说明**\
+            \ | Framer Motion + Lucide | 标题动画 + 图标 |\n| **背景特效** | @remotion/noise\
+            \ + GSAP | 粒子、渐变 |\n\n\n---\n\n\n**记住：直接编写标准 React 代码，完全自由！**\n\n\n\n\
+            ## ✅ 最终检查清单（输出前必须自检）\n\n\n1. 只输出一个 JSON（无解释）\n2. JSON 结构符合：modify 或 insert\
+            \ 二选一\n3. `scene_code` 是完整 TSX，且根为 `AbsoluteFill` 并显式背景\n4. 动画帧驱动、字幕不双重控制、strict\
+            \ TS 可过\n5. **语法检查通过**：\n   - ✅ 所有字符串字面量正确闭合\n   - ✅ 所有对象属性名正确（无转义引号）\n\
+               - ✅ 所有括号/大括号/方括号正确匹配\n   - ✅ TypeScript/TSX 语法正确（无语法错误）\n   - ✅ **没有\
+            \ `import { ... } from \"lucide-react\"` 语句**，所有图标都使用 `SafeIcon` 组件\n\
+               - ✅ 字幕数据格式正确（属性名无转义引号）\n6. **禁止引入新的语法错误**：\n   - ✅ 修改后的代码必须能够通过 TypeScript\
+            \ 语法检查\n   - ✅ 特别是字符串转义问题（如属性名中的转义引号）"
+        - id: 38d085ba-0ee1-45ce-8e83-dc188b76f521
+          role: user
+          text: '{{#1768376501695.item#}}'
+        selected: false
+        title: LLM 2
+        type: llm
+        vision:
+          enabled: false
+      height: 88
+      id: '1768376506340'
+      parentId: '1768376501695'
+      position:
+        x: 82.52850300468799
+        y: 65
+      positionAbsolute:
+        x: 1781.9134343686162
+        y: 355.22233382726847
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        code: "from __future__ import annotations\n\nimport json\nimport random\n\
+          import time\nimport urllib.error\nimport urllib.request\nimport re\nfrom\
+          \ typing import Any, Dict, List, Optional, Tuple, Union\nfrom urllib.parse\
+          \ import urlparse, parse_qs, quote\n\n# ==========================================\n\
+          # 辅助处理函数\n# ==========================================\n\ndef _clean_text(text:\
+          \ Any) -> str:\n    \"\"\"清洗字符串，去除 Markdown 和首尾空白\"\"\"\n    s = str(text)\
+          \ if text is not None else \"\"\n    s = s.strip()\n    return re.sub(r'^```[a-zA-Z]*\\\
+          n?|```$', '', s, flags=re.MULTILINE).strip()\n\ndef _normalize_json_string(input_val:\
+          \ Any) -> Optional[str]:\n    \"\"\"提取有效 json_string。无有效结构输入返回 None (触发\
+          \ scenes_only 模式)\"\"\"\n    if input_val is None:\n        return None\n\
+          \    \n    if isinstance(input_val, (dict, list)):\n        return json.dumps(input_val,\
+          \ ensure_ascii=False) if input_val else None\n    \n    s = _clean_text(input_val)\n\
+          \    if not s or s.lower() == \"null\" or s == \"{}\": \n        return\
+          \ None\n    \n    # 简单的 JSON 格式检查\n    if not (s.startswith('{') and s.endswith('}')):\n\
+          \        return None\n\n    return s\n\ndef _normalize_code_array(input_val:\
+          \ Any) -> List[str]:\n    \"\"\"强烈确保返回 List[str]\"\"\"\n    if input_val\
+          \ is None: return []\n    final_list = []\n    \n    if isinstance(input_val,\
+          \ list):\n        final_list = input_val\n    else:\n        s = _clean_text(input_val)\n\
+          \        if s:\n            try:\n                parsed = json.loads(s)\n\
+          \                if isinstance(parsed, list): final_list = parsed\n    \
+          \            else: final_list = [s]\n            except:\n             \
+          \   final_list = [s]\n    \n    return [str(x) for x in final_list if x\
+          \ is not None]\n\ndef _extract_pid_from_url(url: str) -> Optional[str]:\n\
+          \    \"\"\"仅从 URL 提取 projectId，忽略其他\"\"\"\n    try:\n        u = urlparse(str(url))\n\
+          \        q = parse_qs(u.query or \"\")\n        pid = (q.get(\"projectId\"\
+          ) or q.get(\"project_id\") or [None])[0]\n        return str(pid).strip()\
+          \ if pid else None\n    except:\n        return None\n\ndef _request_patch(url:\
+          \ str, payload: Dict, headers: Dict) -> Dict:\n    \"\"\"发送单纯的 PATCH 请求\"\
+          \"\"\n    data_bytes = json.dumps(payload, ensure_ascii=False).encode(\"\
+          utf-8\")\n    req = urllib.request.Request(url, data=data_bytes, headers=headers,\
+          \ method=\"PATCH\")\n    try:\n        with urllib.request.urlopen(req,\
+          \ timeout=90) as resp:\n            raw = resp.read().decode(\"utf-8\",\
+          \ errors=\"replace\")\n            try: res = json.loads(raw) if raw else\
+          \ {}\n            except: res = {\"raw\": raw}\n            res[\"_status\"\
+          ] = getattr(resp, \"status\", 200)\n            return res\n    except urllib.error.HTTPError\
+          \ as e:\n        try: raw = e.read().decode(\"utf-8\")\n        except:\
+          \ raw = \"\"\n        try: res = json.loads(raw) if raw else {}\n      \
+          \  except: res = {\"raw\": raw}\n        res[\"_status\"] = e.code\n   \
+          \     return res\n    except Exception as e:\n        return {\"_status\"\
+          : 0, \"error\": str(e)}\n\n# ==========================================\n\
+          # 主入口\n# ==========================================\n\n# def main(\n#  \
+          \   code_array: Union[List[str], str, Any],\n#     voiceover: Optional[Any]\
+          \ = None,\n#     server_base_url: str = \"http://35.232.154.66:7780\", #\
+          \ 内部 API 地址\n#     json_string: Union[str, Dict, Any] = None,\n#     project_id:\
+          \ Optional[str] = None,\n#     sig: Optional[str] = None,\n#     player_url:\
+          \ Optional[str] = None,\n#     api_token: Optional[str] = None,\n#     retry_attempts:\
+          \ int = 3\n# ) -> Dict[str, Any]:\n    \n#     # 1. 初始化固定输出结构 (Schema Consistency)\n\
+          #     output = {\n#         \"ok\": False,\n#         \"preview_url\": None,\n\
+          #         \"player_url\": None,\n#         \"project_id\": str(project_id)\
+          \ if project_id else None,\n#         \"error\": None,\n#         \"next_step\"\
+          : None,\n#         \"mode\": \"unknown\",         # full_bundle / scenes_only\n\
+          #         \"bundle_status\": \"init\"    # processing / active / failed\n\
+          #     }\n\n#     # 2. 参数处理逻辑\n#     # 强制固定使用该域名进行前端展示，而不是使用 server_base_url\n\
+          #     PUBLIC_PLAY_BASE = \"https://e2b.x-pilot.ai\"\n    \n#     # 优先解析\
+          \ project_id\n#     target_pid = str(project_id).strip() if project_id else\
+          \ None\n#     if not target_pid and player_url:\n#         target_pid =\
+          \ _extract_pid_from_url(player_url)\n    \n#     if not target_pid:\n# \
+          \        output[\"error\"] = \"Missing project_id\"\n#         output[\"\
+          next_step\"] = \"Provide project_id or valid player_url\"\n#         output[\"\
+          bundle_status\"] = \"failed\"\n#         return output\n    \n#     output[\"\
+          project_id\"] = target_pid\n\n#     # 3. 数据清洗与模式选择\n#     valid_json = _normalize_json_string(json_string)\n\
+          #     valid_codes = _normalize_code_array(code_array)\n    \n#     if not\
+          \ valid_codes:\n#         output[\"error\"] = \"Empty code_array\"\n#  \
+          \       output[\"next_step\"] = \"AI generation failed to produce code.\"\
+          \n#         output[\"bundle_status\"] = \"failed\"\n#         return output\n\
+          \n#     payload = {}\n#     if valid_json:\n#         output[\"mode\"] =\
+          \ \"full_bundle\"\n#         payload = { \"dify\": { \"json_string\": valid_json,\
+          \ \"code_array\": valid_codes } }\n#     else:\n#         output[\"mode\"\
+          ] = \"scenes_only\"\n#         payload = { \"scenes\": valid_codes }\n\n\
+          #     # 【调整】处理 voiceover 参数并注入 payload\n#     if voiceover:\n#         voice_data\
+          \ = {}\n#         # 兼容 JSON 字符串或字典\n#         if isinstance(voiceover, str)\
+          \ and voiceover.strip():\n#             try:\n#                 voice_data\
+          \ = json.loads(voiceover)\n#             except:\n#                 voice_data\
+          \ = {}\n#         elif isinstance(voiceover, dict):\n#             voice_data\
+          \ = voiceover\n\n#         # 映射字段：Dify config -> API fields\n#         if\
+          \ voice_data:\n#             ref_id = voice_data.get(\"config.model_id\"\
+          ) or voice_data.get(\"referenceId\")\n#             if ref_id:\n#      \
+          \           payload[\"voiceover\"] = {\n#                     \"referenceId\"\
+          : str(ref_id),\n#                     \"language\": voice_data.get(\"config.language\"\
+          ) or voice_data.get(\"language\") or \"zh\",\n#                     \"sampleRate\"\
+          : int(voice_data.get(\"sampleRate\", 44100)),\n#                     \"\
+          emotion\": str(voice_data.get(\"emotion\", \"neutral\"))\n#            \
+          \     }\n\n#     # 4. 执行更新 (API Request)\n#     # 注意：API请求地址依然使用 server_base_url\
+          \ (对应内部服务 IP)\n#     base = (server_base_url or \"\").rstrip(\"/\")\n# \
+          \    api_url = f\"{base}/api/projects/{target_pid}\"\n    \n#     # 虽然展示链接不需要\
+          \ sig，但写入接口(PATCH)通常需要 sig 进行鉴权\n#     # 如果输入提供了 sig，为了保险依然透传给后端 API，但不在最终\
+          \ URL 中显示\n#     if sig and str(sig).strip():\n#         # 如果 sig 里包含特殊字符，进行\
+          \ quote\n#         api_url += f\"?sig={quote(str(sig).strip())}\"\n    \n\
+          #     headers = { \"Content-Type\": \"application/json\" }\n#     if api_token:\n\
+          #         t = str(api_token).strip()\n#         headers[\"Authorization\"\
+          ] = t if t.lower().startswith(\"bearer\") else f\"Bearer {t}\"\n\n#    \
+          \ retries = max(1, int(retry_attempts or 3))\n#     resp = {}\n    \n# \
+          \    for i in range(1, retries + 1):\n#         resp = _request_patch(api_url,\
+          \ payload, headers)\n#         st = resp.get(\"_status\", 0)\n#        \
+          \ # 成功或客户端错误(4xx)不重试，服务端错误(5xx)或超时重试\n#         if (200 <= st < 500) or\
+          \ st == 404 or st == 401:\n#             break\n#         time.sleep(0.5\
+          \ * (2 ** (i-1)))\n\n#     # 5. 结果处理\n#     http_code = resp.get(\"_status\"\
+          , 0)\n#     is_success = http_code in [200, 201, 202]\n#     # 如果 body 显式包含\
+          \ error，也视为失败\n#     if resp.get(\"error\"): is_success = False\n\n#   \
+          \  output[\"ok\"] = is_success\n    \n#     if is_success:\n#         #\
+          \ 成功状态映射\n#         output[\"bundle_status\"] = \"processing\" if http_code\
+          \ == 202 else \"active\"\n        \n#         # 构造最终展示链接：强制用 https://e2b.x-pilot.ai/play\
+          \ 且不带 sig\n#         final_url = f\"{PUBLIC_PLAY_BASE.rstrip('/')}/play?projectId={target_pid}\"\
+          \n#         output[\"preview_url\"] = final_url\n#         output[\"player_url\"\
+          ] = final_url\n#     else:\n#         output[\"bundle_status\"] = \"failed\"\
+          \n#         err_raw = resp.get(\"error\") or resp.get(\"message\") or resp.get(\"\
+          _status\")\n#         output[\"error\"] = f\"Update Failed: {err_raw}\"\n\
+          #         output[\"next_step\"] = \"Check server logs or token validity.\"\
+          \n\n#     return output\n\n# ==========================================\n\
+          # 主入口\n# ==========================================\n\ndef main(\n    code_array:\
+          \ Union[List[str], str, Any],\n    voiceover: Optional[Any] = None,\n  \
+          \  server_base_url: str = \"http://35.232.154.66:7780\", # 内部 API 地址\n \
+          \   json_string: Union[str, Dict, Any] = None,\n    project_id: Optional[str]\
+          \ = None,\n    sig: Optional[str] = None,\n    player_url: Optional[str]\
+          \ = None,\n    api_token: Optional[str] = None,\n    retry_attempts: int\
+          \ = 3\n) -> Dict[str, Any]:\n    \n    # 1. 初始化固定输出结构 (Schema Consistency)\n\
+          \    output = {\n        \"ok\": False,\n        \"preview_url\": None,\n\
+          \        \"player_url\": None,\n        \"project_id\": str(project_id)\
+          \ if project_id else None,\n        \"error\": None,\n        \"next_step\"\
+          : None,\n        \"mode\": \"unknown\",         # full_bundle / scenes_only\
+          \ / code_array_only\n        \"bundle_status\": \"init\"    # processing\
+          \ / active / failed\n    }\n\n    # 2. 参数处理逻辑\n    # 强制固定使用该域名进行前端展示，而不是使用\
+          \ server_base_url\n    PUBLIC_PLAY_BASE = \"https://e2b.x-pilot.ai\"\n \
+          \   \n    # 优先解析 project_id\n    target_pid = str(project_id).strip() if\
+          \ project_id else None\n    if not target_pid and player_url:\n        target_pid\
+          \ = _extract_pid_from_url(player_url)\n    \n    if not target_pid:\n  \
+          \      output[\"error\"] = \"Missing project_id\"\n        output[\"next_step\"\
+          ] = \"Provide project_id or valid player_url\"\n        output[\"bundle_status\"\
+          ] = \"failed\"\n        return output\n    \n    output[\"project_id\"]\
+          \ = target_pid\n\n    # 3. 数据清洗与模式选择\n    valid_json = _normalize_json_string(json_string)\n\
+          \    valid_codes = _normalize_code_array(code_array)\n    \n    if not valid_codes:\n\
+          \        output[\"error\"] = \"Empty code_array\"\n        output[\"next_step\"\
+          ] = \"AI generation failed to produce code.\"\n        output[\"bundle_status\"\
+          ] = \"failed\"\n        return output\n\n    # 【调整】统一Payload结构以支持稳定更新\n\
+          \    # 无论是首次创建还是二次编辑，都统一使用 `dify` 结构。\n    # 当 json_string 不存在时（二次编辑），payload\
+          \ 应为 {\"dify\": {\"code_array\": [...]}}\n    # 而不是 {\"scenes\": [...]}，这样后端才能利用基线清单(manifest)进行稳定匹配，解决场景错乱问题。\n\
+          \    payload = {}\n    if valid_json:\n        output[\"mode\"] = \"full_bundle\"\
+          \n        payload = { \"dify\": { \"json_string\": valid_json, \"code_array\"\
+          : valid_codes } }\n    else:\n        output[\"mode\"] = \"code_array_only\"\
+          \ # 原 \"scenes_only\"\n        payload = { \"dify\": { \"code_array\": valid_codes\
+          \ } }\n\n    # 处理 voiceover 参数并注入 payload\n    if voiceover:\n        voice_data\
+          \ = {}\n        # 兼容 JSON 字符串或字典\n        if isinstance(voiceover, str)\
+          \ and voiceover.strip():\n            try:\n                voice_data =\
+          \ json.loads(voiceover)\n            except:\n                voice_data\
+          \ = {}\n        elif isinstance(voiceover, dict):\n            voice_data\
+          \ = voiceover\n\n        # 映射字段：Dify config -> API fields\n        if voice_data:\n\
+          \            ref_id = voice_data.get(\"config.model_id\") or voice_data.get(\"\
+          referenceId\")\n            if ref_id:\n                # 【调整】此处从 payload['voiceover']\
+          \ 改为 payload['dify']['voiceover'] 可能会更符合结构。\n                # 但根据后端代码，voiceover\
+          \ 是在顶层的，所以此处的逻辑维持不变是正确的。\n                payload[\"voiceover\"] = {\n \
+          \                   \"referenceId\": str(ref_id),\n                    \"\
+          language\": voice_data.get(\"config.language\") or voice_data.get(\"language\"\
+          ) or \"zh\",\n                    \"sampleRate\": int(voice_data.get(\"\
+          sampleRate\", 44100)),\n                    \"emotion\": str(voice_data.get(\"\
+          emotion\", \"neutral\"))\n                }\n\n    # 4. 执行更新 (API Request)\n\
+          \    # 注意：API请求地址依然使用 server_base_url (对应内部服务 IP)\n    base = (server_base_url\
+          \ or \"\").rstrip(\"/\")\n    api_url = f\"{base}/api/projects/{target_pid}\"\
+          \n    \n    # 虽然展示链接不需要 sig，但写入接口(PATCH)通常需要 sig 进行鉴权\n    # 如果输入提供了 sig，为了保险依然透传给后端\
+          \ API，但不在最终 URL 中显示\n    if sig and str(sig).strip():\n        # 如果 sig\
+          \ 里包含特殊字符，进行 quote\n        api_url += f\"?sig={quote(str(sig).strip())}\"\
+          \n    \n    headers = { \"Content-Type\": \"application/json\" }\n    if\
+          \ api_token:\n        t = str(api_token).strip()\n        headers[\"Authorization\"\
+          ] = t if t.lower().startswith(\"bearer\") else f\"Bearer {t}\"\n\n    retries\
+          \ = max(1, int(retry_attempts or 3))\n    resp = {}\n    \n    for i in\
+          \ range(1, retries + 1):\n        resp = _request_patch(api_url, payload,\
+          \ headers)\n        st = resp.get(\"_status\", 0)\n        # 成功或客户端错误(4xx)不重试，服务端错误(5xx)或超时重试\n\
+          \        if (200 <= st < 500) or st == 404 or st == 401:\n            break\n\
+          \        time.sleep(0.5 * (2 ** (i-1)))\n\n    # 5. 结果处理\n    http_code\
+          \ = resp.get(\"_status\", 0)\n    is_success = http_code in [200, 201, 202]\n\
+          \    # 如果 body 显式包含 error，也视为失败\n    if resp.get(\"error\"): is_success\
+          \ = False\n\n    output[\"ok\"] = is_success\n    \n    if is_success:\n\
+          \        # 成功状态映射\n        output[\"bundle_status\"] = \"processing\" if\
+          \ http_code == 202 else \"active\"\n        \n        # 构造最终展示链接：强制用 https://e2b.x-pilot.ai/play\
+          \ 且不带 sig\n        final_url = f\"{PUBLIC_PLAY_BASE.rstrip('/')}/play?projectId={target_pid}\"\
+          \n        output[\"preview_url\"] = final_url\n        output[\"player_url\"\
+          ] = final_url\n    else:\n        output[\"bundle_status\"] = \"failed\"\
+          \n        err_raw = resp.get(\"error\") or resp.get(\"message\") or resp.get(\"\
+          _status\")\n        output[\"error\"] = f\"Update Failed: {err_raw}\"\n\
+          \        output[\"next_step\"] = \"Check server logs or token validity.\"\
+          \n\n    return output\n"
+        code_language: python3
+        outputs:
+          bundle_status:
+            children: null
+            type: string
+          error:
+            children: null
+            type: string
+          mode:
+            children: null
+            type: string
+          next_step:
+            children: null
+            type: string
+          ok:
+            children: null
+            type: boolean
+          player_url:
+            children: null
+            type: string
+          preview_url:
+            children: null
+            type: string
+          project_id:
+            children: null
+            type: string
+        selected: false
+        title: 推送到E2B
+        type: code
+        variables:
+        - value_selector:
+          - '1768385110630'
+          - result_code_list
+          value_type: array[string]
+          variable: code_array
+        - value_selector:
+          - '1768376433549'
+          - projectId
+          value_type: string
+          variable: project_id
+        - value_selector:
+          - '17692361065320'
+          - result
+          value_type: string
+          variable: voiceover
+      height: 52
+      id: '1768377491840'
+      position:
+        x: 3628.3980946865695
+        y: 531.2617725982681
+      positionAbsolute:
+        x: 3628.3980946865695
+        y: 531.2617725982681
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        error_strategy: fail-branch
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: To get a key's value.
+            ja_JP: To get a key's value.
+            pt_BR: To get a key's value.
+            zh_Hans: 获取一个键的值。
+          label:
+            en_US: Key
+            ja_JP: Key
+            pt_BR: Key
+            zh_Hans: 键
+          llm_description: To get a key's value.
+          max: null
+          min: null
+          name: key
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        params:
+          key: ''
+        plugin_id: hjlarry/storage
+        plugin_unique_identifier: hjlarry/storage:0.0.2@d105c624fd07bd315befe907461d81d71009638833b41e559f6ee37666a6e546
+        provider_icon: /console/api/workspaces/current/plugin/icon?tenant_id=72305e0d-3ec5-4ff1-871b-3f11ee2f754a&filename=64e5465184a381ff34cbc54e8632f7c0483af0a02f66adcd262b221f42b86a2c.svg
+        provider_id: hjlarry/storage/storage
+        provider_name: hjlarry/storage/storage
+        provider_type: builtin
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 1000
+        selected: false
+        title: 获取字符串
+        tool_configurations: {}
+        tool_description: 获取一个键值字符串。
+        tool_label: 获取字符串
+        tool_name: get_string
+        tool_node_version: '2'
+        tool_parameters:
+          key:
+            type: mixed
+            value: code_array_{{#1768376433549.conversation_id#}}
+        type: tool
+      height: 88
+      id: '1768381959909'
+      position:
+        x: 84.65506456005346
+        y: 376.7951921364947
+      positionAbsolute:
+        x: 84.65506456005346
+        y: 376.7951921364947
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "# Dify 知识库代码节点：多输入智能 JSON 解析器\n# Author: Senior Software Engineer\n\
+          # Version: 2.0\n\nimport json\nimport re\nfrom typing import Any, Dict,\
+          \ List, Union\n\n# 确保已在 Dify 的“依赖管理”中添加了 json-repair 依赖\n# pip install json-repair\n\
+          import json_repair\n\n\n# ==============================================================================\n\
+          #  核心解析逻辑 (来自于你的版本，因为它非常健壮)\n#  无需修改，我们直接复用这个强大的底层函数。\n# ==============================================================================\n\
+          def _extract_most_significant_json(text: str) -> Union[Dict, List]:\n  \
+          \  \"\"\"\n    智能地从可能包含噪音、注释或多个JSON片段的文本中提取最主要的JSON对象或列表。\n\n    智能性体现在：\n\
+          \    1.  **分层解析**: 优先使用高速标准库，失败后才动用重量级修复工具。\n    2.  **候选者识别**: 即使文本中散落着多个JSON片段，也能识别出它们。\n\
+          \    3.  **信息量最大原则**: 通过比较大小和复杂性，选择最可能符合用户意图的那个JSON对象。\n    4.  **鲁棒性**:\
+          \ 结合预处理和强大的修复库，最大化解析成功率。\n    \"\"\"\n\n    # --- 阶段1: 快速通道 - 尝试直接解析 ---\n\
+          \    try:\n        return json_repair.loads(text)\n    except Exception:\n\
+          \        pass\n\n    # --- 阶段2: 高级提取 - 寻找并评估候选JSON ---\n    potential_json_strings\
+          \ = re.findall(r'(\\{[\\s\\S]*\\}|\\[[\\s\\S]*\\])', text)\n\n    if not\
+          \ potential_json_strings:\n        raise ValueError(\"在输入文本中未能找到任何潜在的JSON结构\
+          \ (即 {...} 或 [...] 块)\")\n\n    valid_jsons = []\n    for candidate in potential_json_strings:\n\
+          \        try:\n            parsed_json = json_repair.loads(candidate)\n\
+          \            valid_jsons.append(parsed_json)\n        except Exception:\n\
+          \            continue\n\n    if not valid_jsons:\n        raise ValueError(\"\
+          找到了潜在的JSON结构，但没有一个可以被成功修复和解析\")\n\n    # --- 智能决策：选择信息量最大的JSON ---\n   \
+          \ most_significant_json = max(valid_jsons, key=lambda x: len(json.dumps(x,\
+          \ ensure_ascii=False)))\n\n    return most_significant_json\n\n\n# ==============================================================================\n\
+          #  主执行函数 (全新设计，支持多输入)\n# ==============================================================================\n\
+          def main(**kwargs: Any) -> Dict[str, Any]:\n    \"\"\"\n    Dify 代码执行节点主函数\
+          \ - 【多输入通用版】\n\n    核心功能:\n    1. 接受任意数量的命名输入参数 (例如 arg1, arg2, user_profile,\
+          \ 等)。\n    2. 对每一个输入进行智能类型检查和解析。\n    3. 如果输入是字符串，则调用 _extract_most_significant_json\
+          \ 函数进行解析。\n    4. 如果输入已经是 dict 或 list，则直接使用。\n    5. 将所有成功解析的对象收集到一个字典中返回。\n\
+          \    6. 输出的键名会自动在原始输入键名后附加 \"_obj\" 后缀，方便下游引用。\n\n    使用示例:\n    - 输入1:\
+          \ key=\"arg1\", value=\"{'name': 'Alice'}\"\n    - 输入2: key=\"arg2\", value=\"\
+          [1, 2, 3]\"\n    - 输出: {'arg1_obj': {'name': 'Alice'}, 'arg2_obj': [1, 2,\
+          \ 3]}\n    \"\"\"\n    # 最终输出的结果字典\n    parsed_outputs = {}\n\n    # kwargs\
+          \ 是一个字典，包含了所有在 Dify 界面上定义的输入变量\n    # 例如：{'arg1': \"{'name': 'value'}\"\
+          , 'arg2': \"some other string\"}\n    if not kwargs:\n        # 如果没有配置任何输入参数，可以返回一个空字典或提示信息\n\
+          \        return {\"status\": \"No inputs provided.\"}\n\n    # 遍历所有传入的参数\n\
+          \    for key, raw_input in kwargs.items():\n\n        try:\n           \
+          \ parsed_object = None  # 先初始化一个变量来存储解析后的对象\n\n            if isinstance(raw_input,\
+          \ (dict, list)):\n                # 如果输入已经是正确的 Python 对象，直接赋值\n        \
+          \        parsed_object = raw_input\n\n            elif isinstance(raw_input,\
+          \ str):\n                if not raw_input.strip():\n                   \
+          \ # 对空字符串进行处理，两个版本的输出都设置为 None\n                    parsed_outputs[f\"{key}_obj\"\
+          ] = None\n                    parsed_outputs[f\"{key}_str\"] = None\n  \
+          \                  continue  # 继续处理下一个输入\n\n                # 调用强大的解析函数\n\
+          \                parsed_object = _extract_most_significant_json(raw_input)\n\
+          \n            else:\n                # 对于其他意外的类型\n                error_info\
+          \ = {\n                    \"error\": f\"Unsupported input type for '{key}'\"\
+          ,\n                    \"type\": str(type(raw_input)),\n               \
+          \     \"value\": str(raw_input)\n                }\n                parsed_outputs[f\"\
+          {key}_obj\"] = error_info\n                # 字符串版本可以存为错误提示或空\n         \
+          \       parsed_outputs[f\"{key}_str\"] = json.dumps(error_info)\n      \
+          \          continue\n\n            # --- 【核心调整点】 ---\n            # 如果上面任何一个分支成功获得了\
+          \ parsed_object，就在这里统一处理输出\n            if parsed_object is not None:\n\
+          \                # 版本1: 输出 Python 对象，键名以 _obj 结尾\n                parsed_outputs[f\"\
+          {key}_obj\"] = parsed_object\n\n                # 版本2: 输出 JSON 字符串，键名以 _str\
+          \ 结尾\n                # 使用 ensure_ascii=False 来正确处理中文字符\n              \
+          \  parsed_outputs[f\"{key}_str\"] = json.dumps(parsed_object, ensure_ascii=False)\n\
+          \n        except Exception as e:\n            # 如果在解析过程中发生任何错误，构造一个清晰的错误信息\n\
+          \            error_message = (\n                f\"Error processing input\
+          \ '{key}': {e}\\n\"\n                f\"Original input (first 500 chars):\
+          \ {str(raw_input)[:500]}...\"\n            )\n            # 两个版本的输出都记录错误\n\
+          \            parsed_outputs[f\"{key}_obj\"] = {\"error\": error_message}\n\
+          \            parsed_outputs[f\"{key}_str\"] = json.dumps({\"error\": error_message})\n\
+          \n    return parsed_outputs"
+        code_language: python3
+        outputs:
+          arg1_obj:
+            children: null
+            type: object
+          arg1_str:
+            children: null
+            type: string
+        selected: false
+        title: 结构化
+        type: code
+        variables:
+        - value_selector:
+          - '1768376449816'
+          - text
+          value_type: string
+          variable: arg1
+      height: 52
+      id: '1768382286533'
+      position:
+        x: 1020.4656393880987
+        y: 282
+      positionAbsolute:
+        x: 1020.4656393880987
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\nimport re\nfrom typing import List, Dict, Any, Set\n\n\
+          def main(original_data: Any, update_ops: Any, assembly_result: Any) -> Dict[str,\
+          \ Any]:\n    \"\"\"\n    智能更新数据结构（支持新增的删除逻辑）\n    1. 完整对象数组 (result_array)\n\
+          \    2. JSON字符串 (result_string)\n    3. 纯代码内容字符串数组 (result_code_list)\n\
+          \    \"\"\"\n    \n    # --- 1. 数据清洗与标准化 ---\n    def parse_input(data,\
+          \ name):\n        if data is None:\n            return []\n        if isinstance(data,\
+          \ list):\n            return data\n        if isinstance(data, str):\n \
+          \           try:\n                # 尝试清洗 Markdown 标记\n                clean_str\
+          \ = re.sub(r'^```(json)?|```$', '', data.strip(), flags=re.MULTILINE).strip()\n\
+          \                return json.loads(clean_str)\n            except:\n   \
+          \             print(f\"Error parsing {name}\")\n                return []\n\
+          \        return []\n\n    data_list = parse_input(original_data, \"original_data\"\
+          )\n    ops_list = parse_input(update_ops, \"update_ops\")     # 来自 LLM 的修改/插入结果\n\
+          \    plan_list = parse_input(assembly_result, \"assembly_result\") # 来自上游的完整计划（含删除）\n\
+          \n    # --- 1.1 预处理删除指令 (NEW) ---\n    # 从 assembly_result 中提取确定的删除索引\n\
+          \    delete_indexes: Set[int] = set()\n    for item in plan_list:\n    \
+          \    if item.get(\"action\") == \"delete\":\n            idx = item.get(\"\
+          scene_index\")\n            # 确保这里的 idx 是有效的数字\n            if idx is not\
+          \ None:\n                try:\n                    delete_indexes.add(int(idx))\n\
+          \                except:\n                    pass\n\n    # --- 2. 构建插槽\
+          \ (Slots) ---\n    slots = []\n    \n    # 注意：这里假设 original_data 的顺序和 index\
+          \ 是对应的，或者 index 字段是可信的锚点\n    for i, item in enumerate(data_list):\n   \
+          \     # 优先使用 item 里的 index，如果不存在则使用列表下标\n        orig_idx = item.get(\"\
+          index\", i) \n        \n        # 判断是否被标记为删除\n        # 注意：需要处理 string/int\
+          \ 类型的细微差异，这里统一转 int 比较\n        try:\n            is_deleted = int(orig_idx)\
+          \ in delete_indexes\n        except:\n            is_deleted = False\n\n\
+          \        slots.append({\n            \"before\": [],          \n       \
+          \     \"content\": item.get(\"code_content\", \"\"), \n            \"orig_index\"\
+          : orig_idx,\n            \"after\": [],           \n            \"is_updated\"\
+          : False,\n            \"is_deleted\": is_deleted  # (NEW) 标记 slots 状态\n\
+          \        })\n    \n    append_pool = [] \n\n    # --- 3. 处理指令 (Logic Keep)\
+          \ ---\n    # 处理 LLM 返回的 modify 和 insert，原有逻辑保持不变\n    for op in ops_list:\n\
+          \        scene_index = op.get(\"scene_index\", -1)\n        scene_code =\
+          \ op.get(\"scene_code\", \"\")\n        insert_key = op.get(\"insert_key\"\
+          , \"\")\n        \n        # A: 修改 (Modify)\n        if scene_index != -1:\n\
+          \            # 安全检查：防止索引越界\n            if 0 <= scene_index < len(slots):\n\
+          \                # 即使被标记为删除，如果 LLM 强行生成了修改，我们先更新 content\n             \
+          \   # 但最终是否渲染取决于 finish 阶段的 is_deleted 检查\n                # 通常 delete 任务不会传给\
+          \ LLM，所以这里主要是防御性更新\n                slots[scene_index][\"content\"] = scene_code\n\
+          \                slots[scene_index][\"is_updated\"] = True\n           \
+          \ else:\n                # 越界索引视为追加\n                append_pool.append(scene_code)\n\
+          \        \n        # B: 插入 (Insert)\n        else:\n            match =\
+          \ re.search(r'__insert_(before|after)__:(\\d+)', str(insert_key))\n    \
+          \        if match:\n                direction = match.group(1)\n       \
+          \         target_idx = int(match.group(2))\n                \n         \
+          \       if 0 <= target_idx < len(slots):\n                    # 针对锚点的插入。\n\
+          \                    # 即使锚点被删除(deleted)，我们通常依然允许在其位置的前后插入新内容\n         \
+          \           # 这样可以实现“删除旧场景，原位替换新场景”的效果\n                    if direction\
+          \ == 'before':\n                        slots[target_idx][\"before\"].append(scene_code)\n\
+          \                    else:\n                        slots[target_idx][\"\
+          after\"].append(scene_code)\n                else:\n                   \
+          \ append_pool.append(scene_code)\n            else:\n                append_pool.append(scene_code)\n\
+          \n    # --- 4. 组装与重排索引 (Re-indexing) ---\n    final_list = []\n    \n  \
+          \  def add_node(content):\n        if content is None: return # 防御空值\n \
+          \       final_list.append({\n            \"code_content\": content,\n  \
+          \          # 索引重排：基于当前 final_list 的长度自动递增\n            \"index\": len(final_list)\
+          \ \n        })\n\n    for slot in slots:\n        # 1. 添加 Before 插入的内容 (即使原节点删除了，前面的过场可能还得要)\n\
+          \        for code in slot[\"before\"]: add_node(code)\n        \n      \
+          \  # 2. 添加核心内容 (仅当未标记删除时)\n        if not slot[\"is_deleted\"]:\n      \
+          \      add_node(slot[\"content\"])\n            \n        # 3. 添加 After\
+          \ 插入的内容\n        for code in slot[\"after\"]: add_node(code)\n         \
+          \   \n    # 4. 追加末尾池的内容\n    for code in append_pool:\n        add_node(code)\n\
+          \n    # --- 5.构建纯字符串数组 ---\n    simple_code_list = [item[\"code_content\"\
+          ] for item in final_list]\n\n    return {\n        \"result_array\": final_list,\n\
+          \        \"result_string\": json.dumps(final_list, ensure_ascii=False, indent=2),\n\
+          \        \"result_code_list\": simple_code_list\n    }\n"
+        code_language: python3
+        outputs:
+          result_array:
+            children: null
+            type: array[object]
+          result_code_list:
+            children: null
+            type: array[string]
+          result_string:
+            children: null
+            type: string
+        selected: false
+        title: merge
+        type: code
+        variables:
+        - value_selector:
+          - '1769235948427'
+          - result
+          value_type: string
+          variable: original_data
+        - value_selector:
+          - '1768376501695'
+          - output
+          value_type: array[object]
+          variable: update_ops
+        - value_selector:
+          - '1768466944747'
+          - assembly_result
+          value_type: array[object]
+          variable: assembly_result
+      height: 52
+      id: '1768385110630'
+      position:
+        x: 2408.9190408164845
+        y: 562.3461127547156
+      positionAbsolute:
+        x: 2408.9190408164845
+        y: 562.3461127547156
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "# Dify 知识库代码节点：多输入智能 JSON 解析器\n# Author: Senior Software Engineer\n\
+          # Version: 2.0\n\nimport json\nimport re\nfrom typing import Any, Dict,\
+          \ List, Union\n\n# 确保已在 Dify 的“依赖管理”中添加了 json-repair 依赖\n# pip install json-repair\n\
+          import json_repair\n\n\n# ==============================================================================\n\
+          #  核心解析逻辑 (来自于你的版本，因为它非常健壮)\n#  无需修改，我们直接复用这个强大的底层函数。\n# ==============================================================================\n\
+          def _extract_most_significant_json(text: str) -> Union[Dict, List]:\n  \
+          \  \"\"\"\n    智能地从可能包含噪音、注释或多个JSON片段的文本中提取最主要的JSON对象或列表。\n\n    智能性体现在：\n\
+          \    1.  **分层解析**: 优先使用高速标准库，失败后才动用重量级修复工具。\n    2.  **候选者识别**: 即使文本中散落着多个JSON片段，也能识别出它们。\n\
+          \    3.  **信息量最大原则**: 通过比较大小和复杂性，选择最可能符合用户意图的那个JSON对象。\n    4.  **鲁棒性**:\
+          \ 结合预处理和强大的修复库，最大化解析成功率。\n    \"\"\"\n\n    # --- 阶段1: 快速通道 - 尝试直接解析 ---\n\
+          \    try:\n        return json_repair.loads(text)\n    except Exception:\n\
+          \        pass\n\n    # --- 阶段2: 高级提取 - 寻找并评估候选JSON ---\n    potential_json_strings\
+          \ = re.findall(r'(\\{[\\s\\S]*\\}|\\[[\\s\\S]*\\])', text)\n\n    if not\
+          \ potential_json_strings:\n        raise ValueError(\"在输入文本中未能找到任何潜在的JSON结构\
+          \ (即 {...} 或 [...] 块)\")\n\n    valid_jsons = []\n    for candidate in potential_json_strings:\n\
+          \        try:\n            parsed_json = json_repair.loads(candidate)\n\
+          \            valid_jsons.append(parsed_json)\n        except Exception:\n\
+          \            continue\n\n    if not valid_jsons:\n        raise ValueError(\"\
+          找到了潜在的JSON结构，但没有一个可以被成功修复和解析\")\n\n    # --- 智能决策：选择信息量最大的JSON ---\n   \
+          \ most_significant_json = max(valid_jsons, key=lambda x: len(json.dumps(x,\
+          \ ensure_ascii=False)))\n\n    return most_significant_json\n\n\n# ==============================================================================\n\
+          #  主执行函数 (全新设计，支持多输入)\n# ==============================================================================\n\
+          def main(**kwargs: Any) -> Dict[str, Any]:\n    \"\"\"\n    Dify 代码执行节点主函数\
+          \ - 【多输入通用版】\n\n    核心功能:\n    1. 接受任意数量的命名输入参数 (例如 arg1, arg2, user_profile,\
+          \ 等)。\n    2. 对每一个输入进行智能类型检查和解析。\n    3. 如果输入是字符串，则调用 _extract_most_significant_json\
+          \ 函数进行解析。\n    4. 如果输入已经是 dict 或 list，则直接使用。\n    5. 将所有成功解析的对象收集到一个字典中返回。\n\
+          \    6. 输出的键名会自动在原始输入键名后附加 \"_obj\" 后缀，方便下游引用。\n\n    使用示例:\n    - 输入1:\
+          \ key=\"arg1\", value=\"{'name': 'Alice'}\"\n    - 输入2: key=\"arg2\", value=\"\
+          [1, 2, 3]\"\n    - 输出: {'arg1_obj': {'name': 'Alice'}, 'arg2_obj': [1, 2,\
+          \ 3]}\n    \"\"\"\n    # 最终输出的结果字典\n    parsed_outputs = {}\n\n    # kwargs\
+          \ 是一个字典，包含了所有在 Dify 界面上定义的输入变量\n    # 例如：{'arg1': \"{'name': 'value'}\"\
+          , 'arg2': \"some other string\"}\n    if not kwargs:\n        # 如果没有配置任何输入参数，可以返回一个空字典或提示信息\n\
+          \        return {\"status\": \"No inputs provided.\"}\n\n    # 遍历所有传入的参数\n\
+          \    for key, raw_input in kwargs.items():\n\n        try:\n           \
+          \ parsed_object = None  # 先初始化一个变量来存储解析后的对象\n\n            if isinstance(raw_input,\
+          \ (dict, list)):\n                # 如果输入已经是正确的 Python 对象，直接赋值\n        \
+          \        parsed_object = raw_input\n\n            elif isinstance(raw_input,\
+          \ str):\n                if not raw_input.strip():\n                   \
+          \ # 对空字符串进行处理，两个版本的输出都设置为 None\n                    parsed_outputs[f\"{key}_obj\"\
+          ] = None\n                    parsed_outputs[f\"{key}_str\"] = None\n  \
+          \                  continue  # 继续处理下一个输入\n\n                # 调用强大的解析函数\n\
+          \                parsed_object = _extract_most_significant_json(raw_input)\n\
+          \n            else:\n                # 对于其他意外的类型\n                error_info\
+          \ = {\n                    \"error\": f\"Unsupported input type for '{key}'\"\
+          ,\n                    \"type\": str(type(raw_input)),\n               \
+          \     \"value\": str(raw_input)\n                }\n                parsed_outputs[f\"\
+          {key}_obj\"] = error_info\n                # 字符串版本可以存为错误提示或空\n         \
+          \       parsed_outputs[f\"{key}_str\"] = json.dumps(error_info)\n      \
+          \          continue\n\n            # --- 【核心调整点】 ---\n            # 如果上面任何一个分支成功获得了\
+          \ parsed_object，就在这里统一处理输出\n            if parsed_object is not None:\n\
+          \                # 版本1: 输出 Python 对象，键名以 _obj 结尾\n                parsed_outputs[f\"\
+          {key}_obj\"] = parsed_object\n\n                # 版本2: 输出 JSON 字符串，键名以 _str\
+          \ 结尾\n                # 使用 ensure_ascii=False 来正确处理中文字符\n              \
+          \  parsed_outputs[f\"{key}_str\"] = json.dumps(parsed_object, ensure_ascii=False)\n\
+          \n        except Exception as e:\n            # 如果在解析过程中发生任何错误，构造一个清晰的错误信息\n\
+          \            error_message = (\n                f\"Error processing input\
+          \ '{key}': {e}\\n\"\n                f\"Original input (first 500 chars):\
+          \ {str(raw_input)[:500]}...\"\n            )\n            # 两个版本的输出都记录错误\n\
+          \            parsed_outputs[f\"{key}_obj\"] = {\"error\": error_message}\n\
+          \            parsed_outputs[f\"{key}_str\"] = json.dumps({\"error\": error_message})\n\
+          \n    return parsed_outputs"
+        code_language: python3
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768376501695'
+        outputs:
+          arg1_obj:
+            children: null
+            type: object
+          arg1_str:
+            children: null
+            type: string
+        selected: false
+        title: 代码执行 4
+        type: code
+        variables:
+        - value_selector:
+          - '1768376506340'
+          - text
+          value_type: string
+          variable: arg1
+      height: 52
+      id: '1768385581878'
+      parentId: '1768376501695'
+      position:
+        x: 345.63395408223164
+        y: 65
+      positionAbsolute:
+        x: 2045.0188854461599
+        y: 355.22233382726847
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        outputs:
+        - value_selector:
+          - '1768377491840'
+          - ok
+          value_type: boolean
+          variable: ok
+        - value_selector:
+          - '1768377491840'
+          - error
+          value_type: string
+          variable: error
+        - value_selector:
+          - '1768377491840'
+          - next_step
+          value_type: string
+          variable: next_step
+        - value_selector:
+          - '1768377491840'
+          - player_url
+          value_type: string
+          variable: player_url
+        - value_selector:
+          - '1768377491840'
+          - preview_url
+          value_type: string
+          variable: preview_url
+        - value_selector:
+          - '1768377491840'
+          - project_id
+          value_type: string
+          variable: project_id
+        - value_selector:
+          - env
+          - 'NULL'
+          value_type: string
+          variable: cover_url
+        - value_selector:
+          - env
+          - title
+          value_type: string
+          variable: title
+        selected: false
+        title: 输出
+        type: end
+      height: 272
+      id: '1768388281254'
+      position:
+        x: 3968.9037513285575
+        y: 531.2617725982681
+      positionAbsolute:
+        x: 3968.9037513285575
+        y: 531.2617725982681
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "import json\nimport re\n\ndef main(current_code_structure: list | str,\
+          \ adjustment_plan: dict | str) -> dict:\n    \"\"\"\n    Args:\n       \
+          \ current_code_structure: 原始代码列表\n        adjustment_plan: 包含 delete_indexes\
+          \ 和 requirements_by_index 的计划\n    \n    Returns:\n        assembly_result:\
+          \ 包含删除指令的全量列表 (用于结构处理)\n        assembly_json: 全量 JSON 字符串\n        no_del_assembly_result:\
+          \ 剔除删除指令的列表 (用于 LLM 代码生成)\n        no_del_assembly_json: 剔除删除指令 JSON 字符串\n\
+          \    \"\"\"\n\n    # ==========================\n    # 1. 健壮性数据清洗 (ETL)\n\
+          \    # ==========================\n    \n    def safe_parse(data):\n   \
+          \     if isinstance(data, (dict, list)): return data\n        if data is\
+          \ None: return {}\n        s = str(data).strip()\n        s = re.sub(r'^```json\\\
+          s*|^```\\s*|```$', '', s, flags=re.MULTILINE).strip()\n        try: return\
+          \ json.loads(s)\n        except: return {}\n\n    codes_in = safe_parse(current_code_structure)\n\
+          \    if isinstance(codes_in, dict): codes_in = [codes_in]\n    if not isinstance(codes_in,\
+          \ list): codes_in = []\n\n    plan_in = safe_parse(adjustment_plan)\n  \
+          \  \n    # 提取需求字典\n    requirements_map = plan_in.get(\"requirements_by_index\"\
+          , {})\n    # 备用：如果顶层就是 map\n    if not requirements_map and (\"0\" in plan_in\
+          \ or any(\"__insert\" in k for k in plan_in.keys())):\n        requirements_map\
+          \ = plan_in\n\n    # 提取明确的删除索引列表 (用于双重校验)\n    explicit_delete_ids = plan_in.get(\"\
+          delete_indexes\", [])\n    # 确保里面的元素都是字符串，方便比对\n    explicit_delete_ids\
+          \ = [str(x) for x in explicit_delete_ids]\n\n    # ==========================\n\
+          \    # 2. 构建代码查找表\n    # ==========================\n    \n    scene_map\
+          \ = {}\n    for item in codes_in:\n        idx = item.get(\"index\")\n \
+          \       content = item.get(\"code_content\", \"\")\n        if idx is not\
+          \ None:\n            scene_map[int(idx)] = content\n\n    # ==========================\n\
+          \    # 3. 智能组装 (分类处理)\n    # ==========================\n    \n    full_list\
+          \ = []      # 包含 Delete\n    llm_work_list = []  # 不含 Delete (Modify + Insert)\n\
+          \n    for key, req_data in requirements_map.items():\n        key_str =\
+          \ str(key).strip()\n        \n        # 获取动作类型\n        action = req_data.get(\"\
+          action\", \"modify\").lower()\n        \n        # 兼容性防御：如果 ID 在 delete_indexes\
+          \ 里，强制视为 delete\n        if key_str in explicit_delete_ids:\n          \
+          \  action = \"delete\"\n\n        task_base = {\n            \"scene_index\"\
+          : -1,\n            \"requirements\": req_data,\n            \"edit_request\"\
+          : req_data.get(\"change_summary\", \"\") or req_data.get(\"new_scene_purpose\"\
+          , \"\"),\n            \"video\": {}\n        }\n\n        # -----------------------------\n\
+          \        # BRANCH A: DELETE (删除)\n        # -----------------------------\n\
+          \        if action == \"delete\":\n            # 仅添加到全量列表，跳过 LLM 列表\n  \
+          \          task_base.update({\n                \"action\": \"delete\",\n\
+          \                \"scene_index\": int(key_str) if key_str.isdigit() else\
+          \ -1,\n                # 删除不需要原始代码，只需要知道删谁\n                \"original_scene_code\"\
+          : None \n            })\n            full_list.append(task_base)\n     \
+          \       continue # <--- 关键：直接进行下一次循环，不加入 no_del 列表\n\n        # -----------------------------\n\
+          \        # BRANCH B: MODIFY (修改)\n        # -----------------------------\n\
+          \        if key_str.isdigit():\n            idx = int(key_str)\n       \
+          \     original_code = scene_map.get(idx, \"\")\n            \n         \
+          \   task_base.update({\n                \"action\": \"modify\",\n      \
+          \          \"scene_index\": idx,\n                \"original_scene_code\"\
+          : original_code\n            })\n            \n            full_list.append(task_base)\n\
+          \            llm_work_list.append(task_base)\n\n        # -----------------------------\n\
+          \        # BRANCH C: INSERT (插入)\n        # -----------------------------\n\
+          \        elif \"__insert\" in key_str:\n            # 解析锚点\n           \
+          \ anchor = -1\n            insert_type = \"unknown\"\n            try:\n\
+          \                parts = key_str.split(\":\")\n                cmd = parts[0]\n\
+          \                anchor = int(parts[1]) if len(parts) > 1 else -1\n    \
+          \            if \"after\" in cmd: insert_type = \"after\"\n            \
+          \    elif \"before\" in cmd: insert_type = \"before\"\n            except:\
+          \ pass\n\n            # 获取上下文\n            before_code = None\n        \
+          \    after_code = None\n            if insert_type == \"after\":\n     \
+          \           before_code = scene_map.get(anchor)\n                after_code\
+          \ = scene_map.get(anchor + 1)\n            elif insert_type == \"before\"\
+          :\n                before_code = scene_map.get(anchor - 1)\n           \
+          \     after_code = scene_map.get(anchor)\n\n            task_base.update({\n\
+          \                \"action\": \"insert\",\n                \"insert_key\"\
+          : key_str,\n                \"context\": {\n                    \"before_scene_code\"\
+          : before_code,\n                    \"after_scene_code\": after_code\n \
+          \               }\n            })\n            \n            full_list.append(task_base)\n\
+          \            llm_work_list.append(task_base)\n\n    # ==========================\n\
+          \    # 4. 输出封装\n    # ==========================\n\n    return {\n     \
+          \   # 原始字段：包含所有操作（含删除），用于结构维护\n        \"assembly_result\": full_list,\n\
+          \        \"assembly_json\": json.dumps(full_list, ensure_ascii=False),\n\
+          \        \n        # 新增字段：仅包含需要 LLM 处理的操作（不含删除）\n        \"no_del_assembly_result\"\
+          : llm_work_list,\n        \"no_del_assembly_json\": json.dumps(llm_work_list,\
+          \ ensure_ascii=False)\n    }\n"
+        code_language: python3
+        outputs:
+          assembly_json:
+            children: null
+            type: string
+          assembly_result:
+            children: null
+            type: array[object]
+          no_del_assembly_json:
+            children: null
+            type: string
+          no_del_assembly_result:
+            children: null
+            type: array[object]
+        selected: false
+        title: 排列组合
+        type: code
+        variables:
+        - value_selector:
+          - '1769235948427'
+          - result
+          value_type: string
+          variable: current_code_structure
+        - value_selector:
+          - '1768382286533'
+          - arg1_obj
+          value_type: object
+          variable: adjustment_plan
+      height: 52
+      id: '1768466944747'
+      position:
+        x: 1330.5828176788323
+        y: 282
+      positionAbsolute:
+        x: 1330.5828176788323
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: not empty
+            id: a3531fae-06ab-4fdc-b988-336eca2bac80
+            value: ''
+            varType: array[object]
+            variable_selector:
+            - '1768466944747'
+            - no_del_assembly_result
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: 条件分支
+        type: if-else
+      height: 124
+      id: '1768552909868'
+      position:
+        x: 1304.0174025929798
+        y: 492.4458769793149
+      positionAbsolute:
+        x: 1304.0174025929798
+        y: 492.4458769793149
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        error_strategy: fail-branch
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: To get a key's value.
+            ja_JP: To get a key's value.
+            pt_BR: To get a key's value.
+            zh_Hans: 获取一个键的值。
+          label:
+            en_US: Key
+            ja_JP: Key
+            pt_BR: Key
+            zh_Hans: 键
+          llm_description: To get a key's value.
+          max: null
+          min: null
+          name: key
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        params:
+          key: ''
+        plugin_id: hjlarry/storage
+        plugin_unique_identifier: hjlarry/storage:0.0.2@d105c624fd07bd315befe907461d81d71009638833b41e559f6ee37666a6e546
+        provider_icon: /console/api/workspaces/current/plugin/icon?tenant_id=72305e0d-3ec5-4ff1-871b-3f11ee2f754a&filename=64e5465184a381ff34cbc54e8632f7c0483af0a02f66adcd262b221f42b86a2c.svg
+        provider_id: hjlarry/storage/storage
+        provider_name: hjlarry/storage/storage
+        provider_type: builtin
+        retry_config:
+          max_retries: 3
+          retry_enabled: false
+          retry_interval: 1000
+        selected: false
+        title: 获取音频ID
+        tool_configurations: {}
+        tool_description: 获取一个键值字符串。
+        tool_label: 获取字符串
+        tool_name: get_string
+        tool_node_version: '2'
+        tool_parameters:
+          key:
+            type: mixed
+            value: video_presets_{{#1768376433549.conversation_id#}}
+        type: tool
+      height: 88
+      id: '17685581905160'
+      position:
+        x: 2836.8623415174725
+        y: 343.32796495037724
+      positionAbsolute:
+        x: 2836.8623415174725
+        y: 343.32796495037724
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Name
+            ja_JP: Redis Name
+            pt_BR: Redis Name
+            zh_Hans: Redis Name
+          label:
+            en_US: Name
+            ja_JP: Name
+            pt_BR: Name
+            zh_Hans: Name
+          llm_description: Redis Name
+          max: null
+          min: null
+          name: name
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Key
+            ja_JP: Redis Key
+            pt_BR: Redis Key
+            zh_Hans: Redis Key
+          label:
+            en_US: Key
+            ja_JP: Key
+            pt_BR: Key
+            zh_Hans: Key
+          llm_description: Redis Key
+          max: null
+          min: null
+          name: key
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        params:
+          key: ''
+          name: ''
+        plugin_id: eft/redis
+        plugin_unique_identifier: eft/redis:1.0.3@bac89a1d03ca694e856b58341cbb34094af7ca9425ef4e39bed85fbd27284df8
+        provider_icon: /console/api/workspaces/current/plugin/icon?tenant_id=72305e0d-3ec5-4ff1-871b-3f11ee2f754a&filename=ce0be7e9d45ce7561d895a7a486c061ac11d41de54d62aaea6d84d0c4a6f2916.svg
+        provider_id: eft/redis/redis
+        provider_name: eft/redis/redis
+        provider_type: builtin
+        selected: false
+        title: Redis GET
+        tool_configurations: {}
+        tool_description: Redis GET
+        tool_label: Redis GET
+        tool_name: redis-get
+        tool_node_version: '2'
+        tool_parameters:
+          key:
+            type: mixed
+            value: code_array_{{#1768376433549.conversation_id#}}
+          name:
+            type: mixed
+            value: docker-redis-1
+        type: tool
+      height: 52
+      id: '1769235188438'
+      position:
+        x: 91.67693064423821
+        y: 218.4239553869317
+      positionAbsolute:
+        x: 91.67693064423821
+        y: 218.4239553869317
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Name
+            ja_JP: Redis Name
+            pt_BR: Redis Name
+            zh_Hans: Redis Name
+          label:
+            en_US: Name
+            ja_JP: Name
+            pt_BR: Name
+            zh_Hans: Name
+          llm_description: Redis Name
+          max: null
+          min: null
+          name: name
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Key
+            ja_JP: Redis Key
+            pt_BR: Redis Key
+            zh_Hans: Redis Key
+          label:
+            en_US: Key
+            ja_JP: Key
+            pt_BR: Key
+            zh_Hans: Key
+          llm_description: Redis Key
+          max: null
+          min: null
+          name: key
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Value
+            ja_JP: Redis Value
+            pt_BR: Redis Value
+            zh_Hans: Redis Value
+          label:
+            en_US: Value
+            ja_JP: Value
+            pt_BR: Value
+            zh_Hans: Value
+          llm_description: Redis Value
+          max: null
+          min: null
+          name: value
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: TTL, default 60s
+            ja_JP: TTL, default 60s
+            pt_BR: TTL, default 60s
+            zh_Hans: TTL, 默认 60 秒
+          label:
+            en_US: TTL
+            ja_JP: TTL
+            pt_BR: TTL
+            zh_Hans: TTL
+          llm_description: TTL
+          max: null
+          min: null
+          name: ttl
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: number
+        params:
+          key: ''
+          name: ''
+          ttl: ''
+          value: ''
+        plugin_id: eft/redis
+        plugin_unique_identifier: eft/redis:1.0.3@bac89a1d03ca694e856b58341cbb34094af7ca9425ef4e39bed85fbd27284df8
+        provider_icon: /console/api/workspaces/current/plugin/icon?tenant_id=72305e0d-3ec5-4ff1-871b-3f11ee2f754a&filename=ce0be7e9d45ce7561d895a7a486c061ac11d41de54d62aaea6d84d0c4a6f2916.svg
+        provider_id: eft/redis/redis
+        provider_name: eft/redis/redis
+        provider_type: builtin
+        selected: false
+        title: 更新codeArry
+        tool_configurations: {}
+        tool_description: Redis SET
+        tool_label: Redis SET
+        tool_name: redis-set
+        tool_node_version: '2'
+        tool_parameters:
+          key:
+            type: mixed
+            value: code_array_{{#1768376433549.conversation_id#}}
+          name:
+            type: mixed
+            value: docker-redis-1
+          ttl:
+            type: constant
+            value: -1
+          value:
+            type: mixed
+            value: '{{#1768385110630.result_string#}}'
+        type: tool
+      height: 52
+      id: '1769235242191'
+      position:
+        x: 2836.8623415174725
+        y: 644.0269479397663
+      positionAbsolute:
+        x: 2836.8623415174725
+        y: 644.0269479397663
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Name
+            ja_JP: Redis Name
+            pt_BR: Redis Name
+            zh_Hans: Redis Name
+          label:
+            en_US: Name
+            ja_JP: Name
+            pt_BR: Name
+            zh_Hans: Name
+          llm_description: Redis Name
+          max: null
+          min: null
+          name: name
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Key
+            ja_JP: Redis Key
+            pt_BR: Redis Key
+            zh_Hans: Redis Key
+          label:
+            en_US: Key
+            ja_JP: Key
+            pt_BR: Key
+            zh_Hans: Key
+          llm_description: Redis Key
+          max: null
+          min: null
+          name: key
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        params:
+          key: ''
+          name: ''
+        plugin_id: eft/redis
+        plugin_unique_identifier: eft/redis:1.0.3@bac89a1d03ca694e856b58341cbb34094af7ca9425ef4e39bed85fbd27284df8
+        provider_icon: /console/api/workspaces/current/plugin/icon?tenant_id=72305e0d-3ec5-4ff1-871b-3f11ee2f754a&filename=ce0be7e9d45ce7561d895a7a486c061ac11d41de54d62aaea6d84d0c4a6f2916.svg
+        provider_id: eft/redis/redis
+        provider_name: eft/redis/redis
+        provider_type: builtin
+        selected: false
+        title: 获取音频ID（redis）
+        tool_configurations: {}
+        tool_description: Redis GET
+        tool_label: Redis GET
+        tool_name: redis-get
+        tool_node_version: '2'
+        tool_parameters:
+          key:
+            type: mixed
+            value: video_presets_{{#1768376433549.conversation_id#}}
+          name:
+            type: mixed
+            value: docker-redis-1
+        type: tool
+      height: 52
+      id: '1769235271620'
+      position:
+        x: 2841.081314834177
+        y: 497.74731473771664
+      positionAbsolute:
+        x: 2841.081314834177
+        y: 497.74731473771664
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "def main(arg1: str, arg2: str):\n    result = \"\"\n    if arg1 and\
+          \ arg2:\n        result = arg1\n    elif arg1:\n        result = arg1\n\
+          \    elif arg2:\n        result = arg2\n    \n    return {\n        \"result\"\
+          : result,\n    }\n\n"
+        code_language: python3
+        outputs:
+          result:
+            children: null
+            type: string
+        selected: false
+        title: 变量聚合
+        type: code
+        variables:
+        - value_selector:
+          - '1769235188438'
+          - text
+          value_type: string
+          variable: arg1
+        - value_selector:
+          - '1768381959909'
+          - text
+          value_type: string
+          variable: arg2
+      height: 52
+      id: '1769235948427'
+      position:
+        x: 412.3919994345081
+        y: 282
+      positionAbsolute:
+        x: 412.3919994345081
+        y: 282
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        code: "def main(arg1: str, arg2: str):\n    result = \"\"\n    if arg1 and\
+          \ arg2:\n        result = arg1\n    elif arg1:\n        result = arg1\n\
+          \    elif arg2:\n        result = arg2\n    \n    return {\n        \"result\"\
+          : result,\n    }\n\n"
+        code_language: python3
+        outputs:
+          result:
+            children: null
+            type: string
+        selected: false
+        title: 变量聚合 (音频ID)
+        type: code
+        variables:
+        - value_selector:
+          - '1769235271620'
+          - text
+          value_type: string
+          variable: arg1
+        - value_selector:
+          - '17685581905160'
+          - text
+          value_type: string
+          variable: arg2
+      height: 52
+      id: '17692361065320'
+      position:
+        x: 3224.7702937175104
+        y: 401.175469052035
+      positionAbsolute:
+        x: 3224.7702937175104
+        y: 401.175469052035
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    viewport:
+      x: -657.445052712432
+      y: -94.70716446208615
+      zoom: 0.659753948572048
+  rag_pipeline_variables: []

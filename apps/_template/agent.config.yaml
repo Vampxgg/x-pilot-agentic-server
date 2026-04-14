@@ -1,0 +1,14 @@
+model: z-ai/glm-5
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxConcurrency: 5
+allowedTools:
+  - "*"
+heartbeat:
+  enabled: true
+  intervalMs: 3600000
+evolution:
+  enabled: true
+  requireApproval: true
+timeout: 300000

@@ -1,0 +1,431 @@
+openapi: 3.0.3
+info:
+  title: X-Pilot Dify 兼容 REST API
+  version: 2.1.0
+  description: |
+    Dify 兼容的 REST API 端点，需在 `.env` 中设置 `STREAM_PROTOCOL=dify` 后生效。
+    认证方式：`Authorization: Bearer <apiKey>`（默认 key 见 config/tenants.yaml）
+
+servers:
+  - url: http://192.168.50.54:7800
+    description: 开发环境
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: 会话管理
+    description: 会话的增删查
+  - name: 消息历史
+    description: 会话内消息列表
+  - name: 流控制
+    description: 停止正在执行的流式响应
+
+paths:
+  # ─────────────────────────────────────────────────────────────
+  # 1. 查询会话列表
+  # ─────────────────────────────────────────────────────────────
+  /v1/conversations:
+    get:
+      tags: [会话管理]
+      summary: 查询会话列表
+      operationId: listConversations
+      description: |
+        返回当前用户的会话列表，按创建时间倒序排列。
+        支持游标分页：传入上一页最后一条记录的 id 作为 `first_id`。
+      parameters:
+        - name: user
+          in: query
+          description: 用户标识（可选，认证信息中已包含）
+          schema:
+            type: string
+            example: "default"
+        - name: limit
+          in: query
+          description: 每页条数
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+            example: 20
+        - name: first_id
+          in: query
+          description: 游标分页 — 上一页最后一条记录的 id
+          schema:
+            type: string
+            example: ""
+      responses:
+        "200":
+          description: 会话列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationListResponse"
+              example:
+                limit: 20
+                has_more: false
+                data:
+                  - id: "971d242c-6628-4e4a-861a-717a07f442f0"
+                    name: "电子电工原理及故障诊断实训指导书"
+                    inputs:
+                      select_knowledge_unit: "电子电工原理及故障诊断实训指导书"
+                      prompt: "图片不少于10张，加入3个案例，字数1万字左右。"
+                      database_id: "53bc2550-f35b-4a6f-831f-57fb333d601f"
+                      docCategory: "studentHandbook"
+                    status: "normal"
+                    introduction: ""
+                    created_at: 1773920000
+                    updated_at: 1773920130
+                  - id: "4f2657aa-2d79-4b43-9b6f-d8352fb376fb"
+                    name: "Python 编程入门"
+                    inputs:
+                      select_knowledge_unit: "Python 编程入门"
+                      prompt: "适合零基础学生"
+                    status: "normal"
+                    introduction: ""
+                    created_at: 1773800000
+                    updated_at: 1773800200
+
+  # ─────────────────────────────────────────────────────────────
+  # 2. 查询会话消息历史
+  # ─────────────────────────────────────────────────────────────
+  /v1/messages:
+    get:
+      tags: [消息历史]
+      summary: 获取会话消息历史
+      operationId: listMessages
+      description: |
+        返回指定会话中的消息列表，按创建时间倒序排列。
+        每条消息包含用户输入（query）和 Agent 回答（answer）。
+      parameters:
+        - name: conversation_id
+          in: query
+          required: true
+          description: 会话 ID
+          schema:
+            type: string
+            example: "971d242c-6628-4e4a-861a-717a07f442f0"
+        - name: user
+          in: query
+          description: 用户标识（可选）
+          schema:
+            type: string
+            example: "default"
+        - name: limit
+          in: query
+          description: 每页条数
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+            example: 20
+        - name: first_id
+          in: query
+          description: 游标分页 — 上一页最后一条记录的 id
+          schema:
+            type: string
+            example: ""
+      responses:
+        "200":
+          description: 消息列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageListResponse"
+              example:
+                limit: 20
+                has_more: false
+                data:
+                  - id: "task_229a996d"
+                    conversation_id: "971d242c-6628-4e4a-861a-717a07f442f0"
+                    parent_message_id: "00000000-0000-0000-0000-000000000000"
+                    inputs:
+                      select_knowledge_unit: "电子电工原理及故障诊断实训指导书"
+                      prompt: "图片不少于10张，加入3个案例，字数1万字左右。"
+                      database_id: "53bc2550-f35b-4a6f-831f-57fb333d601f"
+                      docCategory: "studentHandbook"
+                    query: "图片不少于10张，加入3个案例，字数1万字左右。"
+                    answer: "# 任务一：直流电路基础\n\n**项目一：电子电工原理及故障诊断**\n\n## 一、任务引入\n\n本任务旨在让学生理解直流电路的基本概念..."
+                    feedback: null
+                    retriever_resources: []
+                    created_at: 1773920000
+                    agent_thoughts: []
+                    message_files: []
+                    status: "normal"
+                    error: null
+        "400":
+          description: 缺少 conversation_id 参数
+          content:
+            application/json:
+              example:
+                error: "conversation_id is required"
+
+  # ─────────────────────────────────────────────────────────────
+  # 3. 删除会话
+  # ─────────────────────────────────────────────────────────────
+  /v1/conversations/{id}:
+    delete:
+      tags: [会话管理]
+      summary: 删除会话
+      operationId: deleteConversation
+      description: |
+        删除指定会话及其所有消息记录。此操作不可逆。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: 要删除的会话 ID
+          schema:
+            type: string
+            example: "971d242c-6628-4e4a-861a-717a07f442f0"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user:
+                  type: string
+                  description: 用户标识（可选）
+            example:
+              user: "default"
+      responses:
+        "200":
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResult"
+              example:
+                result: "success"
+        "404":
+          description: 会话不存在
+          content:
+            application/json:
+              example:
+                error: "Conversation not found"
+
+  # ─────────────────────────────────────────────────────────────
+  # 4. 停止响应
+  # ─────────────────────────────────────────────────────────────
+  /v1/chat-messages/{task_id}/stop:
+    post:
+      tags: [流控制]
+      summary: 停止响应
+      operationId: stopChatMessage
+      description: |
+        停止正在运行的流式响应。
+
+        **重要**：`task_id` 是 SSE 事件流中的 `task_id` 字段（Dify 停止任务 ID），
+        不是 `message_id`。
+
+        可通过以下方式获取 `task_id`：
+        - SSE 流中任意事件的 `task_id` 字段
+        - HTTP 响应头 `X-Task-Id`
+
+        调用后：
+        - 流式输出立即停止
+        - 服务端发出 `workflow_finished`（status: "stopped"）事件
+        - 随后发出 `message_end` 事件
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          description: |
+            SSE 流中的 Dify task_id（UUID 格式）。
+            注意：这不是 message_id，而是 HTTP 响应头 X-Task-Id 返回的值。
+          schema:
+            type: string
+            format: uuid
+            example: "194caa6e-55e2-498c-990c-9b74543e3e5e"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user:
+                  type: string
+                  description: 用户标识（可选）
+            example:
+              user: "default"
+      responses:
+        "200":
+          description: 停止成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResult"
+              example:
+                result: "success"
+        "404":
+          description: 任务不存在或已停止
+          content:
+            application/json:
+              example:
+                error: "Task not found or already stopped"
+
+# ═══════════════════════════════════════════════════════════════
+# 组件定义
+# ═══════════════════════════════════════════════════════════════
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+      description: "默认 Key: x-pilot-default-key（见 config/tenants.yaml）"
+
+  schemas:
+    # ── 会话记录 ──
+    ConversationRecord:
+      type: object
+      required: [id, name, inputs, status, introduction, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          description: 会话 ID（= sessionId）
+          example: "971d242c-6628-4e4a-861a-717a07f442f0"
+        name:
+          type: string
+          description: 会话名称（通常取自 select_knowledge_unit）
+          example: "电子电工原理及故障诊断实训指导书"
+        inputs:
+          type: object
+          description: 创建会话时的请求参数
+          example:
+            select_knowledge_unit: "电子电工原理及故障诊断实训指导书"
+            prompt: "图片不少于10张"
+        status:
+          type: string
+          enum: [normal, archived]
+          description: 会话状态
+          example: "normal"
+        introduction:
+          type: string
+          description: 会话简介（预留字段）
+          example: ""
+        created_at:
+          type: number
+          description: 创建时间（Unix 秒）
+          example: 1773920000
+        updated_at:
+          type: number
+          description: 最后更新时间（Unix 秒）
+          example: 1773920130
+
+    # ── 会话列表响应 ──
+    ConversationListResponse:
+      type: object
+      required: [limit, has_more, data]
+      properties:
+        limit:
+          type: integer
+          description: 本页条数上限
+          example: 20
+        has_more:
+          type: boolean
+          description: 是否还有更多数据
+          example: false
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConversationRecord"
+
+    # ── 消息记录 ──
+    MessageRecord:
+      type: object
+      required: [id, conversation_id, parent_message_id, inputs, query, answer, feedback, retriever_resources, created_at, agent_thoughts, message_files, status, error]
+      properties:
+        id:
+          type: string
+          description: 消息 ID（= 原生 taskId）
+          example: "task_229a996d"
+        conversation_id:
+          type: string
+          description: 所属会话 ID
+          example: "971d242c-6628-4e4a-861a-717a07f442f0"
+        parent_message_id:
+          type: string
+          description: 父消息 ID（首条消息为全零 UUID）
+          example: "00000000-0000-0000-0000-000000000000"
+        inputs:
+          type: object
+          description: 本次请求的输入参数
+          example:
+            select_knowledge_unit: "电子电工原理及故障诊断实训指导书"
+            prompt: "图片不少于10张，加入3个案例，字数1万字左右。"
+        query:
+          type: string
+          description: 用户的原始提问/指令
+          example: "图片不少于10张，加入3个案例，字数1万字左右。"
+        answer:
+          type: string
+          description: Agent 的完整回答内容（所有 message 事件的累积）
+          example: "# 任务一：直流电路基础\n\n**项目一：电子电工原理及故障诊断**\n\n## 一、任务引入\n\n..."
+        feedback:
+          type: string
+          nullable: true
+          description: 用户反馈（预留，当前始终为 null）
+          example: null
+        retriever_resources:
+          type: array
+          items: {}
+          description: 检索资源引用列表
+          example: []
+        created_at:
+          type: number
+          description: 创建时间（Unix 秒）
+          example: 1773920000
+        agent_thoughts:
+          type: array
+          items: {}
+          description: Agent 思考过程记录（预留）
+          example: []
+        message_files:
+          type: array
+          items: {}
+          description: 关联文件列表（预留）
+          example: []
+        status:
+          type: string
+          enum: [normal, error]
+          description: 消息状态
+          example: "normal"
+        error:
+          type: string
+          nullable: true
+          description: 错误信息（正常时为 null）
+          example: null
+
+    # ── 消息列表响应 ──
+    MessageListResponse:
+      type: object
+      required: [limit, has_more, data]
+      properties:
+        limit:
+          type: integer
+          description: 本页条数上限
+          example: 20
+        has_more:
+          type: boolean
+          description: 是否还有更多数据
+          example: false
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/MessageRecord"
+
+    # ── 通用成功响应 ──
+    SuccessResult:
+      type: object
+      required: [result]
+      properties:
+        result:
+          type: string
+          enum: [success]
+          example: "success"

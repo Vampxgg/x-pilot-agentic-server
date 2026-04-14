@@ -1,0 +1,326 @@
+
+//workflow_started事件
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922730.617,
+    "event": "workflow_started",
+    "data": {
+        "id": "workflow_run_cd5fb921",
+        "workflow_run_id": "workflow_run_cd5fb921",
+        "agent_name": "document-generator",
+        "inputs":{}//存储对应用户的输入参数,
+        "thread_id": "8fb25005-be7a-4314-8e97-44ae4bc7713d",
+        "created_at": 1773922730.617,
+            "sys.query": "介绍X-Pilot视频",/后期由用户传递进入，现在默认为”开始工作“
+            "sys.user_id": "20201011", //由用户传递进入，如果不传递默认为”“
+            "sys.tenant_id": "20201011",//由用户传递进入，如果不传递默认为”“
+    }
+}
+//node事件中 
+node_id 是唯一且固定的，就像数据库中唯一id，当前使用硬代码实现
+//node_started事件
+
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922730.617,
+    "event": "node_started",
+    "data": {
+        "id": "exec_26ba2397",//随机生成
+        "node_id": "11179223255",//不是agent_document-generator
+        "node_execution_id": "exec_26ba2397",
+        "node_type": "agent",
+        "title": "document-generator",
+       "inputs":null //添加上，后续扩展使用
+        "parent_id": "",
+        "index": 0,
+        "created_at": 1773922730.617
+    }
+}
+//node_finished事件
+
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773923045.247,
+    "event": "node_finished",
+    "data": {
+        "id": "exec_26ba2397",
+         "node_id": "11179223255",//不是agent_document-generator
+        "node_execution_id": "exec_26ba2397",
+        "node_type": "agent",
+        "title": "document-generator",
+        "parent_id": "",
+        "index": 1,
+        "status": "succeeded",
+       "inputs":null //添加上，后续扩展使用
+        "outputs": {
+            "answer": "# 任务二：整流滤波模块原理与应用\n\n在汽车电气系统中，将交流电转换为直流电是至关重要的一环，这主要依靠整流滤波模块完成。本章将深入剖析三相交流发电机的工作原理，以及整流、滤波和稳压技术，并通过实训步骤和案例分析，帮助读者理解和掌握交流转直流的核心技术。\n\n## 原理剖析\n\n### 三相交流发电机的发电原理\n\n想象一下，你手中拿着一块磁铁，在三根相互间隔120度的线圈旁边快速旋转。当磁铁旋转时，它的磁力线会不断切割这三根线圈，从而在线圈中产生感应电动势。由于线圈的布置是均匀的，所以最终会产生幅值相等、频率相同、相位互差120度的三相交流电。这就是三相交流发电机最核心的发电原理[^ref-016]。\n\n在汽车中，发电机由发动机驱动，其转子（旋转磁场）在定子绕组（三相线圈）中旋转，产生三相交流电[^ref-016]。这个过程就好比我们摇动手摇发电机，通过匀速转动，使内部的磁铁切割线圈，从而产生交流电。\n\n![展示了三相交流发电机的整流、滤波和稳压原理。](http://119.45.167.133:17752/meta-doc/zip/b503c3789dc442ba5bd9ba5facd44d24/images/73e25a47b866f792dd913eb600de3fb029cd195fb5278a58be9035fdb799eed9.jpg)\n\n_图：三相交流发电机工作原理示意图（来源：电工电子实训平台）_\n\n### 整流、滤波与稳压的完整工作过程\n\n三相交流发电机产生的交流电并不能直接供给汽车上的用电设备，因为大多数车载设备需要稳定的直流电。因此，需要经过整流、滤波和稳压三个环节，将交流电转换为可用的直流电。\n\n#### 1. 整流\n\n整流是交流电转换为直流电的第一步。它利用二极管的单向导电性，将交流电的正半周或负半周转换为单一方向的脉动直流电。在三相交流发电机中，通常采用三相桥式整流电路，由六个二极管组成[^ref-016]。每个二极管就像一个“单向阀门”，只允许电流朝一个方向流动。当三相交流电输入到整流桥时，整流桥会根据电压高低，选择导通相应的二极管，从而在输出端形成一个波形相对平稳的脉动直流电压[^ref-016]。\n\n#### 2. 滤波\n\n经过整流后的电压虽然是单向的，但仍然含有较大的纹波（波动），就像心电图上的波峰波谷，不够平滑。滤波的作用就是“削峰填谷”，使电压变得更平稳。滤波电容器（通常是电解电容器）在这里起到了关键作用。当脉动直流电压升高时，电容器会充电，储存电能；当电压降低时，电容器会放电，补充能量，从而抑制电压的波动，使输出电压趋于平滑[^ref-015]。滤波电容的容量越大，滤波效果越好，输出的直流电压就越平稳。\n\n**滤波电容器的作用**：\n- **储存电能**：当整流输出电压高于电容器两端电压时，电容器充电，储存电能。\n- **释放电能**：当整流输出电压低于电容器两端电压时，电容器放电，释放储存的电能，补充负载所需的电流，从而减小输出电压的波动。\n- **平滑电压**：通过反复充电和放电，电容器有效地降低了输出电压的纹波，使其更接近理想的直流电。\n\n#### 3. 稳压\n\n即使经过整流和滤波，输出电压仍可能受到负载变化或发电机转速变化的影响而波动。稳压电路的作用就是确保输出电压在允许的范围内保持恒定。稳压器（如调节器）会监测发电机的输出电压，并通过控制励磁电流来调整发电机的磁场强度，进而控制发电机的输出电压，使其稳定在一个设定值（例如汽车12V系统通常稳定在13.5-14.8V）[^ref-014]。\n\n### 微案例：汽车发电机系统中整流滤波模块的作用及常见故障表现\n\n汽车发电机在发动机运转时，为全车用电设备供电，并为蓄电池充电。这里的整流滤波模块就是将发电机产生的三相交流电转换为稳定的直流电，以满足全车电器（如音响、空调、灯光、ECU等）的工作需求，并确保蓄电池能够正常充电。\n\n**常见故障表现**：\n\n1.  **蓄电池充电不足或过充**：\n    *   **充电不足**：整流二极管损坏（开路或短路）、滤波电容失效，导致发电机输出电压偏低或纹波过大，蓄电池无法获得足够的充电电流。表现为电池亏电，车辆启动困难。\n    *   **过充**：稳压器故障，导致发电机输出电压过高，可能损坏蓄电池和其他车载电器。表现为电池过热、电解液消耗过快。\n2.  **车载电器工作异常**：\n    *   **电压波动大**：滤波电容器失效，导致直流输出电压纹波过大，音响系统可能出现噪音，灯光闪烁，甚至一些对电压敏感的电子设备（如ECU）可能出现工作不稳定或故障代码。\n    *   **无直流输出**：整流桥完全损坏，发电机无法输出直流电，导致全车电气系统瘫痪，车辆无法正常行驶。\n3.  **充电指示灯异常**：\n    *   **充电指示灯常亮**：通常表示发电机不发电或发电量不足，未能向蓄电池充电。这可能是整流滤波模块故障导致直流输出电压低于蓄电池电压，无法使充电指示灯熄灭[^ref-016]。\n    *   **充电指示灯不亮**：在发动机启动后，充电指示灯应熄灭。如果指示灯一直不亮，可能意味着发电机没有正常工作，或者指示灯电路本身有故障。\n\n## 实训步骤\n\n本实训将通过操作整流滤波模块，测量三相交流输入电压和直流输出电压，加深对整流、滤波、稳压原理的理解。\n\n**实训器材**：整流滤波模块（含手摇发电机、工作指示灯、滤波电容器，面板喷绘电路原理图，预留3个三相交流电输入测量孔、2个直流输出测量孔）、数字万用表、导线若干[^ref-009]。\n\n1.  **部件识别与原理认知**：\n    *   仔细观察整流滤波模块的整体结构，识别手摇发电机、工作指示灯、滤波电容器的位置和外观特征[^ref-009]。\n    *   对照模块面板上喷绘的电路原理图，梳理发电、整流、滤波、稳压的电路走向，理解各环节的作用[^ref-009]。\n2.  **模块检查**：\n    *   检查模块线路连接是否牢固，工作指示灯是否完好，测量孔无杂物堵塞，手摇发电机转动灵活、无卡顿，确保模块可正常工作[^ref-009]。\n3.  **三相交流电输入电压测量**：\n    *   将数字万用表调至交流电压档，选择合适量程（建议50V档）[^ref-009]。\n    *   将万用表红黑表笔分别插入任意两个三相交流电输入测量孔，确保表笔接触牢固[^ref-009]。\n    *   匀速摇动手摇发电机，保持转速稳定，观察工作指示灯是否点亮，同时读取万用表显示的交流电压值，记录数据[^ref-009]。\n    *   依次测量三个输入测量孔之间的两两电压，完成数据记录和对比分析。\n4.  **直流输出电压测量**：\n    *   保持万用表表笔插入两个直流输出测量孔，将万用表切换至直流电压档，选择合适量程（建议20V档）[^ref-009]。\n    *   继续匀速摇动手摇发电机，保持转速与测量交流电压时一致，读取万用表显示的直流输出电压值，记录数据[^ref-009]。\n    *   观察工作指示灯的亮度变化，结合电压值分析滤波效果。\n5.  **原理验证**：\n    *   改变手摇发电机的转速（快慢交替），分别测量输入交流电压和输出直流电压，记录数据[^ref-009]。\n    *   分析不同转速下电压的变化规律，理解稳压环节的作用。\n6.  **实操总结**：\n    *   整理所有测量数据，对比三相交流输入电压与直流输出电压的差异，总结整流、滤波、稳压的工作过程和原理[^ref-009]。\n    *   梳理测量过程中的关键要点和遇到的问题。\n\n## 注意事项\n\n1.  **匀速摇动发电机**：摇动发电机时，动作要匀速、平稳，避免转速过快或过慢，以确保电压测量数据稳定，同时避免用力过猛损坏发电机轴承[^ref-009]。\n2.  **万用表档位选择**：测量电压时，必须先确认万用表的量程和档位（交流/直流）选择正确，表笔插入测量孔的位置准确，避免接反或档位错误导致万用表损坏[^ref-009]。\n3.  **安全操作**：实训过程中，禁止触摸模块内部线路和滤波电容器，避免触电或被电容器放电灼伤。同时避免杂物进入测量孔，影响测量准确性[^ref-009]。\n4.  **故障排查**：若工作指示灯不亮、电压测量无读数，应立即停止摇动发电机，排查线路连接是否牢固，发电机是否转动正常，严禁带电排查故障[^ref-009]。\n5.  **实训结束**：实训结束后，停止摇动发电机，将万用表调至OFF档，整理好工具，保持模块表面清洁，并将测量孔做好防尘处理[^ref-009]。\n\n",
+            "url": "http://192.168.50.54:7800/api/files/tenants/default/users/default/workspaces/b201d445-0d39-4d6b-9144-3bcc8ced8926/artifacts/document.md"
+        },
+        "elapsed_time": 314.671,
+        "created_at": 1773923045.247
+    }
+}
+//agent_log事件
+agent_log事件必须有"parent_id": 添加id
+首个agent_log事件
+{
+    "event": "agent_log",
+    "conversation_id": "d5133191-ae4a-4853-aea6-2257fa614eaa",
+    "message_id": "e16dbe8d-b49c-4924-8903-101389b66edd",
+    "created_at": 1769588045,
+    "task_id": "91d2539a-1745-415a-a9f9-daf0bbb7e7a9",
+    "data": {
+        "node_execution_id": "17640516699470",
+        "id": "49c7dc91-1ddc-4fe2-9970-f01b22ed1340",
+        "label": "ROUND 1",//代表第几轮
+        "parent_id": null,
+        "status": "started",
+        "data": {},//添加，统一字段
+        "error":null //添加，统一字段
+        "node_id": "17640516699470"
+    }
+}
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922730.645,
+    "event": "agent_log",
+    "data": {
+        "id": "49c7dc91-1ddc-4fe2-9970-f01b22ed1340",//添加id，随机生成的
+        "node_id": "11179223255",//不是agent_document-generator
+        "node_execution_id": "11179223255",//与"node_execution_id"与"node_id": 是一致的
+        "parent_id": ”49c7dc91-1ddc-4fe2-9970-f01b22ed1340“,//方便找到第几轮
+        "label": "perceive",
+        "step":"perceive",
+        "data": {},//添加，统一字段
+        "error":null //添加，统一字段
+        "status": "started"
+    }
+}
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922730.645,
+    "event": "agent_log",
+    "data": {
+        "id": "49c7dc91-1ddc-4fe2-9970-f01b22ed1342",//添加id，随机生成的
+        "node_id": "11179223255",//不是agent_document-generator
+        "node_execution_id": "11179223255",//与"node_execution_id"与"node_id": 是一致的
+        "parent_id": ”49c7dc91-1ddc-4fe2-9970-f01b22ed1340“,//方便找到第几轮
+        "label": "perceive",
+        "step":"perceive",
+        "data": {},//添加，统一字段
+        "error":null //添加，如果出现错误显示参数信息，此时"status": 为failed
+        "status": "succeeded"
+    }
+}
+
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922743.024,
+    "event": "agent_log",
+    "data": {
+        "id": "49c7dc91-1ddc-4fe2-9970-f01b22ed134565",//添加id，随机生成的
+        "node_id": "11179223255",//不是agent_document-generator
+        "node_execution_id": "11179223255",//与"node_execution_id"与"node_id": 是一致的
+        "parent_id": ”49c7dc91-1ddc-4fe2-9970-f01b22ed1340“,//方便找到第几轮
+        "data": {},//添加，统一字段
+        "error":null //添加，统一字段
+        "label": "think",
+        "step":"think",
+        "status": "started"
+    }
+}
+接着//如果使用updated模式即blocking模式，此时该agent不输出该think的message事件，如果使用steam模式，此时该agent输出该think的message事件
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922982.614,
+    "event": "message",
+    "id": "task_8eb2978a",
+    "parent_id":null//用于最终这个message是哪一个agnt输出的
+    "answer": "# 任务二：整流滤波模块原理与应用\n\n"
+}
+//代表think结束了
+
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922874.398,
+    "event": "agent_log",
+    "data": {
+        "id": "49c7dc91-1ddc-4fe2-9970-f01b22ed134451",//添加id，随机生成的
+        "node_id": "11179223255",//不是agent_document-generator
+        "node_execution_id": "11179223255",//与"node_execution_id"与"node_id": 是一致的
+        "parent_id": ”49c7dc91-1ddc-4fe2-9970-f01b22ed1340“,//方便找到第几轮
+        "error":null //添加，如果出现错误显示错误，是字符串类型
+        "label": "模型名称 Thought",
+        "step":"think",
+        "data": {},//添加，统一字段
+        "error":null //添加，如果出现错误显示参数信息，此时"status": 为failed
+        "status": "succeeded",
+        "elapsed_time": 28.375,
+        "output": ""//无论是blocking模式还是steam模式，都是一样的
+    }
+}
+//如果调用工具
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922874.403,
+    "event": "agent_log",
+    "data": {
+        "id": "49c7dc91-1ddc-4fe2-9970-f01b22ed134451",//添加id，随机生成的
+        "node_id": "11179223255",//不是agent_document-generator
+        "parent_id": ”49c7dc91-1ddc-4fe2-9970-f01b22ed1340“,//方便找到第几轮
+        "label": "CALL emit_event",
+        "step": "act",
+        "status": "started",
+        "node_type": "tool",
+      “data":{
+           "tool_name": "emit_event",
+           "tool_call_id": "tool_emit_event_qDTaaKYRfYs11JfPDNEh",
+         “tool_input”： {
+            "eventType": "progress",
+            "data": {},
+            "message": "资料检索完成！共获取了 45 条专业资料，涵盖：\n- 汽车基础电路认知与应用\n- 整流滤波模块原理与应用\n- 核心传感器原理与故障诊断\n- 点火与喷油控制原理及应用\n- 雨刮系统与总线通信认知\n- 实训报告与考核标准\n\n资料已整理就绪，现在启动所有章节的同步撰写……"
+        }
+      }
+        
+    }
+}
+
+
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922874.404,
+    "event": "agent_log",
+    "data": {
+        "id": "49c7dc91-1ddc-4fe2-9970-f01b22ed13445125",//添加id，随机生成的
+        "node_id": "11179223255",//不是agent_document-generator
+        "parent_id": ”49c7dc91-1ddc-4fe2-9970-f01b22ed1340“,//方便找到第几轮
+        "label": "CALL emit_event",
+        "step": "act",
+        "status": "succeeded",
+        "node_type": "tool",
+         "error": null,//添加，如果出现错误显示参数信息,如果存在错误status为failed
+        "data"：{
+output：{
+           "tool_call_id": "tool_emit_event_qDTaaKYRfYs11JfPDNEh",
+          "tool_call_name": "emit_event",
+         “ttool_call_input”： {
+            "eventType": "progress",
+            "data": {},
+            "message": "资料检索完成！共获取了 45 条专业资料，涵盖：\n- 汽车基础电路认知与应用\n- 整流滤波模块原理与应用\n- 核心传感器原理与故障诊断\n- 点火与喷油控制原理及应用\n- 雨刮系统与总线通信认知\n- 实训报告与考核标准\n\n资料已整理就绪，现在启动所有章节的同步撰写……"
+        }，
+        "tool_response": "{\"success\":true,\"eventType\":\"progress\",\"sessionId\":\"b201d445-0d39-4d6b-9144-3bcc8ced8926\"}",//调用工具的结果，如果工具出现错误这里面显示错误的信息，注意此时外层的"status"还是"succeeded"
+}
+
+}
+
+        "elapsed_time": 0.001
+    }
+}
+
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922874.41,
+    "event": "agent_log",
+    "data": {
+        "id": "49c7dc91-1ddc-4fe2-9970-f01b22ed13445125",//添加id，随机生成的
+        "node_id": "11179223255",//不是agent_document-generator
+        "parent_id": ”49c7dc91-1ddc-4fe2-9970-f01b22ed1340“,//方便找到第几轮
+        "label": "observe",
+        "step": "observe",
+        "status": "started"
+ "data"：{}//添加，统一标识
+         "error": null,//添加，统一标识
+    }
+}
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922874.41,
+    "event": "agent_log",
+    "data": {
+        "id": "49c7dc91-1ddc-4fe2-9970-f01b22ed13445125",//添加id，随机生成的
+        "node_id": "11179223255",//不是agent_document-generator
+        "parent_id": ”49c7dc91-1ddc-4fe2-9970-f01b22ed1340“,//方便找到第几轮
+        "label": "observe",
+        "step": "observe",
+        "status":"succeeded"
+ "data"：{}//添加，统一标识
+         "error": null,//添加，统一标识
+    }
+}
+
+//ACT有时候是调用tool，有时候是subagent
+
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922961.993,
+    "event": "agent_log",
+    "data": {
+        "id": "49c7dc91-1ddc-4fe2-9970-f01b22ed13445125625",//添加id，随机生成的
+        "node_id": "11179223255",//不是agent_document-generator
+        "parent_id": ”49c7dc91-1ddc-4fe2-9970-f01b22ed1340“,//方便找到父agent是第几轮
+        "label": "",//参考
+        "step": "act",
+        "node_type": "agent",
+        "status": "started"
+ "data"：{
+           "agent_name": "section-writer",
+           "agent_name_id": "section-writer_DTaaKYRfYs11JfPDNEh",
+         “agent_input”： {
+            "instruction"：”xxxx“
+        }
+}
+         "error": null,//添加，统一标识
+        "elapsed_time": 8.201
+    }
+}
+{
+    "task_id": "955b5f5d-2849-44ee-b3ab-cf5d43239748",
+    "conversation_id": "b201d445-0d39-4d6b-9144-3bcc8ced8926",
+    "message_id": "task_8eb2978a",
+    "created_at": 1773922961.993,
+    "event": "agent_log",
+    "data": {
+        "id": "49c7dc91-1ddc-4fe2-9970-f01b22ed13445125625",//添加id，随机生成的
+        "node_id": "11179223255",//不是agent_document-generator
+        "parent_id": ”49c7dc91-1ddc-4fe2-9970-f01b22ed1340“,//方便找到父agent是第几轮
+        "label": "",//参考
+        "step": "act",
+        "node_type": "agent",
+        "status": "started"
+ "data"：{
+           "agent_name": "section-writer",
+           "agent_name_id": "section-writer_DTaaKYRfYs11JfPDNEh",
+         “agent_input”： {
+            "instruction"：”xxxx“
+        }
+}
+         "error": null,//添加，统一标识
+        "elapsed_time": 8.201
+    }
+}

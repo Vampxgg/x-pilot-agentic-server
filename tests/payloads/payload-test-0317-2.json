@@ -1,0 +1,11 @@
+{
+  "select_knowledge_unit": "电子电工原理及故障诊断实训指导书",
+  "prompt": "图片不少于10张，加入2个案例，字数5000左右",
+  "database_id": "",
+  "docCategory": "",
+  "docTemplate": "",
+  "is_single_file_processing": 0,
+  "large_text": "",
+  "smart_search": 0,
+  "sessionId":"test0317-2"
+}

@@ -1,0 +1,1061 @@
+openapi: 3.0.3
+info:
+  title: X-Pilot Agentic Server API
+  version: 1.0.0
+  description: |
+    可直接导入 Apifox 的 OpenAPI 文档。
+    注意：
+    - 认证方式：`Authorization: Bearer <apiKey>`
+    - 业务文稿接口路径是 `/api/business/document-generation/*`，不是 `document-generator`
+servers:
+  - url: http://192.168.50.54:7800
+    description: Local Network Dev
+security:
+  - BearerAuth: []
+tags:
+  - name: Health
+  - name: Agents
+  - name: Tasks
+  - name: Sessions
+  - name: Document Generation
+  - name: Video Course
+  - name: Sim Training
+
+paths:
+  /api/health:
+    get:
+      tags: [Health]
+      summary: 健康检查
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              example:
+                status: ok
+                timestamp: "2026-03-19T03:40:00.000Z"
+                agents: 15
+                tools: 24
+                tasks:
+                  pending: 0
+                  running: 0
+                  completed: 12
+                  failed: 1
+
+  /api/agents:
+    get:
+      tags: [Agents]
+      summary: 获取 Agent 列表
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                - name: document-generator
+                  model: z-ai/glm-5
+                  tools: ["*"]
+                  skills: ["self-reflect", "self-evolve", "memory-search"]
+                  heartbeatEnabled: true
+                  evolutionEnabled: true
+    post:
+      tags: [Agents]
+      summary: 动态创建 Agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              name: custom-agent
+              identity: "你是一个课程大纲助手。"
+              mission: "输出结构化教学提纲。"
+              soul: "保持严谨、可执行。"
+              group: system
+      responses:
+        "201":
+          description: 创建成功
+          content:
+            application/json:
+              example:
+                name: custom-agent
+                config:
+                  model: z-ai/glm-5
+                skills: ["self-reflect"]
+        "400":
+          description: 参数错误
+          content:
+            application/json:
+              example:
+                error: "Agent already exists: custom-agent"
+
+  /api/agents/{name}:
+    get:
+      tags: [Agents]
+      summary: 获取单个 Agent 详情
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+          example: document-generator
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                name: document-generator
+                config:
+                  model: z-ai/glm-5
+                  maxConcurrency: 5
+                prompts:
+                  identity: "..."
+                  mission: "..."
+                skills:
+                  - name: self-reflect
+                    description: built-in
+                memoryPath: "apps/document-generation/document-generator/memory"
+        "404":
+          description: 未找到
+          content:
+            application/json:
+              example: { error: "Agent not found" }
+
+  /api/agents/{name}/invoke:
+    post:
+      tags: [Agents]
+      summary: 同步调用 Agent
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+          example: document-generator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              input: "请生成《电工安全实训》教学文稿"
+              threadId: "thread-1"
+              sessionId: "test0321"
+              context:
+                businessType: document-generation
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                taskId: "task_abc123"
+                threadId: "thread-1"
+                output: "已完成文稿生成。"
+        "404":
+          description: Agent 不存在
+          content:
+            application/json:
+              example: { error: "Agent not found" }
+
+  /api/agents/{name}/invoke-async:
+    post:
+      tags: [Agents]
+      summary: 异步调用 Agent
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+          example: document-generator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              input: "生成文稿"
+              sessionId: "test0321"
+              webhookUrl: "https://example.com/webhook"
+      responses:
+        "202":
+          description: 已受理
+          content:
+            application/json:
+              example:
+                taskId: "task_async_001"
+                status: "pending"
+        "500":
+          description: 服务错误
+          content:
+            application/json:
+              example: { error: "Async agent invocation failed" }
+
+  /api/agents/{name}/stream:
+    post:
+      tags: [Agents]
+      summary: SSE 流式调用 Agent（v2）
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+          example: document-generator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              input: "流式生成文稿"
+              sessionId: "test0321"
+      responses:
+        "200":
+          description: SSE 事件流
+          content:
+            text/event-stream:
+              example: |
+                event: message
+                data: {"event":"message","data":"开始生成..."}
+                
+                event: task_finished
+                data: {"event":"task_finished","task_id":"task_1"}
+
+  /api/agents/{name}/reload:
+    post:
+      tags: [Agents]
+      summary: 重载 Agent
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+          example: document-generator
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                name: document-generator
+                config:
+                  model: z-ai/glm-5
+
+  /api/agents/{name}/memory:
+    get:
+      tags: [Agents]
+      summary: 查询 Agent 记忆
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+          example: document-generator
+        - in: query
+          name: query
+          required: false
+          schema: { type: string }
+          example: 电工实训
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                results:
+                  - content: "历史经验：先提纲后成文"
+                    score: 0.91
+    post:
+      tags: [Agents]
+      summary: 追加 Agent 记忆
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+          example: document-generator
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              content: "本次模板只用于结构，不可复用原文。"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example: { success: true }
+
+  /api/agents/{name}/evolution:
+    get:
+      tags: [Agents]
+      summary: 获取待审批进化提案
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+          example: document-generator
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                proposals:
+                  - id: evo_001
+                    reason: "提升提纲鲁棒性"
+
+  /api/agents/{name}/evolution/{id}/approve:
+    post:
+      tags: [Agents]
+      summary: 审批通过进化提案
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+          example: evo_001
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                success: true
+                proposal:
+                  id: evo_001
+
+  /api/agents/{name}/evolution/{id}/reject:
+    post:
+      tags: [Agents]
+      summary: 拒绝进化提案
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+          example: evo_001
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                success: true
+                proposal:
+                  id: evo_001
+
+  /api/tasks:
+    get:
+      tags: [Tasks]
+      summary: 查询任务列表/统计
+      parameters:
+        - in: query
+          name: agent
+          required: false
+          schema: { type: string }
+          example: document-generator
+        - in: query
+          name: parent
+          required: false
+          schema: { type: string }
+          example: task_parent_1
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                stats:
+                  pending: 1
+                  running: 0
+                  completed: 12
+                  failed: 1
+
+  /api/tasks/{id}:
+    get:
+      tags: [Tasks]
+      summary: 查询任务详情
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+          example: task_abc123
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                id: task_abc123
+                status: completed
+                agent: document-generator
+    delete:
+      tags: [Tasks]
+      summary: 取消任务
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+          example: task_abc123
+      responses:
+        "200":
+          description: 取消成功
+          content:
+            application/json:
+              example: { success: true }
+        "400":
+          description: 无法取消
+          content:
+            application/json:
+              example:
+                error: "Task cannot be cancelled (not pending or not found)"
+
+  /api/sessions/{sessionId}/events:
+    get:
+      tags: [Sessions]
+      summary: 会话事件流（SSE）
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+          example: test0321
+      responses:
+        "200":
+          description: SSE
+          content:
+            text/event-stream:
+              example: |
+                data: {"event":"task_started","sessionId":"test0321"}
+
+  /api/sessions/{sessionId}/artifacts:
+    get:
+      tags: [Sessions]
+      summary: 获取会话产物列表
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+          example: test0321
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                sessionId: test0321
+                artifacts:
+                  - name: artifacts/document.md
+                    size: 12456
+                    createdAt: "2026-03-19T03:30:00.000Z"
+                    modifiedAt: "2026-03-19T03:32:00.000Z"
+
+  /api/sessions/{sessionId}/artifacts/{artifactPath}:
+    get:
+      tags: [Sessions]
+      summary: 下载会话产物
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+          example: test0321
+        - in: path
+          name: artifactPath
+          required: true
+          schema: { type: string }
+          example: document.md
+      responses:
+        "200":
+          description: 文件流
+          content:
+            text/markdown:
+              example: "# 教学文稿\n\n..."
+
+  /api/files/{filePath}:
+    get:
+      tags: [Sessions]
+      summary: 静态文件访问（workspace 文件直链）
+      security: []
+      parameters:
+        - in: path
+          name: filePath
+          required: true
+          schema: { type: string }
+          example: tenants/default/users/default/workspaces/test0321/artifacts/document.md
+      responses:
+        "200":
+          description: 文件流
+
+  /ws/agents/{name}:
+    get:
+      tags: [Agents]
+      summary: WebSocket 流式调用 Agent
+      description: |
+        WebSocket 端点。连接后发送 JSON：
+        `{"input":"...", "threadId":"...", "sessionId":"...", "context":{}}`
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema: { type: string }
+          example: document-generator
+      responses:
+        "101":
+          description: WebSocket 握手成功
+
+  /api/business/document-generation/generate:
+    post:
+      tags: [Document Generation]
+      summary: 文稿生成（同步）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              select_knowledge_unit: "电子电工原理及故障诊断实训指导书"
+              prompt: "图片不少于10张，加入3个案例，字数1万字左右。"
+              database_id: "53bc2550-f35b-4a6f-831f-57fb333d601f"
+              docCategory: "studentHandbook"
+              docTemplate: "# [任务一：任务名称]"
+              is_single_file_processing: 0
+              large_text: ""
+              smart_search: 1
+              sessionId: "test0321"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                agent: document-generator
+                sessionId: test0321
+                threadId: "thread_123"
+                output: "文稿已生成。"
+                documentUrl: "http://192.168.50.54:7800/api/files/tenants/default/users/default/workspaces/test0321/artifacts/document.md"
+                documentPath: "artifacts/document.md"
+        "400":
+          description: 参数错误
+          content:
+            application/json:
+              example: { error: "select_knowledge_unit (topic) is required" }
+
+  /api/business/document-generation/generate-stream:
+    post:
+      tags: [Document Generation]
+      summary: 文稿生成（SSE）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              select_knowledge_unit: "电子电工原理及故障诊断实训指导书"
+              prompt: "图片不少于10张，加入3个案例，字数1万字左右。"
+              database_id: "53bc2550-f35b-4a6f-831f-57fb333d601f"
+              docCategory: "studentHandbook"
+              docTemplate: "# [任务一：任务名称]"
+              is_single_file_processing: 0
+              large_text: ""
+              smart_search: 1
+              sessionId: "test0321"
+      responses:
+        "200":
+          description: SSE 流
+          content:
+            text/event-stream:
+              example: |
+                event: message
+                data: {"event":"message","data":"开始检索知识库..."}
+                
+                event: task_finished
+                data: {"event":"task_finished","session_id":"test0321"}
+
+  /api/business/document-generation/sessions/{sessionId}/document:
+    get:
+      tags: [Document Generation]
+      summary: 下载指定会话文稿
+      parameters:
+        - in: path
+          name: sessionId
+          required: true
+          schema: { type: string }
+          example: test0321
+      responses:
+        "200":
+          description: 成功
+          content:
+            text/markdown:
+              example: "# 电子电工原理及故障诊断实训指导书\n\n..."
+        "404":
+          description: 未找到
+          content:
+            application/json:
+              example: { error: "Document not found for this session" }
+
+  /api/business/video-course/upload-files:
+    post:
+      tags: [Video Course]
+      summary: 上传并提取文件文本
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                files_extracted: 2
+                user_files: "--- FILE: xxx.txt ---\n文件内容..."
+        "400":
+          description: 无支持文件
+          content:
+            application/json:
+              example:
+                error: "No supported files uploaded. Accepted: pdf, docx, pptx, txt, md, csv"
+
+  /api/business/video-course/generate:
+    post:
+      tags: [Video Course]
+      summary: 视频课程生成（同步）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              query: "生成一节 PLC 入门课程视频"
+              conversationId: "conv_001"
+              userFiles: "课程提纲..."
+              videoPresets: "{\"config\":{\"model_id\":\"zh-CN-XiaoxiaoNeural\"}}"
+              brandKit: "{\"brand_logo\":\"https://example.com/logo.png\"}"
+              sessionId: "video_s_001"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                agent: video-course-director
+                conversationId: conv_001
+                threadId: "thread_x"
+                title: "PLC 入门课程"
+                preview_url: "https://e2b.x-pilot.ai/play?projectId=p_123"
+                project_id: "p_123"
+                cover_url: "https://example.com/cover.png"
+                bundle_status: "ready"
+                e2b_error: null
+
+  /api/business/video-course/generate-stream:
+    post:
+      tags: [Video Course]
+      summary: 视频课程生成（SSE）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              query: "生成一节 PLC 入门课程视频"
+              sessionId: "video_s_001"
+      responses:
+        "200":
+          description: SSE 流
+          content:
+            text/event-stream:
+              example: |
+                event: message
+                data: {"type":"message","data":"开始生成脚本"}
+
+  /api/business/video-course/edit:
+    post:
+      tags: [Video Course]
+      summary: 视频课程编辑（代码修改）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              query: "把第3节时长缩短到20秒"
+              conversationId: "conv_001"
+              projectId: "p_123"
+              sessionId: "video_s_001"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                agent: video-code-editor
+                conversationId: conv_001
+                project_id: p_123
+                preview_url: "https://e2b.x-pilot.ai/play?projectId=p_123"
+                ok: true
+                error: null
+
+  /api/business/sim-training/create:
+    post:
+      tags: [Sim Training]
+      summary: 仿真实训创建（同步）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              query: "创建电路故障诊断仿真实训"
+              conversationId: "sim_conv_001"
+              sessionId: "sim_s_001"
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                agent: sim-training-director
+                conversationId: sim_conv_001
+                threadId: "thread_sim_1"
+                title: "电路故障诊断仿真实训"
+                preview_url: "http://localhost:3000/sim/sim_123/"
+                sim_id: "sim_123"
+                status: deployed
+                build_time_ms: 15420
+
+  /api/business/sim-training/create-stream:
+    post:
+      tags: [Sim Training]
+      summary: 仿真实训创建（SSE）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              query: "创建电路故障诊断仿真实训"
+              sessionId: "sim_s_001"
+      responses:
+        "200":
+          description: SSE 流
+          content:
+            text/event-stream:
+              example: |
+                event: message
+                data: {"type":"message","data":"正在生成场景..."}
+
+  /api/business/sim-training/list:
+    get:
+      tags: [Sim Training]
+      summary: 仿真项目列表
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                simulations:
+                  - simId: sim_123
+                    previewUrl: "http://localhost:3000/sim/sim_123/"
+                count: 1
+
+  /api/business/sim-training/{id}:
+    get:
+      tags: [Sim Training]
+      summary: 获取仿真项目详情
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+          example: sim_123
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                simId: sim_123
+                previewUrl: "http://localhost:3000/sim/sim_123/"
+                status: deployed
+    delete:
+      tags: [Sim Training]
+      summary: 删除仿真项目
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+          example: sim_123
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                ok: true
+                simId: sim_123
+
+  /api/business/sim-training/rebuild:
+    post:
+      tags: [Sim Training]
+      summary: 重建仿真项目
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              simId: sim_123
+              conversationId: sim_conv_002
+              sessionId: sim_s_002
+      responses:
+        "200":
+          description: 成功
+          content:
+            application/json:
+              example:
+                agent: sim-training-director
+                conversationId: sim_conv_002
+                threadId: "thread_sim_2"
+                output:
+                  status: rebuilding
+
+  /v1/conversations:
+    get:
+      tags: [Dify-Compat]
+      summary: 获取会话列表
+      description: 获取当前用户的所有会话列表（Dify 兼容接口，需 STREAM_PROTOCOL=dify）
+      parameters:
+        - name: user
+          in: query
+          schema:
+            type: string
+          description: 用户标识（由 auth 中间件解析，此参数可选）
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: first_id
+          in: query
+          schema:
+            type: string
+          description: 游标分页 - 上一页最后一个会话 ID
+      responses:
+        "200":
+          description: 会话列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  limit:
+                    type: integer
+                  has_more:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        name:
+                          type: string
+                        inputs:
+                          type: object
+                        status:
+                          type: string
+                        introduction:
+                          type: string
+                        created_at:
+                          type: number
+                        updated_at:
+                          type: number
+              example:
+                limit: 20
+                has_more: false
+                data:
+                  - id: "test0321"
+                    name: "电子电工原理及故障诊断实训指导书"
+                    inputs:
+                      prompt: "图片不少于10张"
+                      docCategory: "studentHandbook"
+                    status: "normal"
+                    introduction: ""
+                    created_at: 1742000000
+                    updated_at: 1742000060
+
+  /v1/messages:
+    get:
+      tags: [Dify-Compat]
+      summary: 获取会话消息历史
+      description: 获取某一个会话中的消息列表（Dify 兼容接口）
+      parameters:
+        - name: conversation_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: user
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: first_id
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 消息列表
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  limit:
+                    type: integer
+                  has_more:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        conversation_id:
+                          type: string
+                        parent_message_id:
+                          type: string
+                        inputs:
+                          type: object
+                        query:
+                          type: string
+                        answer:
+                          type: string
+                        feedback:
+                          type: string
+                          nullable: true
+                        retriever_resources:
+                          type: array
+                          items: {}
+                        created_at:
+                          type: number
+                        agent_thoughts:
+                          type: array
+                          items: {}
+                        message_files:
+                          type: array
+                          items: {}
+                        status:
+                          type: string
+                        error:
+                          type: string
+                          nullable: true
+              example:
+                limit: 20
+                has_more: false
+                data:
+                  - id: "task_a1b2c3d4"
+                    conversation_id: "test0321"
+                    parent_message_id: "00000000-0000-0000-0000-000000000000"
+                    inputs:
+                      prompt: "图片不少于10张"
+                    query: "图片不少于10张，加入3个案例"
+                    answer: "文稿已生成完毕..."
+                    feedback: null
+                    retriever_resources: []
+                    created_at: 1742000000
+                    agent_thoughts: []
+                    message_files: []
+                    status: "normal"
+                    error: null
+
+  /v1/conversations/{id}:
+    delete:
+      tags: [Dify-Compat]
+      summary: 删除会话
+      description: 删除当前用户的某一次会话（Dify 兼容接口）
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user:
+                  type: string
+            example:
+              user: "default"
+      responses:
+        "200":
+          description: 删除成功
+          content:
+            application/json:
+              example:
+                result: "success"
+        "404":
+          description: 会话不存在
+
+  /v1/chat-messages/{task_id}/stop:
+    post:
+      tags: [Dify-Compat]
+      summary: 停止响应
+      description: 停止正在运行的流式响应（Dify 兼容接口）。task_id 是 SSE 流中的 Dify task_id。
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: SSE 流中的 Dify task_id（非 message_id）
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user:
+                  type: string
+            example:
+              user: "default"
+      responses:
+        "200":
+          description: 停止成功
+          content:
+            application/json:
+              example:
+                result: "success"
+        "404":
+          description: 任务不存在或已停止
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key

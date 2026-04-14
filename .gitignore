@@ -1,0 +1,29 @@
+node_modules/
+dist/
+.env
+*.log
+logs/
+.DS_Store
+
+# Build and release folders
+bin-debug/
+bin-release/
+[Oo]bj/
+[Bb]in/
+
+# Other files and folders
+.settings/
+
+# Executables
+*.swf
+*.air
+*.ipa
+*.apk
+
+# Agent runtime memory snapshots
+agents/*/memory/*.md
+!agents/*/memory/MEMORY.md
+!agents/_template/memory/MEMORY.md
+
+# Runtime/local data should never be committed
+data/

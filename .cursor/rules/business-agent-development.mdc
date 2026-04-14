@@ -1,0 +1,555 @@
+---
+description: 业务层智能体开发规范 — 在 apps/ 下新建 Agent 定义或业务代码时自动应用
+globs: apps/**/*
+alwaysApply: false
+---
+
+# X-Pilot 业务层智能体开发规范
+
+本规则指导 AI 和开发者在 x-pilot-agentic-server 中正确创建业务层智能体。
+
+## 架构哲学 — 五条不可违背的原则
+
+以下原则确保系统**永远站在 LLM 技术迭代之上**，而非被其淹没：
+
+1. **LLM 是可替换的推理引擎，不是架构本身**
+   系统通过 pipeline / tools / constraints 定义"做什么"，LLM 只负责"怎么想"。换掉 GPT-4o 为 Claude 或未来任何模型，业务逻辑零修改。**永远不要让架构依赖某个特定模型的能力特征。**
+
+2. **协议优于提示词 (Protocol over Prompt)**
+   Agent 之间的数据流通过 IO Schema (`outputFormat`) 约定格式，而非靠 prompt 要求 LLM "请输出 JSON"。提示词会随模型迭代失效，协议不会。**结构化契约 > 自然语言约定。**
+
+3. **确定性编排 + 自适应路由 (Deterministic Orchestration + Adaptive Routing)**
+   多 Agent 的执行顺序、依赖关系、并行策略用声明式 Pipeline 配置，不靠 LLM 推理来编排。LLM 的推理能力只用在每个步骤内部的创意决策上。**流程走配置，创意走 LLM。**
+   当用户意图明确时走 Pipeline（快速），意图模糊时走 LLM Director（智能交互）。路由层通过 `classifyIntent` 启发式决定走哪条路径，并可通过 `skipPipeline: true` 让 Pipeline Agent 回退到 LLM 模式。
+
+4. **工具是能力边界，LLM 是决策引擎**
+   Agent 的能力上限由 `allowedTools` 决定，不由 LLM 的训练数据决定。LLM 调用工具 = 手（执行），LLM 推理 = 脑（决策）。**不要期望 LLM "知道"如何做某事，给它工具让它"能做"某事。**
+
+5. **分层隔离：业务 Agent 定义永远不触碰基座代码**
+   无论底层换什么 LLM SDK、什么向量数据库、什么执行引擎，`apps/` 文件夹里的 Markdown 和 YAML 稳定不变。**业务层代码的生命周期独立于基座层。**
+
+## 架构约束
+
+本项目采用三层分离架构。业务开发**仅操作**以下位置：
+
+| 位置 | 职责 |
+|------|------|
+| `apps/<app-name>/<agent-name>/` | Agent 定义（Markdown 提示词 + YAML 配置） |
+| `apps/<app-name>/code/` | 业务代码模块（工具、处理器、API 路由，系统自动加载） |
+| `src/utils/<业务辅助>.ts` | 业务辅助函数（如模板解析） |
+
+**禁止修改** `src/core/`、`src/tools/`、`src/skills/`、`src/memory/`、`src/evolution/`、`src/llm/` 中的核心基座代码。
+
+## 业务代码模块（apps/<domain>/code/）
+
+每个智能体应用可以在 `code/` 子目录中放置业务 TypeScript 代码。系统启动时**自动发现并加载**这些模块，**无需修改任何服务端核心代码**。
+
+### 目录结构
+
+```
+apps/<app-name>/
+├── code/                       # 可选 — 业务代码模块（系统自动加载）
+│   ├── index.ts                #   必须 — 导出 register() 函数
+│   ├── handlers.ts             #   可选 — Pipeline 处理器
+│   ├── tools.ts                #   可选 — 业务工具
+│   └── routes.ts               #   可选 — 业务 API 路由
+├── <agent-name>/               # Agent 定义（声明式）
+│   ├── IDENTITY.md
+│   ├── SOUL.md
+│   ├── ...
+└── <agent-name>/
+```
+
+### register() 函数规范
+
+```typescript
+// apps/<app-name>/code/index.ts
+import { toolRegistry } from "../../../src/tools/tool-registry.js";
+import { dynamicToolRegistry } from "../../../src/tools/dynamic-tool-registry.js";
+import { registerPipelineHandler } from "../../../src/core/pipeline-executor.js";
+import { routeRegistry } from "../../../src/api/route-registry.js";
+
+export function register(): void {
+  // 1. 静态工具 — 无需 session 上下文，全局注册一次
+  toolRegistry.register({ name: "my_tool", description: "...", tool: myTool });
+
+  // 2. 动态工具工厂 — 需要 (tenantId, userId, sessionId) 上下文
+  dynamicToolRegistry.register("my_session_tool", createMySessionTool);
+
+  // 3. Pipeline 处理器 — 确定性编排步骤
+  registerPipelineHandler("myHandler", myHandler);
+
+  // 4. 业务 API 路由 — 应用对外提供的 HTTP 接口
+  routeRegistry.register("my-app", registerMyRoutes);
+}
+```
+
+### 新建业务应用的完整步骤
+
+1. 在 `apps/` 下创建应用文件夹（如 `apps/my-app/`）
+2. 创建 Agent 定义子文件夹（声明式 Markdown + YAML）
+3. 如需业务代码，创建 `apps/my-app/code/index.ts`，导出 `register()`
+4. 系统启动时自动加载 — **零核心代码修改**
+
+### 两种工具注册方式
+
+| 类型 | 注册方式 | 适用场景 |
+|------|----------|----------|
+| 静态工具 | `toolRegistry.register()` | 无需会话上下文的通用操作（如 HTTP 调用、E2B 推送） |
+| 动态工具 | `dynamicToolRegistry.register()` | 需要 tenantId/userId/sessionId 的会话级操作（如 workspace 读写） |
+
+## Agent 文件夹命名
+
+- 使用 **kebab-case**（如 `exam-paper-generator`、`course-planner`）
+- 名称必须全英文，语义清晰
+- 以 `_` 开头的文件夹会被系统跳过（如 `_template`）
+- 文件夹名即 Agent 的注册名称，调用时使用此名称
+- **名称必须全局唯一** — 系统在启动时检测同名冲突，发现重复会跳过并报错。建议名称带领域前缀（如 `video-researcher` 而非 `researcher`）
+
+## 动态创建 Agent（运行时）
+
+Orchestrator 等 Agent 可通过 `create_agent` 工具在运行时创建新 Agent。支持 `group` 参数将新 Agent 归入应用分组：
+
+```typescript
+// LLM 调用示例
+create_agent({
+  name: "video-subtitle-generator",
+  group: "video-course",          // → apps/video-course/video-subtitle-generator/
+  identity: "...",
+  mission: "...",
+})
+```
+
+- 指定 `group` → 创建到 `apps/<group>/<name>/`
+- 不指定 `group` → 创建到 `apps/<name>/`（顶层）
+
+## Agent 必需文件清单
+
+每个 Agent 文件夹**必须**包含以下文件：
+
+```
+apps/<app-name>/<agent-name>/
+├── IDENTITY.md           # 必需
+├── SOUL.md               # 必需
+├── MISSION.md            # 必需
+├── TOOLS.md              # 必需（即使用所有工具也要写策略）
+├── agent.config.yaml     # 必需
+└── memory/
+    └── MEMORY.md         # 必需（初始为空，存放长期记忆）
+```
+
+可选文件：
+- `BOOTSTRAP.md` — 首次初始化行为
+- `HEARTBEAT.md` — 定期维护行为
+- `skills/*.md` — Agent 专属技能
+
+## IDENTITY.md 规范
+
+```markdown
+---
+name: Agent Display Name
+version: "1.0"
+---
+
+# Identity
+
+[一句话说明你是谁、做什么]
+
+## Name
+[英文名称，与文件夹名语义一致]
+
+## Role
+[一段话描述核心职责和工作场景]
+
+## Core Capabilities
+- [能力1 — 简洁明确]
+- [能力2]
+- [能力3]
+```
+
+规则：
+- frontmatter 中的 `name` 必须与文件夹名语义对应
+- Role 描述要包含**业务场景**和**预期输出**
+- Capabilities 列出 3-6 条，聚焦可观察行为
+- 若面向中文用户，正文使用中文
+
+## SOUL.md 规范
+
+```markdown
+---
+version: "1.0"
+---
+
+# Soul
+
+## CORE (Immutable)
+
+### Values
+- [价值观]: [一句话解释为什么重要]
+
+### Constraints
+- [硬约束 — 绝对不能违反的边界]
+
+## MUTABLE (Evolvable)
+
+### Decision Heuristics
+- [可进化的决策偏好 — 系统会通过反思自动优化]
+```
+
+规则：
+- CORE 是**不可变**的红线，自进化系统不会触碰
+- MUTABLE 是可被自进化修改的区域
+- Values 关注**领域质量标准**（如"骨架忠实""教学有效"），不是通用道德
+- Constraints 写具体、可验证的规则（如"骨架中标注 table 的章节必须输出表格"）
+- Decision Heuristics 写偏好而非绝对规则（如"优先使用知识库而非网络搜索"）
+
+## MISSION.md 规范
+
+```markdown
+---
+version: "1.0"
+---
+
+# Mission
+
+## Primary Objective
+[一句话核心目标]
+
+## Success Criteria
+- [可衡量的成功标准1]
+- [可衡量的成功标准2]
+
+## Input Specification
+[描述 Agent 接收到的指令结构]
+
+## Workflow
+### Phase 1 — [阶段名]
+[步骤描述]
+
+### Phase 2 — [阶段名]
+[步骤描述]
+```
+
+规则：
+- Success Criteria 必须**可衡量**（"输出为可直接使用的 Markdown"而非"质量好"）
+- Input Specification 描述 Agent 实际收到的指令格式
+- Workflow 是 Agent 的执行蓝图，按阶段组织
+- 需要并行的地方明确标注 `spawn_parallel_agents`
+- 复杂逻辑写在 Workflow 中，让 LLM 按步骤执行
+
+## TOOLS.md 规范
+
+```markdown
+---
+version: "1.0"
+---
+
+# Tool Usage Guidelines
+
+## Preferred Tools
+
+### tool_name（优先级：高/中/低）
+[使用场景]
+- [输入建议]
+- [注意事项]
+
+## Tool Strategy
+[按阶段描述工具选择决策流]
+```
+
+规则：
+- 只描述 `agent.config.yaml` 中 `allowedTools` 里列出的工具
+- 按业务优先级排序，给出每个工具的使用场景和注意事项
+- Tool Strategy 应与 MISSION.md 的 Workflow 对应
+
+## agent.config.yaml 规范
+
+```yaml
+model: google/gemini-3.1-pro-preview   # 主模型（涉及工具调用的任务）
+workerModel: z-ai/glm-5               # 辅助模型（不涉及工具调用的反思等任务）
+fallbackModels:                        # 主模型不可用时的降级模型列表
+  - moonshotai/kimi-k2.5
+maxConcurrency: 8                # 并发子任务上限
+maxTokens: 8192                  # LLM 单次最大生成 Token 数（可选，默认由 provider 决定）
+maxIterations: 100               # 智能体最大推理轮数（防止无限循环，默认 50）
+allowedTools:                    # 工具白名单 — 最小权限原则
+  - knowledge_search
+  - http_request
+  # ... 按需添加
+heartbeat:
+  enabled: true
+  intervalMs: 1800000
+evolution:
+  enabled: true
+  requireApproval: true
+timeout: 600000                  # 超时（毫秒）
+metadata:
+  domain: your-domain-name       # 业务域标识（必填）
+  outputFormat: markdown          # 输出格式
+  # 可添加其他业务自定义字段（如 imageModel 等）
+```
+
+规则：
+- **`allowedTools` 遵循最小权限原则**，只列出业务确实需要的工具，不要用 `["*"]`
+- `metadata.domain` **必填**，标识业务域
+- `fallbackModels` 建议配置，提升主模型不可用时的服务韧性
+- 需要并行能力时必须包含 `spawn_sub_agent` 和 `spawn_parallel_agents`
+- 需要会话产物时必须包含 `workspace_write/read/list`
+- 需要图片生成能力时必须包含 `image_generate`
+- 需要 E2B 集成能力时按需添加：`e2b_project_status`（状态查询）、`e2b_preflight`（代码预检）、`e2b_manage_assets`（资产管理）、`e2b_render`（视频渲染）、`e2b_share`（分享链接）、`e2b_sandbox_exec`（沙箱调试）
+- `timeout` 根据业务复杂度设置，简单任务 120000，复杂任务 600000
+- **`maxIterations`**: 配置智能体内部运转（LangGraph）的最大迭代轮次，默认 50 步，对于长文/重构任务可适当调大至 100+ 以避免 RecursionLimit 异常。
+
+## 业务路由开发规范
+
+### 文件位置（与架构一致）
+
+业务路由均在 `apps/<domain>/code/` 中定义，由系统自动加载，**无需修改 `src/api/` 下的任何文件**：
+
+| 文件 | 职责 |
+|------|------|
+| `apps/<domain>/code/routes.ts` | 定义业务 API 路由（如 `/api/business/<domain>/<action>`） |
+| `apps/<domain>/code/index.ts` | 在 `register()` 中调用 `routeRegistry.register("<domain>", registerXxxRoutes)` |
+
+系统启动时会执行 `loadAppModules()`，自动发现并加载各应用的 `code/index.ts`，在 `server.ts` 中通过 `routeRegistry.applyAll(app)` 统一注册路由。`src/api/routes/business.routes.ts` 为遗留占位，不再使用。
+
+### 路由路径规范
+
+```
+/api/business/<domain>/<action>
+/api/business/<domain>/<action>-stream   (SSE 流式版)
+```
+
+示例：
+- `/api/business/document-generation/generate`
+- `/api/business/document-generation/generate-stream`
+- `/api/business/exam-paper/create`
+
+### 标准路由结构
+
+路由定义在 `apps/<domain>/code/routes.ts`，并在同目录的 `index.ts` 中注册：
+
+**apps/\<domain>/code/index.ts**
+```typescript
+import { routeRegistry } from "../../../src/api/route-registry.js";
+import { registerYourRoutes } from "./routes.js";
+
+export function register(): void {
+  routeRegistry.register("your-domain", registerYourRoutes);
+}
+```
+
+**apps/\<domain>/code/routes.ts**
+```typescript
+import type { FastifyInstance } from "fastify";
+import { getTenantId } from "../../../src/api/middleware/auth.js";
+
+const AGENT_NAME = "your-agent-name";
+
+export function registerYourRoutes(app: FastifyInstance): void {
+
+  // 同步调用
+  app.post("/api/business/your-domain/action", async (request, reply) => {
+    const tenantId = getTenantId(request);
+    const body = request.body as YourRequestType;
+
+    // 参数校验
+    if (!body.requiredField) {
+      return reply.code(400).send({ error: "requiredField is required" });
+    }
+
+    // 动态导入（避免循环依赖 — 必须用 import()）
+    const [{ agentRegistry }, { agentRuntime }] = await Promise.all([
+      import("../../../src/core/agent-registry.js"),
+      import("../../../src/core/agent-runtime.js"),
+    ]);
+
+    if (!agentRegistry.has(AGENT_NAME)) {
+      return reply.code(503).send({ error: `Agent not found: ${AGENT_NAME}` });
+    }
+
+    // 构建自然语言指令（核心步骤）
+    const instruction = buildInstruction(body);
+
+    // 调用 Agent
+    const result = await agentRuntime.invokeAgent(AGENT_NAME, instruction, {
+      tenantId,
+      sessionId: body.sessionId,
+      context: { businessType: "your-type" },
+    });
+
+    const parsed = result as { output?: string; threadId?: string; taskResult?: unknown };
+    return { output: parsed.output, threadId: parsed.threadId };
+  });
+}
+```
+
+### 关键规则
+
+1. **必须使用动态 `import()`** 导入 `agentRegistry` 和 `agentRuntime`，避免循环依赖
+2. **必须调用 `getTenantId(request)`** 获取租户 ID
+3. **必须检查 `agentRegistry.has(AGENT_NAME)`** 确认 Agent 已加载
+4. **`instruction` 是自然语言文本**，不是结构化 JSON — 但可以在文本中嵌入 JSON 块
+5. **`context` 传递业务元数据**，会注入到 Agent 的 TaskContext 中
+6. SSE 流式必须设置 `Content-Type: text/event-stream` + `Cache-Control: no-cache`
+7. 错误处理使用 `reply.code(4xx/5xx).send({ error: message })`
+
+## 指令构建最佳实践
+
+`instruction` 是业务路由传给 Agent 的唯一输入，决定了 Agent 的行为质量。
+
+好的指令结构：
+
+```
+[角色/任务一句话概述]
+
+【核心规则】
+1) 规则1
+2) 规则2
+
+【结构化输入(JSON)】
+{JSON.stringify(payload)}
+
+【辅助上下文】
+[额外信息]
+```
+
+规则：
+- 开头用一句话明确任务
+- 用【】标记的 section 分隔不同信息块
+- 结构化数据用 JSON 嵌入，给 LLM 明确的字段含义
+- 核心规则使用编号列表，确保 LLM 遵循
+- 如果有模板/样例，单独一个 section 放在最后
+
+## Agent 输出格式契约 (outputFormat)
+
+通过 `agent.config.yaml` 的 `outputFormat` 字段声明 Agent 的输出格式，系统自动从 LLM 原始输出中提取结构化结果：
+
+```yaml
+outputFormat:
+  type: json          # text | json | code
+  schema:             # 可选 JSON Schema，用于校验
+    type: object
+    required: [scenes]
+    properties:
+      scenes: { type: array }
+  codeLanguage: typescript  # 当 type=code 时指定语言
+```
+
+规则：
+- 需要向下游 Agent 传递结构化数据时**必须**设置 `outputFormat`
+- `type: json` — 系统从 LLM 输出中提取 JSON（支持 ` ```json ``` ` 包裹和裸 JSON）
+- `type: code` — 系统提取代码块，需指定 `codeLanguage`
+- `type: text` — 原样返回（默认行为，可省略）
+- 不要靠 prompt 告诉 LLM "请只输出 JSON"来保证格式 — 这违反"协议优于提示词"原则
+
+## Agent 重试配置 (retry)
+
+通过 `agent.config.yaml` 的 `retry` 字段声明该 Agent 作为子 Agent 被调用时的重试策略：
+
+```yaml
+retry:
+  maxAttempts: 3      # 最多尝试次数（默认 1 = 不重试）
+  backoffMs: 2000     # 退避间隔基数（实际等待 = backoffMs * attempt）
+```
+
+规则：
+- 对关键路径上的 Agent 设置 `retry`，对可选/补充性 Agent 不设置
+- `maxAttempts` 建议 2-3，不要超过 5（过度重试浪费 token）
+- 配合 `pipeline.steps[].optional: true` 使用，实现"重试后仍失败则跳过"
+
+## 声明式 Pipeline（多 Agent 协作）
+
+当多个 Agent 需要协作完成一个业务流程时，使用 `pipeline` 配置声明执行拓扑，**不要靠 LLM 推理来编排多 Agent**：
+
+```yaml
+pipeline:
+  steps:
+    - name: research
+      agent: video-researcher
+    - name: search
+      agent: asset-searcher
+    - name: script
+      agent: video-scriptwriter
+      dependsOn: [research, search]      # 依赖前置步骤
+    - name: scenes
+      agent: remotion-scene-coder
+      dependsOn: [script]
+      parallel: true                     # 对输入数组并行展开
+      fanOutFrom: script.scenes          # 从 script 步骤输出的 scenes 字段展开
+      optional: true                     # 单个场景失败不阻塞整体
+    - name: assemble
+      agent: video-assembler
+      dependsOn: [scenes]
+```
+
+Pipeline 步骤字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name` | string | 步骤名（唯一） |
+| `agent` | string | 要调用的 Agent 名称 |
+| `dependsOn` | string[] | 依赖的前置步骤名 |
+| `parallel` | boolean | 是否对输入数组并行展开 |
+| `fanOutFrom` | string | 从哪个步骤的输出展开（如 `script.scenes`） |
+| `inputMapping` | object | 从前置步骤输出映射输入字段 |
+| `optional` | boolean | 失败是否可跳过 |
+
+规则：
+- **确定性流程必须用 pipeline** — 如 "研究→脚本→场景→组装"，不该让 LLM 决定下一步调谁
+- **创意决策留给 Agent 内部的 LLM** — 每个 pipeline 步骤内，Agent 自由使用 tools 和 LLM 推理
+- 无 `dependsOn` 的步骤会并行执行
+- `fanOutFrom` 引用格式为 `stepName.fieldPath`（支持嵌套，如 `script.output.scenes`）
+- 使用 pipeline 的 Agent 本身不需要 LangGraph 图执行，pipeline 引擎直接编排子 Agent
+
+## 何时用 Pipeline vs LLM 编排
+
+| 场景 | 选择 | 理由 |
+|------|------|------|
+| 固定流程（研究→脚本→生成→组装） | Pipeline | 流程确定，不需要 LLM 推理 |
+| 动态决策（根据结果决定下一步） | LLM 编排 | 需要 LLM 判断力 |
+| 混合场景 | Pipeline + 步骤内 LLM | pipeline 管流程，LLM 管每步内的创意 |
+| 单 Agent 简单任务 | 直接调用 | 不需要编排 |
+
+## 多 Agent 项目文件夹组织
+
+`apps/` 是智能体应用层，每个子文件夹代表一个应用（单 Agent 或多 Agent 编排）。多 Agent 应用将所有相关 Agent 集中在同一个应用文件夹下：
+
+```
+apps/
+├── _shared/                     # 跨应用共享资源
+├── _template/                   # 新 Agent 模板（不会被加载）
+├── system/                      # 系统级应用
+│   └── orchestrator/            #   编排器 Agent
+├── document-generation/        # 文稿生成应用（单 Agent）
+│   ├── code/                   #   业务路由（自动加载）
+│   └── document-generation/
+└── video-course/                # 视频课程应用（多 Agent 编排）
+    ├── video-course-director/   #   导演 Agent（配置 pipeline）
+    ├── video-script-creator/    #   脚本创作 Agent
+    ├── scene-builder/           #   场景构建 Agent
+    ├── remotion-code-generator/ #   Remotion 代码生成 Agent
+    ├── remotion-scene-coder/    #   场景代码生成 Agent
+    └── video-code-editor/       #   视频代码编辑 Agent
+```
+
+规则：
+- 每个应用文件夹下的每个 Agent 是独立的、可单独调用的完整 Agent（有自己的 IDENTITY/SOUL/MISSION）
+- 系统自动递归扫描应用文件夹，通过 `agent.config.yaml` 区分 Agent 和分组文件夹
+- Agent 的注册名称仍然是其文件夹名（如 `video-script-creator`），不受分组层级影响
+- 导演 Agent 通过 `pipeline` 配置编排其他 Agent，自身不做具体业务
+- 子 Agent 通过 `outputFormat` 声明输出格式，确保上下游数据兼容
+- 同一业务域的 Agent 共享 `metadata.domain` 标识
+
+## 不要做的事
+
+- **不要在 Agent 的 .md 文件中写代码逻辑** — .md 是提示词，不是程序
+- **不要在业务路由中直接调用 LLM** — 必须通过 `agentRuntime` 调用
+- **不要在 allowedTools 中用 `["*"]`** — 除非是 orchestrator 级别
+- **不要修改 `src/core/` 下的任何文件** — 那是基座层
+- **不要在 Agent 的 .md 中 hardcode API key 或 URL** — 通过环境变量和 config 管理
+- **不要创建没有 IDENTITY/SOUL/MISSION 的 Agent** — 这三个是最低要求
+- **不要在 SOUL.md 的 CORE 部分放可变规则** — CORE 是不可变的红线
+- **不要用 LLM 推理来编排确定性流程** — 用 pipeline 配置（哲学原则 3）
+- **不要靠 prompt 约定 Agent 间的数据格式** — 用 outputFormat 声明（哲学原则 2）
+- **不要把架构绑定到特定 LLM 的能力特征上** — 保持 LLM 可替换（哲学原则 1）

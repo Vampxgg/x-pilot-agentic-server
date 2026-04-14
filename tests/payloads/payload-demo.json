@@ -1,0 +1,11 @@
+{
+    "select_knowledge_unit": "", //主题。比如：智能网联汽车视觉传感器。必填
+    "prompt": "", //用户补充的prompt。用于接收用户详细需求，比如：请补充更多案例。可选
+    "docTemplate": "", //模板。只用于解析相关体例格式，禁止直接使用里面的内容，比如：教案模板。一般与docCategory同时出现。可选
+    "large_text": "", //用户上传的文件内容。比如：用户上传的文件内容。一般与is_single_file_processing同时出现。可选
+    "database_id": "", //知识库ID。表示智能体可以在指定知识库中搜索相关内容，为空表示不使用知识库。比如：知识库ID。可选
+    "docCategory": "", //模版类别。表示模版所属的类别，比如：教学手册，一般与docTemplate同时出现。可选
+    "smart_search": 1, //是否启用联网检索。当为true时，会启用联网检索，表示智能体可以使用联网搜索功能获取外部实时数据。为false表示禁用联网功能。可选。默认值为false
+    "is_single_file_processing":0, //用于控制用户是否上传了自己的文件。如果为true，则large_text必填。可选。默认值为false
+    "sessionId": "demo-session-001" //会话ID。必填           
+}

@@ -1,0 +1,35 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxConcurrency: 3
+maxIterations: 50
+timeout: 300000
+allowedTools:
+  - workspace_read
+  - workspace_write
+  - workspace_list
+metadata:
+  domain: interactive-tutorial
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [editedFiles, summary]
+    properties:
+      editedFiles:
+        type: array
+        items:
+          type: object
+          required: [filePath, action]
+          properties:
+            filePath:
+              type: string
+            action:
+              type: string
+              enum: [modified, created, deleted]
+      summary:
+        type: string
+evolution:
+  enabled: true
+  requireApproval: true

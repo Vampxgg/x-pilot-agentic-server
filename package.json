@@ -1,0 +1,57 @@
+{
+  "name": "x-pilot-agentic-server",
+  "version": "0.1.0",
+  "description": "X-Pilot AI Agentic Server Foundation for Vocational Education Platform",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "start:prod": "npm run build && npm start",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.0",
+    "@fastify/multipart": "^9.4.0",
+    "@fastify/static": "^9.0.0",
+    "@fastify/websocket": "^11.0.0",
+    "@langchain/anthropic": "^0.3.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/langgraph": "^0.2.0",
+    "@langchain/langgraph-checkpoint": "^0.0.17",
+    "@langchain/openai": "^0.3.0",
+    "@mozilla/readability": "^0.6.0",
+    "dotenv": "^16.4.0",
+    "fastify": "^5.0.0",
+    "gray-matter": "^4.0.3",
+    "hast-util-select": "^6.0.4",
+    "hast-util-to-string": "^3.0.1",
+    "hast-util-to-text": "^4.0.2",
+    "jsdom": "^25.0.1",
+    "mammoth": "^1.11.0",
+    "p-queue": "^8.0.0",
+    "rehype-parse": "^9.0.1",
+    "turndown": "^7.2.2",
+    "unified": "^11.0.5",
+    "uuid": "^10.0.0",
+    "winston": "^3.14.0",
+    "yaml": "^2.5.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^28.0.0",
+    "@types/node": "^22.0.0",
+    "@types/turndown": "^5.0.6",
+    "@types/uuid": "^10.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

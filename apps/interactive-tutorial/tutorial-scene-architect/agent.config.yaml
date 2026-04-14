@@ -1,0 +1,32 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxConcurrency: 3
+maxIterations: 30
+timeout: 180000
+allowedTools:
+  - workspace_read
+  - workspace_write
+metadata:
+  domain: interactive-tutorial
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [title, components, teaching_guide]
+    properties:
+      title:
+        type: string
+      description:
+        type: string
+      components:
+        type: array
+        items:
+          type: object
+          required: [file_name, purpose, sdk_widgets]
+      teaching_guide:
+        type: object
+evolution:
+  enabled: true
+  requireApproval: true

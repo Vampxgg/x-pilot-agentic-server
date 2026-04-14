@@ -1,0 +1,517 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "X-Pilot Image Hub API",
+    "version": "1.0.0",
+    "description": "全局图床服务 API，用于管理工作区、AI生成和知识库的图片资源。"
+  },
+  "servers": [
+    {
+      "url": "http://192.168.31.45:3000",
+      "description": "本地开发服务器"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "如果配置了 tenants.yaml 并且在生产环境，必须携带 Token"
+      }
+    },
+    "schemas": {
+      "ImageMetadata": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "UUID 唯一标识" },
+          "hash": { "type": "string", "description": "文件内容 SHA-256 哈希" },
+          "tenantId": { "type": "string", "description": "所属租户 ID" },
+          "userId": { "type": "string", "description": "所属用户 ID" },
+          "sessionId": { "type": "string", "description": "关联会话 ID" },
+          "filename": { "type": "string", "description": "原始文件名" },
+          "mimeType": { "type": "string", "description": "MIME 类型，例如 image/jpeg" },
+          "size": { "type": "integer", "description": "文件大小（字节）" },
+          "width": { "type": "integer" },
+          "height": { "type": "integer" },
+          "source": {
+            "type": "string",
+            "enum": ["upload", "ai_generated", "web_import", "knowledge_recall"]
+          },
+          "sourceDetail": {
+            "type": "object",
+            "properties": {
+              "knowledgeBaseId": { "type": "string" },
+              "documentId": { "type": "string" },
+              "segmentId": { "type": "string" },
+              "originalUrl": { "type": "string" },
+              "imgKeywords": { "type": "array", "items": { "type": "string" } },
+              "imgDescription": { "type": "string" },
+              "generationPrompt": { "type": "string" },
+              "generationModel": { "type": "string" }
+            }
+          },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "domain": { "type": "string", "description": "所属知识领域" },
+          "description": { "type": "string", "description": "图片整体描述" },
+          "storagePath": { "type": "string", "description": "基于 data 目录的相对存储路径" },
+          "usageCount": { "type": "integer", "description": "被引用次数" },
+          "lastUsedAt": { "type": "string", "format": "date-time" },
+          "visibility": {
+            "type": "string",
+            "enum": ["shared", "tenant", "private"],
+            "default": "shared"
+          },
+          "extra": { "type": "object", "description": "额外扩展字段" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "url": { "type": "string", "description": "动态计算的访问 URL（响应专属）" }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/images/upload": {
+      "post": {
+        "summary": "上传图片 (Multipart)",
+        "description": "通过 multipart/form-data 上传图片，自动去重入库。",
+        "tags": ["Images"],
+        "parameters": [
+          {
+            "name": "tags",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "标签，多个标签用逗号分隔，如: 教育,示意图"
+          },
+          {
+            "name": "domain",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "领域名称，如: 电子电工"
+          },
+          {
+            "name": "description",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "图片的人工描述"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "要上传的图片文件（字段名任意，服务端取第一个）"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "上传成功",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ImageMetadata" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/images": {
+      "get": {
+        "summary": "列表查询",
+        "description": "按条件过滤、分页获取图片列表。",
+        "tags": ["Images"],
+        "parameters": [
+          {
+            "name": "tenantId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "按租户过滤（包含 shared 可见性）"
+          },
+          {
+            "name": "userId",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "按用户过滤"
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string", "enum": ["upload", "ai_generated", "web_import", "knowledge_recall"] },
+            "description": "图片来源"
+          },
+          {
+            "name": "domain",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "精确匹配领域"
+          },
+          {
+            "name": "tags",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "string" },
+            "description": "逗号分隔标签，至少命中其一"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 100 },
+            "description": "返回数量"
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": { "type": "integer", "default": 0 },
+            "description": "起始偏移量"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ImageMetadata" }
+                    },
+                    "total": {
+                      "type": "integer",
+                      "description": "本次返回的条数（非全局总数）"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/images/{id}": {
+      "get": {
+        "summary": "获取元数据详情",
+        "description": "根据 UUID 获取单条图片记录的完整元数据。",
+        "tags": ["Images"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ImageMetadata 的 UUID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ImageMetadata" }
+              }
+            }
+          },
+          "404": { "description": "记录不存在" }
+        }
+      },
+      "patch": {
+        "summary": "更新元数据",
+        "description": "更新图片的标签、领域、描述、可见性等字段。",
+        "tags": ["Images"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ImageMetadata 的 UUID"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tags": { "type": "array", "items": { "type": "string" } },
+                  "domain": { "type": "string" },
+                  "description": { "type": "string" },
+                  "visibility": { "type": "string", "enum": ["shared", "tenant", "private"] },
+                  "extra": { "type": "object" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ImageMetadata" }
+              }
+            }
+          },
+          "404": { "description": "记录不存在" }
+        }
+      },
+      "delete": {
+        "summary": "删除图片",
+        "description": "删除元数据记录。如果没有其他记录共用同一 SHA-256 文件，则同步删除磁盘文件。",
+        "tags": ["Images"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ImageMetadata 的 UUID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "记录不存在" }
+        }
+      }
+    },
+    "/api/images/{id}/file": {
+      "get": {
+        "summary": "获取图片文件流",
+        "description": "直接返回图片二进制流，带有一年的 public 强缓存头。",
+        "tags": ["Images"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "ImageMetadata 的 UUID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "图片流",
+            "content": {
+              "image/*": {
+                "schema": { "type": "string", "format": "binary" }
+              }
+            }
+          },
+          "404": { "description": "文件或元数据不存在" }
+        }
+      }
+    },
+    "/api/images/from-url": {
+      "post": {
+        "summary": "从 URL 拉取入库",
+        "description": "将网络图片或知识库图片 URL 下载并存入全局库。如果库中已有相同的 originalUrl，则直接返回现有记录（不重复下载）。",
+        "tags": ["Images"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": { "type": "string", "description": "图片的网络地址" },
+                  "sessionId": { "type": "string", "description": "关联会话 ID（可选）" },
+                  "source": { 
+                    "type": "string", 
+                    "enum": ["web_import", "knowledge_recall"], 
+                    "default": "web_import" 
+                  },
+                  "knowledgeBaseId": { "type": "string", "description": "溯源：知识库 ID" },
+                  "documentId": { "type": "string", "description": "溯源：文档 ID" },
+                  "segmentId": { "type": "string", "description": "溯源：段落/分块 ID" },
+                  "imgKeywords": { "type": "array", "items": { "type": "string" }, "description": "知识库抽取的关键词数组（Resolve算法核心依赖）" },
+                  "imgDescription": { "type": "string", "description": "图片原始描述" },
+                  "tags": { "type": "array", "items": { "type": "string" }, "description": "补充标签" },
+                  "domain": { "type": "string", "description": "所属领域" },
+                  "description": { "type": "string", "description": "人工或顶层描述" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "导入成功（或返回已存在的复用记录）",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ImageMetadata" }
+              }
+            }
+          },
+          "400": { "description": "缺少 url 参数" },
+          "422": { "description": "下载或导入失败（如网络超时、非图片格式）" }
+        }
+      }
+    },
+    "/api/images/resolve": {
+      "post": {
+        "summary": "基于章节上下文匹配图片 (Resolve)",
+        "description": "图床核心分发能力：给定章节蓝图信息，与库中图片的 imgKeywords 进行模糊交集算分，返回最适合的候选图片，并提示还缺几张。\n\n算分规则：标题+关键词做分词，若图片 imgKeywords 中包含分词则得分。得分 >= 2 进入候选，按分高、引用次数多排序。",
+        "tags": ["Images"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["sectionTitle", "imageCount"],
+                "properties": {
+                  "sectionTitle": { "type": "string", "description": "当前要配图的章节标题（必填，用于分词匹配）" },
+                  "imageCount": { "type": "integer", "description": "该章节需要多少张图（必填）" },
+                  "sectionId": { "type": "string", "description": "章节/蓝图组件 ID（目前作为保留透传字段）" },
+                  "domain": { "type": "string", "description": "如果传了 domain，则仅匹配该 domain 且 visibility='shared' 的记录" },
+                  "keywords": { "type": "array", "items": { "type": "string" }, "description": "辅助关键词（会与标题拼接后一起分词）" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "匹配结果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "resolved": {
+                      "type": "array",
+                      "description": "匹配到的图片列表",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "imageId": { "type": "string" },
+                          "url": { "type": "string" },
+                          "matchScore": { "type": "number", "description": "关键词匹配命中数" },
+                          "source": { "type": "string" }
+                        }
+                      }
+                    },
+                    "unresolved": {
+                      "type": "integer",
+                      "description": "还缺几张图未匹配到（提示调用方调用 AI 生成）"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "缺少 sectionTitle 或 imageCount" }
+        }
+      }
+    },
+    "/api/images/fetch": {
+      "post": {
+        "summary": "一站式图片获取 (Fetch)",
+        "description": "四级优先级管线：给定关键词和数量，自动从图床匹配、知识库收割、联网搜图、AI生成，返回可直接使用的绝对URL列表。每一级获取的图片都会自动入库，后续相同关键词可直接命中。",
+        "tags": ["Images"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["keywords", "count"],
+                "properties": {
+                  "keywords": { "type": "array", "items": { "type": "string" }, "description": "图片关键词数组（非空）" },
+                  "count": { "type": "integer", "minimum": 1, "description": "需要多少张图" },
+                  "domain": { "type": "string", "description": "限定领域" },
+                  "databaseId": { "type": "string", "description": "知识库数据集ID（传入时启用KB收割）" },
+                  "enableWebSearch": { "type": "boolean", "default": true, "description": "是否启用联网搜图" },
+                  "autoGenerate": { "type": "boolean", "default": true, "description": "不足时是否AI生成补齐" },
+                  "generateStyle": { "type": "string", "description": "AI生成时的风格描述后缀" },
+                  "imageFilters": {
+                    "type": "object",
+                    "description": "Google Images 搜索过滤参数，仅在联网搜图时生效",
+                    "properties": {
+                      "size": { "type": "string", "enum": ["large", "medium", "icon", "larger_than_400x300", "larger_than_640x480", "larger_than_800x600", "larger_than_1024x768", "larger_than_2mp"], "description": "图片尺寸过滤" },
+                      "color": { "type": "string", "enum": ["black_and_white", "color", "transparent", "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink", "white", "gray", "black", "brown"], "description": "颜色过滤" },
+                      "imageType": { "type": "string", "enum": ["clipart", "line_drawing", "gif", "face", "photo"], "description": "图片类型过滤" },
+                      "aspectRatio": { "type": "string", "enum": ["square", "tall", "wide", "panoramic"], "description": "宽高比过滤" }
+                    }
+                  },
+                  "sessionId": { "type": "string", "description": "关联会话ID" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "获取结果",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "images": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "imageId": { "type": "string" },
+                          "url": { "type": "string", "description": "绝对URL，可直接在文档中使用" },
+                          "source": { "type": "string", "enum": ["upload", "ai_generated", "web_import", "knowledge_recall"] },
+                          "matchScore": { "type": "number" },
+                          "keywords": { "type": "array", "items": { "type": "string" } }
+                        }
+                      }
+                    },
+                    "fromLibrary": { "type": "integer", "description": "从图床匹配到的数量" },
+                    "fromKnowledgeBase": { "type": "integer", "description": "从知识库收割的数量" },
+                    "fromWebSearch": { "type": "integer", "description": "从联网搜图的数量" },
+                    "aiGenerated": { "type": "integer", "description": "AI生成的数量" },
+                    "failed": { "type": "integer", "description": "生成失败的数量" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "keywords缺失/为空，或count缺失/非正数" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+curl --location --request DELETE 'http://35.232.154.66:5125/v1/conversations/d5133191-ae4a-4853-aea6-2257fa614eaa' \
+--header 'Authorization: Bearer app-jTJNNtHCS6fMlJDRQG4gYURE' \
+--header 'User-Agent: Apifox/1.0.0 (https://apifox.com)' \
+--header 'Content-Type: application/json' \
+--header 'Accept: */*' \
+--header 'Host: 35.232.154.66:5125' \
+--header 'Connection: keep-alive' \
+--data-raw '{
+    "user":"2020001"
+}'

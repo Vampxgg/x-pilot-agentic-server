@@ -1,0 +1,3736 @@
+app:
+  description: 修改为HITL 方式的Agentic
+  icon: 🤖
+  icon_background: '#FFEAD5'
+  mode: advanced-chat
+  name: video generate(线上)
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: yevanchen/markitdown:0.0.4@776b3e2e930e2ffd28a75bb20fecbe7a020849cf754f86e604acacf1258877f6
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/dify_extractor:0.0.5@ba7e2fd9165eda73bfcc68e31a108855197e88706e5556c058e0777ab08409b3
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: eft/redis:1.0.3@bac89a1d03ca694e856b58341cbb34094af7ca9425ef4e39bed85fbd27284df8
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/unstructured:0.0.3@9e45397be7398146e98030a7e535ec0e820156929f5817d8c7dc758c3143e524
+    version: null
+kind: app
+version: 0.5.0
+workflow:
+  conversation_variables:
+  - description: false说明为空
+    id: d291f9ce-cffb-4255-90e6-feeb82a88360
+    name: brand_kit
+    selector:
+    - conversation
+    - brand_kit
+    value: false
+    value_type: boolean
+  - description: ''
+    id: 9f33d8d7-9676-4ff9-aa6f-da55cdcd0cd9
+    name: partition
+    selector:
+    - conversation
+    - partition
+    value: "{  \"strategy\": \"hi_res\",\n  \"extract_image_block_types\": [\"Image\"\
+      ],\n  \"extract_image_block_to_payload\": true,\n  \"infer_table_structure\"\
+      : true,\n  \"coordinates\": true,\n  \"chunking_strategy\": \"by_title\",\n\
+      \  \"max_characters\": 1500,\n  \"combine_text_under_n_chars\": 600,\n  \"new_after_n_chars\"\
+      : 1500,\n  \"ocr_languages\": [],\n  \"include_image_captions\": false}"
+    value_type: string
+  - description: false说明内容为空
+    id: 9c99ba82-66d7-4680-ad46-2e4d9a05e372
+    name: video_presets
+    selector:
+    - conversation
+    - video_presets
+    value: false
+    value_type: boolean
+  - description: 用户预设全局值
+    id: 199662cf-d4d2-4738-86f0-932fa82be0b7
+    name: user_preset_values
+    selector:
+    - conversation
+    - user_preset_values
+    value: ''
+    value_type: string
+  - description: ''
+    id: ddf9b835-892d-46a5-8bd1-3abe96ed529d
+    name: tools_list
+    selector:
+    - conversation
+    - tools_list
+    value: '{"search_data":{"parameters":{"type":"object","properties":{"scene_data":{"description":"用户的主题或需要搜索的具体查询内容。","type":"string"}},"required":["scene_data"]},"description":"联网搜索外部知识。当用户的主题涉及具体事实、数据，或者你觉得现有信息不足以编写详细剧本或者生成视频时使用。","input_examples":[{"scene_data":"2025年AI行业最新的发展趋势"},{"scene_data":"[\"2023年到2025年AI的数据使用增量\",\"新能源发展趋势\"，\"如何使用微积分解异构性几何问题\"]"}]},"generation_script":{"parameters":{"type":"object","properties":{"topic":{"description":"视频的主题或剧本创作的核心主题。","type":"string"},"user_request":{"description":"用户具体的创作意图，用户对剧本创作的具体要求和约束条件。","type":"string"},"user_file_content":{"description":"用户提供的文件内容，作为剧本创作的参考数据。","type":"string"},"web_data":{"description":"通过网络搜索或其他方式获取的外部数据，作为创作参考。","type":"string"}},"required":["topic","user_request"]},"description":"根据一个新的主题和用户需求，从零开始创作一个全新的
+      JSON 剧本。可以接收 user_file_content 和 web_data 作为创作参考。","input_examples":[{"topic":"智能体工具的设计原则","user_request":"请创作一个时长3分钟，风格正式、面向工程师的剧本大纲。"},{"topic":"详解宇宙大爆炸原理","web_data":"外部数据[...]"},{"topic":"公司最新的产品发布会","user_request":"请严格按照用户上传的PPT内容和搜索到的新闻稿件来组织剧本。","user_file_content":"文件内容：[...]","web_data":"搜索结果：[...]"}]},"modify_visual_script":{"parameters":{"type":"object","properties":{"user_request":{"description":"用户的反馈指令（文案调整、视觉修改、增删场景等）。","type":"string"},"user_file_content":{"description":"用户提供的文件内容，用于修改的补充数据。","type":"string"},"web_data":{"description":"通过网络搜索或其他方式获取的外部数据。","type":"string"},"origin_script":{"description":"需要被修订和迭代的现有剧本内容（通常是JSON格式）。","type":"string"}},"required":["user_request","origin_script"]},"description":"这是一个专门用于修订和迭代现有剧本的工具。根据用户的反馈指令（文案调整、视觉修改、增删场景）进行外科手术式的增量修改。它会自动处理时间的连锁反应（Ripple
+      Effect），保留未修改的场景，是剧本增量修改的首选工具。","input_examples":[{"user_request":"视频开头添加一个新的场景，主题是xxx","origin_script":"..."}]},"get_string":{"parameters":{"type":"object","properties":{"key":{"description":"待读取内容的唯一标识符，可以是
+      script_id 或 video_id。","type":"string"}},"required":["key"]},"description":"使用
+      ID 读取实际的 JSON 或 HTML 内容。当剧本或者视频发生更新时使用，当需要展示最新的数据的时候，必须读取最新数据展示给用户","input_examples":[{"key":"script_json_xxx"},{"key":"video_html_xxx"}]},"generate_video":{"parameters":{"type":"object","properties":{"script_id":{"description":"要渲染成视频的剧本唯一标识符。","type":"string"}},"required":["script_id"]},"description":"将剧本渲染为视频。当你已经拥有了确定的
+      script_id，且用户对剧本内容无异议时使用。工具会构建完整的动画视频，成功返回视频ID（video_id）主要用途：生成完整的HTML动画视频;输入：1.剧本数据ID编号;输出：视频代码绑定的唯一编号","input_examples":[{"script_id":"script_json_xxx"}]},"editing_video":{"parameters":{"type":"object","properties":{"script_id":{"description":"当前剧本的唯一标识符。","type":"string"},"user_intent":{"description":"用户意图，用户提出的具体修改意见或者具体指令。","type":"string"},"video_id":{"description":"需要编辑的现有视频的唯一标识符。","type":"string"}},"required":["script_id","user_intent","video_id"]},"description":"基于现有的视频进行微调（改颜色、改UI、微调文案）。当且仅当上下文中已经存在
+      video_id，且用户提出修改意见时使用。成功返回新的视频ID（new_video_id）。主要用途：对旧版本视频进行编辑、调整、优化形成符合要求的新版视频输入：1.旧版需要调整的HTML动画的数据编号、2.用户意图描述、3.旧版本完整Json剧本数据编号;输出：经过调整、编辑、优化之后的新版本视频动画的访问编号","input_examples":[{"script_id":"script_json_xxx","user_intent":"将背景颜色改为蓝色，并将标题字号调大","video_id":"video_html_xxx"}]}}'
+    value_type: string
+  - description: ''
+    id: 08c70434-2b8c-4274-99a4-a3301d15507b
+    name: original_html
+    selector:
+    - conversation
+    - original_html
+    value: ''
+    value_type: string
+  - description: ''
+    id: ddfb97df-ffb0-4aaf-a5ca-6f7af321daef
+    name: glable_status
+    selector:
+    - conversation
+    - glable_status
+    value: first_create
+    value_type: string
+  - description: ''
+    id: bb699226-8212-4e8e-9083-606694647265
+    name: video_data
+    selector:
+    - conversation
+    - video_data
+    value: ''
+    value_type: string
+  - description: ''
+    id: a013c3e6-35ca-46d8-bf4b-ffc43e4bba3d
+    name: global_status_file
+    selector:
+    - conversation
+    - global_status_file
+    value: "{\n  \"globalSettings\": {\n    \"title\": \"[Generated Video Lesson Title]\"\
+      ,\n    \"language\": \"[Detected IETF Language Tag, e.g., 'zh-CN']\",\n    \"\
+      estimatedDurationMinutes\": \"[Calculated Integer, e.g., 9]\",\n    \"brandText\"\
+      : \"[Generated Brand Text or Placeholder]\",\n    \"aspectRatio\": \"16:9\"\
+      ,\n    \"style_template\": \"[Selected Style from Course Style Templates]\"\
+      ,\n    \"animationStyle\": \"[Selected Style from Animation Style Templates]\"\
+      ,\n    \"digitalHumanId\": \"dh_instructor_neutral_01\",\n    \"voiceId\": \"\
+      [Generated Placeholder Matching Language, e.g., 'voice_zh-CN_clear_instructor_male_01']\"\
+      \n  },\n  \"scenes\": [\n    {\n      \"sceneId\": \"scene_01\",\n      \"title\"\
+      : \"[Clear, descriptive title for the first learning segment]\",\n      \"status\"\
+      : \"pending_scripting\"\n    }\n  ]\n}"
+    value_type: string
+  - description: ''
+    id: 589861f8-f300-428b-84fb-d02b8b1fc70d
+    name: scenes_script
+    selector:
+    - conversation
+    - scenes_script
+    value: ''
+    value_type: string
+  - description: ''
+    id: e9b98088-831c-4ad9-942d-dd57cfe2702f
+    name: web_data
+    selector:
+    - conversation
+    - web_data
+    value: ''
+    value_type: string
+  - description: 水印
+    id: ec2f255f-2c22-4668-8a96-7a19e48ef955
+    name: copyright_text
+    selector:
+    - conversation
+    - copyright_text
+    value: Video by x-pilot.ai
+    value_type: string
+  - description: ''
+    id: 103d4e56-fb46-42dd-af57-d14bb6067460
+    name: language
+    selector:
+    - conversation
+    - language
+    value: EN
+    value_type: string
+  - description: 统一视觉工具箱字段
+    id: a8488e4b-975c-476d-99e0-972b9c17d1a1
+    name: visual_tool_box_schema
+    selector:
+    - conversation
+    - visual_tool_box_schema
+    value: "{\n  \"_comment\": \"这是权威的、统一的视觉组件工具箱定义。所有生成的剧本都必须使用此处的 'type' 作为组件的唯一标识符。每个角色的Prompt中使用的组件名称（如'spec-card'）是映射到这些基础类型的语义别名。\"\
+      ,\n  \"toolbox\": [\n    {\n      \"category\": \"text-and-information\",\n\
+      \      \"displayName\": \"文本与信息类\",\n      \"components\": [\n        {\n  \
+      \        \"type\": \"info-card\",\n          \"displayName\": \"信息卡片\",\n  \
+      \        \"description\": \"用于突出展示一个核心标题和一段描述性文字，可选配一个图标。\",\n          \"contentSchema\"\
+      : {\n            \"title\": \"string\",\n            \"description\": \"string\"\
+      ,\n            \"icon\": \"string (optional)\"\n          },\n          \"example\"\
+      : {\n            \"title\": \"什么是Agentic AI?\",\n            \"description\"\
+      : \"一种能够自主感知环境、做出决策并执行动作的新型人工智能范式。\",\n            \"icon\": \"brain-circuit\"\
+      \n          }\n        },\n        {\n          \"type\": \"bullet-points\"\
+      ,\n          \"displayName\": \"要点列表\",\n          \"description\": \"用于结构化地罗列多个并列的信息点或步骤。\"\
+      ,\n          \"contentSchema\": {\n            \"title\": \"string (optional)\"\
+      ,\n            \"points\": [\n              {\n                \"text\": \"\
+      string\",\n                \"icon\": \"string (optional)\"\n              }\n\
+      \            ]\n          },\n          \"example\": {\n            \"title\"\
+      : \"核心三要素\",\n            \"points\": [\n              {\n                \"\
+      text\": \"自主规划 (Autonomous Planning)\",\n                \"icon\": \"lightbulb\"\
+      \n              },\n              {\n                \"text\": \"环境适应 (Environment\
+      \ Adaptation)\",\n                \"icon\": \"gear\"\n              }\n    \
+      \        ]\n          }\n        },\n        {\n          \"type\": \"quote-block\"\
+      ,\n          \"displayName\": \"引用/证言块\",\n          \"description\": \"用于权威地展示引用的名言、客户的评价或核心观点。\"\
+      ,\n          \"contentSchema\": {\n            \"text\": \"string\",\n     \
+      \       \"source\": \"string\",\n            \"source_details\": \"string (optional)\"\
+      ,\n            \"source_logo\": \"object (standard_image_object, optional)\"\
+      \n          },\n          \"example\": {\n            \"text\": \"这款产品将我们的工作效率提升了300%！\"\
+      ,\n            \"source\": \"张三, CEO\",\n            \"source_details\": \"\
+      ABC科技有限公司\",\n            \"source_logo\": { \"type\": \"url\", \"value\": \"\
+      https://example.com/logo.png\" }\n          }\n        },\n        {\n     \
+      \     \"type\": \"key-value-list\",\n          \"displayName\": \"键值对列表\",\n\
+      \          \"description\": \"用于展示技术规格、参数等键值对信息。\",\n          \"contentSchema\"\
+      : {\n            \"title\": \"string\",\n            \"items\": [\n        \
+      \      {\n                \"label\": \"string\",\n                \"value\"\
+      : \"string\"\n              }\n            ]\n          },\n          \"example\"\
+      : {\n            \"title\": \"M4芯片 关键规格\",\n            \"items\": [\n     \
+      \         { \"label\": \"CPU核心\", \"value\": \"10核\" },\n              { \"\
+      label\": \"神经网络引擎\", \"value\": \"16核\" },\n              { \"label\": \"制程工艺\"\
+      , \"value\": \"第二代3纳米\" }\n            ]\n          }\n        },\n        {\n\
+      \          \"type\": \"code-block\",\n          \"displayName\": \"代码块\",\n\
+      \          \"description\": \"用于展示代码片段或伪代码。\",\n          \"contentSchema\"\
+      : {\n            \"language\": \"string\",\n            \"code\": \"string\"\
+      ,\n            \"title\": \"string (optional)\"\n          },\n          \"\
+      example\": {\n            \"language\": \"python\",\n            \"title\":\
+      \ \"Attention计算伪代码\",\n            \"code\": \"def attention(Q, K, V):\\n  scores\
+      \ = matmul(Q, K.T)\\n  return matmul(softmax(scores), V)\"\n          }\n  \
+      \      },\n        {\n          \"type\": \"formula-block\",\n          \"displayName\"\
+      : \"公式块\",\n          \"description\": \"用于渲染数学或化学公式，支持LaTeX。\",\n         \
+      \ \"contentSchema\": {\n            \"title\": \"string (optional)\",\n    \
+      \        \"formula_latex\": \"string\",\n            \" annotations\": [\n \
+      \             {\n                \"variable\": \"string\",\n               \
+      \ \"explanation\": \"string\"\n              }\n            ]\n          },\n\
+      \          \"example\": {\n            \"title\": \"Scaled Dot-Product Attention\"\
+      ,\n            \"formula_latex\": \"Attention(Q, K, V) = softmax(\\\\frac{QK^T}{\\\
+      \\sqrt{d_k}})V\",\n            \"annotations\": [\n              { \"variable\"\
+      : \"Q\", \"explanation\": \"Query查询\" }\n            ]\n          }\n      \
+      \  }\n      ]\n    },\n    {\n      \"category\": \"data-visualization\",\n\
+      \      \"displayName\": \"数据可视化类\",\n      \"components\": [\n        {\n  \
+      \        \"type\": \"chart\",\n          \"displayName\": \"图表\",\n        \
+      \  \"description\": \"通用的图表组件，支持条形图、折线图、饼图、雷达图、热力图等多种类型。\",\n          \"contentSchema\"\
+      : {\n            \"title\": \"string\",\n            \"chart_type\": \"bar |\
+      \ line | pie | doughnut | radar | scatter | heatmap\",\n            \"data\"\
+      : {\n              \"labels\": [\"string\"],\n              \"datasets\": [\n\
+      \                {\n                  \"label\": \"string\",\n             \
+      \     \"data\": [\"number\"]\n                }\n              ]\n         \
+      \   }\n          },\n          \"example\": {\n            \"title\": \"季度销售额对比\"\
+      ,\n            \"chart_type\": \"bar\",\n            \"data\": {\n         \
+      \     \"labels\": [\"Q1\", \"Q2\", \"Q3\", \"Q4\"],\n              \"datasets\"\
+      : [\n                {\n                  \"label\": \"2023年\",\n          \
+      \        \"data\": [120, 150, 130, 180]\n                }\n              ]\n\
+      \            }\n          }\n        },\n        {\n          \"type\": \"infographic-number\"\
+      ,\n          \"displayName\": \"信息图数字\",\n          \"description\": \"用动画突出显示一个关键的数字指标。\"\
+      ,\n          \"contentSchema\": {\n            \"prefix\": \"string (optional)\"\
+      ,\n            \"number\": \"number\",\n            \"suffix\": \"string (optional)\"\
+      ,\n            \"label\": \"string\"\n          },\n          \"example\": {\n\
+      \            \"prefix\": \"+\",\n            \"number\": 80,\n            \"\
+      suffix\": \"%\",\n            \"label\": \"效率提升\"\n          }\n        },\n\
+      \        {\n          \"type\": \"coordinate-system\",\n          \"displayName\"\
+      : \"坐标系\",\n          \"description\": \"用于绘制函数图像、散点、向量等的二维或三维坐标系统。\",\n   \
+      \       \"contentSchema\": {\n            \"x_axis\": { \"label\": \"string\"\
+      , \"range\": [\"number\", \"number\"] },\n            \"y_axis\": { \"label\"\
+      : \"string\", \"range\": [\"number\", \"number\"] },\n            \"grid\":\
+      \ \"boolean\",\n            \"elements\": [\n              {\n             \
+      \   \"type\": \"function_curve | data_points | vector | shaded_area\",\n   \
+      \             \"content\": {}\n              }\n            ]\n          },\n\
+      \          \"example\": {\n            \"x_axis\": { \"label\": \"x\", \"range\"\
+      : [-5, 5] },\n            \"y_axis\": { \"label\": \"y\", \"range\": [-2, 8]\
+      \ },\n            \"grid\": true,\n            \"elements\": [\n           \
+      \   {\n                \"type\": \"function_curve\",\n                \"content\"\
+      : { \"function_str\": \"y = x^2\", \"color\": \"#0D47A1\", \"label\": \"y=x²\"\
+      \ }\n              }\n            ]\n          }\n        },\n        {\n  \
+      \        \"type\": \"data-table\",\n          \"displayName\": \"数据表格\",\n \
+      \         \"description\": \"用于结构化地对比多行多列数据。\",\n          \"contentSchema\"\
+      : {\n            \"title\": \"string (optional)\",\n            \"columns\"\
+      : [\"string\"],\n            \"rows\": [[\"string\"]]\n          },\n      \
+      \    \"example\": {\n            \"title\": \"竞品对比\",\n            \"columns\"\
+      : [\"特性\", \"产品A\", \"产品B\"],\n            \"rows\": [\n              [\"价格\"\
+      , \"$99\", \"$129\"],\n              [\"续航\", \"8小时\", \"10小时\"]\n         \
+      \   ]\n          }\n        }\n      ]\n    },\n    {\n      \"category\": \"\
+      process-and-structure\",\n      \"displayName\": \"流程与结构类\",\n      \"components\"\
+      : [\n        {\n          \"type\": \"graph-viz\",\n          \"displayName\"\
+      : \"图形/网络可视化\",\n          \"description\": \"用于展示节点和链接关系，是数据流、知识图谱、生态图、架构图的统一基础。\"\
+      ,\n          \"contentSchema\": {\n            \"title\": \"string (optional)\"\
+      ,\n            \"nodes\": [\n              {\n                \"id\": \"string\"\
+      ,\n                \"label\": \"string\",\n                \"type\": \"string\
+      \ (optional)\"\n              }\n            ],\n            \"links\": [\n\
+      \              {\n                \"source\": \"string (id)\",\n           \
+      \     \"target\": \"string (id)\",\n                \"label\": \"string (optional)\"\
+      \n              }\n            ]\n          },\n          \"example\": {\n \
+      \           \"title\": \"水循环示意图\",\n            \"nodes\": [\n             \
+      \ { \"id\": \"ocean\", \"label\": \"海洋\" },\n              { \"id\": \"atmosphere\"\
+      , \"label\": \"大气\" }\n            ],\n            \"links\": [\n          \
+      \    { \"source\": \"ocean\", \"target\": \"atmosphere\", \"label\": \"蒸发\"\
+      \ }\n            ]\n          }\n        },\n        {\n          \"type\":\
+      \ \"timeline\",\n          \"displayName\": \"时间轴\",\n          \"description\"\
+      : \"线性地展示一系列按时间排序的事件。\",\n          \"contentSchema\": {\n            \"title\"\
+      : \"string\",\n            \"events\": [\n              {\n                \"\
+      date\": \"string\",\n                \"event\": \"string\",\n              \
+      \  \"description\": \"string (optional)\"\n              }\n            ]\n\
+      \          },\n          \"example\": {\n            \"title\": \"技术演进史\",\n\
+      \            \"events\": [\n              { \"date\": \"2017\", \"event\": \"\
+      Transformer模型发布\" },\n              { \"date\": \"2018\", \"event\": \"BERT模型发布\"\
+      \ }\n            ]\n          }\n        },\n        {\n          \"type\":\
+      \ \"layer-diagram\",\n          \"displayName\": \"层级图\",\n          \"description\"\
+      : \"用于解释具有层级或堆栈关系的概念，如软件架构、OSI模型。\",\n          \"contentSchema\": {\n     \
+      \       \"title\": \"string\",\n            \"layers\": [\n              {\n\
+      \                \"name\": \"string\",\n                \"description\": \"\
+      string (optional)\"\n              }\n            ]\n          },\n        \
+      \  \"example\": {\n            \"title\": \"OSI七层模型\",\n            \"layers\"\
+      : [\n              { \"name\": \"应用层\" },\n              { \"name\": \"表示层\"\
+      \ },\n              { \"name\": \"会话层\" }\n            ]\n          }\n    \
+      \    },\n        {\n          \"type\": \"pyramid-diagram\",\n          \"displayName\"\
+      : \"金字塔图\",\n          \"description\": \"用于展示具有基础和顶层关系的层级结构，顺序从下到上。\",\n  \
+      \        \"contentSchema\": {\n            \"levels\": [\n              {\n\
+      \                \"label\": \"string\"\n              }\n            ]\n   \
+      \       },\n          \"example\": {\n            \"levels\": [\n          \
+      \    { \"label\": \"生理需求\" },\n              { \"label\": \"安全需求\" },\n    \
+      \          { \"label\": \"社交需求\" },\n              { \"label\": \"尊重需求\" },\n\
+      \              { \"label\": \"自我实现\" }\n            ]\n          }\n       \
+      \ },\n        {\n          \"type\": \"solution-steps\",\n          \"displayName\"\
+      : \"解题步骤条\",\n          \"description\": \"清晰展示解题、推导或操作的每一步。\",\n          \"\
+      contentSchema\": {\n            \"title\": \"string (optional)\",\n        \
+      \    \"steps\": [\n              {\n                \"label\": \"string\",\n\
+      \                \"content\": \"string\"\n              }\n            ]\n \
+      \         },\n          \"example\": {\n            \"title\": \"解方程步骤\",\n\
+      \            \"steps\": [\n              { \"label\": \"Step 1\", \"content\"\
+      : \"移项，将常数项移到等式右侧。\" },\n              { \"label\": \"Step 2\", \"content\"\
+      : \"合并同类项。\" }\n            ]\n          }\n        }\n      ]\n    },\n   \
+      \ {\n      \"category\": \"ui-and-simulation\",\n      \"displayName\": \"UI与模拟类\"\
+      ,\n      \"components\": [\n        {\n          \"type\": \"ui-dashboard\"\
+      ,\n          \"displayName\": \"UI仪表盘\",\n          \"description\": \"模拟一个动态的仪表盘界面，展示多个KPI。\"\
+      ,\n          \"contentSchema\": {\n            \"title\": \"string\",\n    \
+      \        \"kpis\": [\n              {\n                \"label\": \"string\"\
+      ,\n                \"value\": \"number\",\n                \"unit\": \"string\"\
+      ,\n                \"trend\": \"up | down | stable\"\n              }\n    \
+      \        ]\n          },\n          \"example\": {\n            \"title\": \"\
+      项目“天狼星”概览\",\n            \"kpis\": [\n              { \"label\": \"任务完成率\"\
+      , \"value\": 85, \"unit\": \"%\", \"trend\": \"up\" },\n              { \"label\"\
+      : \"预算消耗\", \"value\": 60, \"unit\": \"%\", \"trend\": \"stable\" }\n      \
+      \      ]\n          }\n        },\n        {\n          \"type\": \"ui-cards\"\
+      ,\n          \"displayName\": \"UI卡片组\",\n          \"description\": \"模拟一组带有图标和简介的UI功能卡片。\"\
+      ,\n          \"contentSchema\": {\n            \"cards\": [\n              {\n\
+      \                \"icon\": \"string\",\n                \"title\": \"string\"\
+      ,\n                \"description\": \"string\"\n              }\n          \
+      \  ]\n          },\n          \"example\": {\n            \"cards\": [\n   \
+      \           { \"icon\": \"kanban\", \"title\": \"智能看板\", \"description\": \"\
+      拖拽任务，实时同步。\" },\n              { \"icon\": \"gantt-chart\", \"title\": \"动态甘特图\"\
+      , \"description\": \"规划项目，掌控进度。\" }\n            ]\n          }\n        },\n\
+      \        {\n          \"type\": \"ui-action-sequence\",\n          \"displayName\"\
+      : \"UI交互序列\",\n          \"description\": \"通过一系列描述来模拟用户在UI上的操作流程。\",\n    \
+      \      \"contentSchema\": {\n            \"screen_description\": \"string\"\
+      ,\n            \"steps\": [\n              {\n                \"element_description\"\
+      : \"string\",\n                \"action_description\": \"string\"\n        \
+      \      }\n            ]\n          },\n          \"example\": {\n          \
+      \  \"screen_description\": \"用户登录界面\",\n            \"steps\": [\n         \
+      \     { \"element_description\": \"'用户名'输入框\", \"action_description\": \"自动填充\
+      \ 'admin'\" },\n              { \"element_description\": \"'登录'按钮\", \"action_description\"\
+      : \"被点击后，发出蓝色辉光并过渡到下一页\" }\n            ]\n          }\n        },\n       \
+      \ {\n          \"type\": \"ui-modal\",\n          \"displayName\": \"UI模态框\"\
+      ,\n          \"description\": \"模拟一个弹窗，用于显示操作结果或重要信息。\",\n          \"contentSchema\"\
+      : {\n            \"title\": \"string\",\n            \"content_text\": \"string\"\
+      ,\n            \"icon\": \"success | warning | info\"\n          },\n      \
+      \    \"example\": {\n            \"title\": \"上传成功\",\n            \"content_text\"\
+      : \"您的文件已成功上传至服务器。\",\n            \"icon\": \"success\"\n          }\n    \
+      \    }\n      ]\n    },\n    {\n      \"category\": \"media-and-imagery\",\n\
+      \      \"displayName\": \"媒体与图像类\",\n      \"components\": [\n        {\n  \
+      \        \"type\": \"model-3d\",\n          \"displayName\": \"3D模型\",\n   \
+      \       \"description\": \"展示一个3D模型，并可以定义其动画效果。\",\n          \"contentSchema\"\
+      : {\n            \"model_description\": \"string\",\n            \"animation_type\"\
+      : \"rotate | explode | cross-section\"\n          },\n          \"example\"\
+      : {\n            \"model_description\": \"一个标准的H2O水分子模型，包含一个代表氧原子的红色大球和两个代表氢原子的白色小球。\"\
+      ,\n            \"animation_type\": \"rotate\"\n          }\n        },\n   \
+      \     {\n          \"type\": \"single-image\",\n          \"displayName\": \"\
+      单张图片\",\n          \"description\": \"清晰地展示一张图片，可配标题和说明。\",\n          \"contentSchema\"\
+      : {\n            \"image\": \"object (standard_image_object)\",\n          \
+      \  \"caption\": \"string (optional)\"\n          },\n          \"example\":\
+      \ {\n            \"image\": { \"type\": \"url\", \"value\": \"https://example.com/hubble.jpg\"\
+      \ },\n            \"caption\": \"哈勃望远镜拍摄的创生之柱\"\n          }\n        },\n \
+      \       {\n          \"type\": \"image-grid\",\n          \"displayName\": \"\
+      图片网格\",\n          \"description\": \"以网格布局同时展示多张相关的图片。\",\n          \"contentSchema\"\
+      : {\n            \"title\": \"string (optional)\",\n            \"columns\"\
+      : \"number\",\n            \"images\": [\n              {\n                \"\
+      image\": \"object (standard_image_object)\",\n                \"caption\": \"\
+      string (optional)\"\n              }\n            ]\n          },\n        \
+      \  \"example\": {\n            \"title\": \"不同形态的星系\",\n            \"columns\"\
+      : 2,\n            \"images\": [\n              { \"image\": { \"type\": \"url\"\
+      , \"value\": \"...\" }, \"caption\": \"旋涡星系\" },\n              { \"image\"\
+      : { \"type\": \"url\", \"value\": \"...\" }, \"caption\": \"棒旋星系\" }\n     \
+      \       ]\n          }\n        },\n        {\n          \"type\": \"annotated-image\"\
+      ,\n          \"displayName\": \"带标注的图片\",\n          \"description\": \"在一张图片上动态添加引出线、标签和高亮框。\"\
+      ,\n          \"contentSchema\": {\n            \"image\": \"object (standard_image_object)\"\
+      ,\n            \"annotations\": [\n              {\n                \"point\"\
+      : { \"x\": \"number (0-1)\", \"y\": \"number (0-1)\" },\n                \"\
+      text\": \"string\"\n              }\n            ]\n          },\n         \
+      \ \"example\": {\n            \"image\": { \"type\": \"url\", \"value\": \"\
+      https://example.com/cell.jpg\" },\n            \"annotations\": [\n        \
+      \      { \"point\": { \"x\": 0.5, \"y\": 0.5 }, \"text\": \"细胞核\" }\n      \
+      \      ]\n          }\n        },\n        {\n          \"type\": \"before-after-comparison\"\
+      ,\n          \"displayName\": \"前后对比图\",\n          \"description\": \"用动画对比展示某个操作前后的状态图片。\"\
+      ,\n          \"contentSchema\": {\n            \"before_image\": \"object (standard_image_object)\"\
+      ,\n            \"after_image\": \"object (standard_image_object)\",\n      \
+      \      \"labels\": { \"before\": \"string\", \"after\": \"string\" }\n     \
+      \     },\n          \"example\": {\n            \"before_image\": { \"type\"\
+      : \"url\", \"value\": \"...\" },\n            \"after_image\": { \"type\": \"\
+      url\", \"value\": \"...\" },\n            \"labels\": { \"before\": \"2010年\"\
+      , \"after\": \"2020年\" }\n          }\n        }\n      ]\n    },\n    {\n \
+      \     \"category\": \"interactive-and-engagement\",\n      \"displayName\":\
+      \ \"互动与参与类\",\n      \"components\": [\n        {\n          \"type\": \"quiz-card\"\
+      ,\n          \"displayName\": \"问答卡片\",\n          \"description\": \"提出一个问题和几个选项，用于知识检验或引发思考。\"\
+      ,\n          \"contentSchema\": {\n            \"question\": \"string\",\n \
+      \           \"options\": [\"string\"],\n            \"correct_answer_index\"\
+      : \"number\",\n            \"explanation\": \"string\"\n          },\n     \
+      \     \"example\": {\n            \"question\": \"夏天时，哪种色素在叶子里最多呢？\",\n    \
+      \        \"options\": [\"叶绿素\", \"类胡萝卜素\"],\n            \"correct_answer_index\"\
+      : 0,\n            \"explanation\": \"答对啦！因为叶绿素特别多，所以叶子看起来是绿色的！\"\n         \
+      \ }\n        },\n        {\n          \"type\": \"parameter-slider\",\n    \
+      \      \"displayName\": \"参数滑块\",\n          \"description\": \"允许观众（概念上）拖动滑块来改变另一个组件的参数。\"\
+      ,\n          \"contentSchema\": {\n            \"label\": \"string\",\n    \
+      \        \"variable_name\": \"string\",\n            \"target_component_id\"\
+      : \"string\",\n            \"range\": [\"number\", \"number\"],\n          \
+      \  \"step\": \"number\",\n            \"initial_value\": \"number\"\n      \
+      \    },\n          \"example\": {\n            \"label\": \"h (左右平移)\",\n  \
+      \          \"variable_name\": \"h\",\n            \"target_component_id\": \"\
+      parabola_graph_1\",\n            \"range\": [-3, 3],\n            \"step\":\
+      \ 0.1,\n            \"initial_value\": 0\n          }\n        }\n      ]\n\
+      \    },\n    {\n      \"category\": \"narrative-and-branding\",\n      \"displayName\"\
+      : \"叙事与品牌类\",\n      \"components\": [\n        {\n          \"type\": \"dialogue-block\"\
+      ,\n          \"displayName\": \"对话块\",\n          \"description\": \"以对话或剧本的形式，展示角色之间的交流。\"\
+      ,\n          \"contentSchema\": {\n            \"lines\": [\n              {\n\
+      \                \"character\": \"string\",\n                \"line\": \"string\"\
+      \n              }\n            ]\n          },\n          \"example\": {\n \
+      \           \"lines\": [\n              { \"character\": \"莉莉\", \"line\": \"\
+      哇！这棵树为什么是黄色的？\" },\n              { \"character\": \"小松鼠\", \"line\": \"这是一个关于秋天的小秘密！\"\
+      \ }\n            ]\n          }\n        },\n        {\n          \"type\":\
+      \ \"character-display\",\n          \"displayName\": \"角色展示\",\n          \"\
+      description\": \"在场景中展示一个卡通角色。\",\n          \"contentSchema\": {\n        \
+      \    \"name\": \"string\",\n            \"description\": \"string\",\n     \
+      \       \"image\": \"object (standard_image_object)\"\n          },\n      \
+      \    \"example\": {\n            \"name\": \"莉莉\",\n            \"description\"\
+      : \"一个扎着马尾辫、充满好奇心的小女孩\",\n            \"image\": { \"type\": \"ai-generation-image\"\
+      , \"value\": \"...\" }\n          }\n        },\n        {\n          \"type\"\
+      : \"logo-reveal\",\n          \"displayName\": \"Logo演绎\",\n          \"description\"\
+      : \"对品牌Logo进行精心设计的动态演绎。\",\n          \"contentSchema\": {\n            \"logo_image\"\
+      : \"object (standard_image_object)\",\n            \"animation_style\": \"string\
+      \ (e.g., fade-in, assemble-from-particles, draw-itself)\"\n          },\n  \
+      \        \"example\": {\n            \"logo_image\": { \"type\": \"url\", \"\
+      value\": \"https://example.com/brand_logo.svg\" },\n            \"animation_style\"\
+      : \"logo-draws-itself-then-flashes\"\n          }\n        },\n        {\n \
+      \         \"type\": \"cta-button\",\n          \"displayName\": \"行动号召按钮\",\n\
+      \          \"description\": \"一个可点击的按钮，引导用户进行下一步操作。\",\n          \"contentSchema\"\
+      : {\n            \"text\": \"string\",\n            \"link\": \"string (url)\"\
+      ,\n            \"style\": \"primary | secondary\"\n          },\n          \"\
+      example\": {\n            \"text\": \"立即免费试用\",\n            \"link\": \"https://example.com/signup\"\
+      ,\n            \"style\": \"primary\"\n          }\n        }\n      ]\n   \
+      \ },\n    {\n      \"category\": \"abstract-and-metaphorical\",\n      \"displayName\"\
+      : \"抽象与转喻类\",\n      \"components\": [\n        {\n          \"type\": \"shape-morph\"\
+      ,\n          \"displayName\": \"形态变换\",\n          \"description\": \"一个视觉元素平滑地“变形”为另一个，用于隐喻概念的转变。\"\
+      ,\n          \"contentSchema\": {\n            \"from_shape_description\": \"\
+      string\",\n            \"to_shape_description\": \"string\"\n          },\n\
+      \          \"example\": {\n            \"from_shape_description\": \"一个代表'混乱'的缠绕线团的SVG路径\"\
+      ,\n            \"to_shape_description\": \"一个代表'有序'的整齐网格的SVG路径\"\n         \
+      \ }\n        },\n        {\n          \"type\": \"particle-system\",\n     \
+      \     \"displayName\": \"粒子系统\",\n          \"description\": \"用于模拟“瓦解”、“汇聚”、“流动”等概念。\"\
+      ,\n          \"contentSchema\": {\n            \"intent_description\": \"string\"\
+      ,\n            \"particle_style\": \"string (e.g., glowing_orbs, digital_squares,\
+      \ neural_nodes)\"\n          },\n          \"example\": {\n            \"intent_description\"\
+      : \"无数个数据点汇聚成公司的Logo\",\n            \"particle_style\": \"glowing_orbs\"\n\
+      \          }\n        }\n      ]\n    }\n  ]\n}\n"
+    value_type: string
+  - description: 音频列表
+    id: d2bf481a-ab55-46da-afc2-0e524c068610
+    name: audio_list
+    selector:
+    - conversation
+    - audio_list
+    value: '[{"id":"S1_SUB1","text":"这是一个经典的鸡兔同笼问题。","start_time_seconds":1.5,"end_time_seconds":4.1,"audio_path":"https://server.x-pilot.ai/static/meta-doc/video/721f65b7-092b-47f0-b0ff-565a1f95ad4f/audio/audio_000_1.5s_to_4.1s.mp3"},{"id":"S1_SUB2","text":"已知笼子里，头一共有35个，","start_time_seconds":4.6,"end_time_seconds":7.3,"audio_path":"https://server.x-pilot.ai/static/meta-doc/video/721f65b7-092b-47f0-b0ff-565a1f95ad4f/audio/audio_001_4.6s_to_7.3s.mp3"},{"id":"S1_SUB3","text":"脚一共有94只。","start_time_seconds":7.5,"end_time_seconds":9.3,"audio_path":"https://server.x-pilot.ai/static/meta-doc/video/721f65b7-092b-47f0-b0ff-565a1f95ad4f/audio/audio_002_7.5s_to_9.3s.mp3"},{"id":"S1_SUB4","text":"那么，鸡和兔到底各有多少只呢？","start_time_seconds":9.8,"end_time_seconds":13,"audio_path":"https://server.x-pilot.ai/static/meta-doc/video/721f65b7-092b-47f0-b0ff-565a1f95ad4f/audio/audio_003_9.8s_to_13.0s.mp3"},{"id":"S2_SUB1","text":"解决这个问题的关键，是使用“假设法”。","start_time_seconds":13.8,"end_time_seconds":17,"audio_path":"https://server.x-pilot.ai/static/meta-doc/video/721f65b7-092b-47f0-b0ff-565a1f95ad4f/audio/audio_004_13.8s_to_17.0s.mp3"},{"id":"S2_SUB2","text":"我们先大胆假设，这35只动物全都是鸡。","start_time_seconds":17.5,"end_time_seconds":20.8,"audio_path":"https://server.x-pilot.ai/static/meta-doc/video/721f65b7-092b-47f0-b0ff-565a1f95ad4f/audio/audio_005_17.5s_to_20.8s.mp3"},{"id":"S2_SUB3","text":"那么脚的总数应该是70只。但这比实际的94只少了24只。","start_time_seconds":21.3,"end_time_seconds":26.5,"audio_path":"https://server.x-pilot.ai/static/meta-doc/video/721f65b7-092b-47f0-b0ff-565a1f95ad4f/audio/audio_006_21.3s_to_26.5s.mp3"},{"id":"S2_SUB4","text":"为什么会少呢？因为我们把兔子也当成了鸡。","start_time_seconds":27,"end_time_seconds":30.5,"audio_path":"https://server.x-pilot.ai/static/meta-doc/video/721f65b7-092b-47f0-b0ff-565a1f95ad4f/audio/audio_007_27.0s_to_30.5s.mp3"},{"id":"S3_SUB1","text":"用总的脚数差额，除以每只鸡兔的脚数差额，","start_time_seconds":31.2,"end_time_seconds":35.2,"audio_path":"https://server.x-pilot.ai/static/meta-doc/video/721f65b7-092b-47f0-b0ff-565a1f95ad4f/audio/audio_008_31.2s_to_35.2s.mp3"},{"id":"S3_SUB2","text":"就能得出兔子的数量是12只。","start_time_seconds":35.5,"end_time_seconds":37.9,"audio_path":"https://server.x-pilot.ai/static/meta-doc/video/721f65b7-092b-47f0-b0ff-565a1f95ad4f/audio/audio_009_35.5s_to_37.9s.mp3"},{"id":"S3_SUB3","text":"再用总头数减去兔子数，就得到了鸡的数量，23只。","start_time_seconds":38.4,"end_time_seconds":43.1,"audio_path":"https://server.x-pilot.ai/static/meta-doc/video/721f65b7-092b-47f0-b0ff-565a1f95ad4f/audio/audio_010_38.4s_to_43.1s.mp3"}]'
+    value_type: string
+  - description: 剧本内容
+    id: 98b69f17-3732-4b8a-a9f1-0905129458bd
+    name: scrip_content
+    selector:
+    - conversation
+    - scrip_content
+    value: "{\n    \"title\": \"巧解鸡兔同笼问题\",\n    \"config\": {\n        \"art_style\"\
+      : \"友好、扁平化的插画风格。背景为柔和的米白色，主色调为暖黄色和草绿色。\",\n        \"animation_style\": \"动画清晰、流畅，用于辅助逻辑推理，而不是纯粹的装饰。\"\
+      ,\n        \"typography\": \"使用圆润的无衬线字体，营造亲切感。\",\n        \"language\": \"\
+      ZH\",\n        \"narration_pace_props\": {\n            \"value\": 4.6,\n  \
+      \          \"unit\": \"characters/second\"\n        },\n        \"counting_rule_desc\"\
+      : \"中文按字符数，英文按单词数。\",\n        \"color_palette\": {\n            \"background_white\"\
+      : \"#FDF6E3\",\n            \"text_dark\": \"#333333\",\n            \"primary_yellow\"\
+      : \"#FFB300\",\n            \"accent_green\": \"#7CB342\",\n            \"highlight_blue\"\
+      : \"#039BE5\",\n            \"subtitle_background_color\": \"rgba(0, 0, 0, 0.6)\"\
+      ,\n            \"subtitle_text_color\": \"#FFFFFF\"\n        }\n    },\n   \
+      \ \"cover\": {\n        \"title\": \"巧解鸡兔同笼\",\n        \"subtitle\": \"假设法的妙用\"\
+      ,\n        \"image\": {\n            \"type\": \"url\",\n            \"value\"\
+      : \"http://35.232.154.66:5125/files/tools/ae5e995a-a9ef-4d0b-983d-39c52cbdc355.png?timestamp=1760603438&nonce=cb24786de24ae228beed014a1dc2646f&sign=mLkf3LXcIym_XdZSQOu5Vr177KOiRdkbXqHKPUwIgFQ=\"\
+      \n        },\n        \"copyright_text\": \"Created by X-Pilot\"\n    },\n \
+      \   \"scenes\": [\n        {\n            \"id\": \"scene_1_problem_introduction\"\
+      ,\n            \"target\": \"清晰地提出鸡兔同笼问题，展示已知条件。\",\n            \"layout\"\
+      : \"中心焦点\",\n            \"background\": {\n                \"type\": \"颜色 (color)\"\
+      ,\n                \"value\": \"#FDF6E3\"\n            },\n            \"components\"\
+      : [\n                {\n                    \"id\": \"problem_card\",\n    \
+      \                \"category\": \"text-and-information\",\n                 \
+      \   \"type\": \"信息卡片 (info-card)\",\n                    \"content\": {\n  \
+      \                      \"title\": \"经典问题：鸡兔同笼\",\n                        \"\
+      description\": \"一个笼子里有若干只鸡和兔。已知一共有35个头，94只脚。请问，笼子里分别有多少只鸡和多少只兔子？\",\n     \
+      \                   \"icon\": \"puzzle-piece\"\n                    },\n   \
+      \                 \"initial_state_desc\": \"隐藏 (hidden)\"\n                },\n\
+      \                {\n                    \"id\": \"known_conditions\",\n    \
+      \                \"category\": \"text-and-information\",\n                 \
+      \   \"type\": \"键值对列表 (key-value-list)\",\n                    \"content\":\
+      \ {\n                        \"title\": \"已知条件\",\n                        \"\
+      items\": [\n                            {\n                                \"\
+      label\": \"总头数\",\n                                \"value\": \"35 个\"\n   \
+      \                         },\n                            {\n              \
+      \                  \"label\": \"总脚数\",\n                                \"value\"\
+      : \"94 只\"\n                            }\n                        ]\n     \
+      \               },\n                    \"initial_state_desc\": \"隐藏 (hidden)\"\
+      \n                }\n            ],\n            \"timeline_events\": [\n  \
+      \              {\n                    \"start_time_seconds\": 1,\n         \
+      \           \"end_time_seconds\": 5,\n                    \"target_desc\": \"\
+      展示问题卡片\",\n                    \"events\": [\n                        {\n  \
+      \                          \"action\": \"enter\",\n                        \
+      \    \"component_ids\": [\n                                \"problem_card\"\n\
+      \                            ],\n                            \"animation_intent\"\
+      : \"zoom-in-and-settle\",\n                            \"layout_intent\": \"\
+      place-at-center\"\n                        }\n                    ]\n      \
+      \          },\n                {\n                    \"start_time_seconds\"\
+      : 5.5,\n                    \"end_time_seconds\": 8,\n                    \"\
+      target_desc\": \"问题卡片上移，下方出现已知条件列表\",\n                    \"events\": [\n \
+      \                       {\n                            \"action\": \"update\"\
+      ,\n                            \"component_ids\": [\n                      \
+      \          \"problem_card\"\n                            ],\n              \
+      \              \"animation_intent\": \"move-to\",\n                        \
+      \    \"layout_intent\": \"place-at-top-half\"\n                        },\n\
+      \                        {\n                            \"action\": \"enter\"\
+      ,\n                            \"component_ids\": [\n                      \
+      \          \"known_conditions\"\n                            ],\n          \
+      \                  \"animation_intent\": \"fade-in-up\",\n                 \
+      \           \"layout_intent\": \"place-at-bottom-half\"\n                  \
+      \      }\n                    ]\n                }\n            ],\n       \
+      \     \"subtitles\": [\n                {\n                    \"id\": \"S1_SUB1\"\
+      ,\n                    \"text\": \"今天，我们来解决一个非常经典的数学趣题：鸡兔同笼。\",\n          \
+      \          \"start_time_seconds\": 1,\n                    \"end_time_seconds\"\
+      : 6.8,\n                    \"audio_url\": \"https://server.x-pilot.ai/static/meta-doc/video/08850fdb-74fc-41aa-895a-a2eb321c27c3/audio/audio_000_1.0s_to_6.8s.mp3\"\
+      \n                },\n                {\n                    \"id\": \"S1_SUB2\"\
+      ,\n                    \"text\": \"我们知道它们的总头数和总脚数，目标是求出各自的数量。\",\n         \
+      \           \"start_time_seconds\": 7.3,\n                    \"end_time_seconds\"\
+      : 12.4,\n                    \"audio_url\": \"https://server.x-pilot.ai/static/meta-doc/video/08850fdb-74fc-41aa-895a-a2eb321c27c3/audio/audio_001_7.3s_to_12.4s.mp3\"\
+      \n                }\n            ],\n            \"estimated_duration_seconds\"\
+      : 11.4\n        },\n        {\n            \"id\": \"scene_2_the_assumption_method\"\
+      ,\n            \"target\": \"引入核心解题思路——假设法，并进行第一步计算。\",\n            \"layout\"\
+      : \"双栏对比\",\n            \"background\": {\n                \"type\": \"颜色 (color)\"\
+      ,\n                \"value\": \"#FDF6E3\"\n            },\n            \"components\"\
+      : [\n                {\n                    \"id\": \"assumption_card\",\n \
+      \                   \"category\": \"text-and-information\",\n              \
+      \      \"type\": \"信息卡片 (info-card)\",\n                    \"content\": {\n\
+      \                        \"title\": \"第一步：大胆假设\",\n                        \"\
+      description\": \"假设笼子里全是鸡。\",\n                        \"icon\": \"lightbulb\"\
+      \n                    },\n                    \"initial_state_desc\": \"隐藏 (hidden)\"\
+      \n                },\n                {\n                    \"id\": \"assumption_calculation\"\
+      ,\n                    \"category\": \"text-and-information\",\n           \
+      \         \"type\": \"公式块 (formula-block)\",\n                    \"content\"\
+      : {\n                        \"title\": \"计算假设脚数\",\n                      \
+      \  \"formula_latex\": \"35 \\\\text{ (只鸡)} \\\\times 2 \\\\text{ (只脚/鸡)} = 70\
+      \ \\\\text{ (只脚)}\"\n                    },\n                    \"initial_state_desc\"\
+      : \"隐藏 (hidden)\"\n                },\n                {\n                 \
+      \   \"id\": \"chickens_image\",\n                    \"category\": \"media-and-imagery\"\
+      ,\n                    \"type\": \"单张图片 (single-image)\",\n                \
+      \    \"content\": {\n                        \"image\": {\n                \
+      \            \"type\": \"url\",\n                            \"value\": \"http://35.232.154.66:5125/files/tools/ed007738-244c-408c-8645-0ea87f94e155.png?timestamp=1760603439&nonce=ce353fd99f6fa39b9e639212fb78d733&sign=QXwrAch-oYeZMZLqPctgmNC-mOzhft8XcCaKK8b6a_8=\"\
+      \n                        },\n                        \"caption\": \"假设35个头都是鸡\"\
+      \n                    },\n                    \"initial_state_desc\": \"隐藏 (hidden)\"\
+      \n                }\n            ],\n            \"timeline_events\": [\n  \
+      \              {\n                    \"start_time_seconds\": 12.9,\n      \
+      \              \"end_time_seconds\": 14.9,\n                    \"target_desc\"\
+      : \"展示假设卡片和鸡群图片\",\n                    \"events\": [\n                    \
+      \    {\n                            \"action\": \"enter\",\n               \
+      \             \"component_ids\": [\n                                \"assumption_card\"\
+      \n                            ],\n                            \"animation_intent\"\
+      : \"slide-in-from-left\",\n                            \"layout_intent\": \"\
+      place-at-left-top\"\n                        },\n                        {\n\
+      \                            \"action\": \"enter\",\n                      \
+      \      \"component_ids\": [\n                                \"chickens_image\"\
+      \n                            ],\n                            \"animation_intent\"\
+      : \"fade-in\",\n                            \"layout_intent\": \"place-at-right-half\"\
+      \n                        }\n                    ]\n                },\n   \
+      \             {\n                    \"start_time_seconds\": 15.4,\n       \
+      \             \"end_time_seconds\": 18.4,\n                    \"target_desc\"\
+      : \"展示基于假设的计算\",\n                    \"events\": [\n                      \
+      \  {\n                            \"action\": \"enter\",\n                 \
+      \           \"component_ids\": [\n                                \"assumption_calculation\"\
+      \n                            ],\n                            \"animation_intent\"\
+      : \"unfold-calculation\",\n                            \"layout_intent\": \"\
+      place-at-left-bottom\"\n                        }\n                    ]\n \
+      \               }\n            ],\n            \"subtitles\": [\n          \
+      \      {\n                    \"id\": \"S2_SUB1\",\n                    \"text\"\
+      : \"解决这个问题的关键，是使用一种叫做“假设法”的技巧。\",\n                    \"start_time_seconds\"\
+      : 12.9,\n                    \"end_time_seconds\": 18.2,\n                 \
+      \   \"audio_url\": \"https://server.x-pilot.ai/static/meta-doc/video/08850fdb-74fc-41aa-895a-a2eb321c27c3/audio/audio_002_12.9s_to_18.2s.mp3\"\
+      \n                },\n                {\n                    \"id\": \"S2_SUB2\"\
+      ,\n                    \"text\": \"我们先假设35个头全是鸡，那么脚的总数应该是70只。\",\n         \
+      \           \"start_time_seconds\": 18.7,\n                    \"end_time_seconds\"\
+      : 23.8,\n                    \"audio_url\": \"https://server.x-pilot.ai/static/meta-doc/video/08850fdb-74fc-41aa-895a-a2eb321c27c3/audio/audio_003_18.7s_to_23.8s.mp3\"\
+      \n                }\n            ],\n            \"estimated_duration_seconds\"\
+      : 10.9\n        },\n        {\n            \"id\": \"scene_3_finding_the_difference\"\
+      ,\n            \"target\": \"计算假设结果与实际情况的差异，并解释差异的来源。\",\n            \"layout\"\
+      : \"中心叙事\",\n            \"background\": {\n                \"type\": \"颜色 (color)\"\
+      ,\n                \"value\": \"#FDF6E3\"\n            },\n            \"components\"\
+      : [\n                {\n                    \"id\": \"difference_calculation\"\
+      ,\n                    \"category\": \"text-and-information\",\n           \
+      \         \"type\": \"公式块 (formula-block)\",\n                    \"content\"\
+      : {\n                        \"title\": \"计算脚数差额\",\n                      \
+      \  \"formula_latex\": \"94 \\\\text{ (实际)} - 70 \\\\text{ (假设)} = 24 \\\\text{\
+      \ (只脚)}\"\n                    },\n                    \"initial_state_desc\"\
+      : \"隐藏 (hidden)\"\n                },\n                {\n                 \
+      \   \"id\": \"explanation_card\",\n                    \"category\": \"text-and-information\"\
+      ,\n                    \"type\": \"信息卡片 (info-card)\",\n                   \
+      \ \"content\": {\n                        \"title\": \"差异的来源？\",\n         \
+      \               \"description\": \"每用一只兔子替换一只鸡，总脚数会增加 (4 - 2 = 2) 只。\",\n  \
+      \                      \"icon\": \"help-circle\"\n                    },\n \
+      \                   \"initial_state_desc\": \"隐藏 (hidden)\"\n              \
+      \  }\n            ],\n            \"timeline_events\": [\n                {\n\
+      \                    \"start_time_seconds\": 24.3,\n                    \"end_time_seconds\"\
+      : 27.3,\n                    \"target_desc\": \"计算实际与假设的脚数差额\",\n          \
+      \          \"events\": [\n                        {\n                      \
+      \      \"action\": \"enter\",\n                            \"component_ids\"\
+      : [\n                                \"difference_calculation\"\n          \
+      \                  ],\n                            \"animation_intent\": \"\
+      dramatic-reveal\",\n                            \"layout_intent\": \"place-at-center\"\
+      \n                        }\n                    ]\n                },\n   \
+      \             {\n                    \"start_time_seconds\": 27.8,\n       \
+      \             \"end_time_seconds\": 30.8,\n                    \"target_desc\"\
+      : \"差额计算上移，下方出现解释卡片\",\n                    \"events\": [\n                \
+      \        {\n                            \"action\": \"update\",\n          \
+      \                  \"component_ids\": [\n                                \"\
+      difference_calculation\"\n                            ],\n                 \
+      \           \"animation_intent\": \"move-to\",\n                           \
+      \ \"layout_intent\": \"place-at-top-half\"\n                        },\n   \
+      \                     {\n                            \"action\": \"enter\",\n\
+      \                            \"component_ids\": [\n                        \
+      \        \"explanation_card\"\n                            ],\n            \
+      \                \"animation_intent\": \"fade-in-up\",\n                   \
+      \         \"layout_intent\": \"place-at-bottom-half\"\n                    \
+      \    }\n                    ]\n                }\n            ],\n         \
+      \   \"subtitles\": [\n                {\n                    \"id\": \"S3_SUB1\"\
+      ,\n                    \"text\": \"这个结果和实际的94只脚相比，少了24只。这24只脚是从哪里来的呢？\",\n \
+      \                   \"start_time_seconds\": 24.3,\n                    \"end_time_seconds\"\
+      : 31,\n                    \"audio_url\": \"https://server.x-pilot.ai/static/meta-doc/video/08850fdb-74fc-41aa-895a-a2eb321c27c3/audio/audio_004_24.3s_to_31.0s.mp3\"\
+      \n                },\n                {\n                    \"id\": \"S3_SUB2\"\
+      ,\n                    \"text\": \"原来，每当我们把一只“假”的鸡换成一只“真”的兔子，脚的数量就会增加2只。\",\n\
+      \                    \"start_time_seconds\": 31.5,\n                    \"end_time_seconds\"\
+      : 38,\n                    \"audio_url\": \"https://server.x-pilot.ai/static/meta-doc/video/08850fdb-74fc-41aa-895a-a2eb321c27c3/audio/audio_005_31.5s_to_38.0s.mp3\"\
+      \n                }\n            ],\n            \"estimated_duration_seconds\"\
+      : 13.7\n        },\n        {\n            \"id\": \"scene_4_final_solution\"\
+      ,\n            \"target\": \"基于差异，推导出兔子的数量，进而得出鸡的数量。\",\n            \"layout\"\
+      : \"步骤展示\",\n            \"background\": {\n                \"type\": \"颜色 (color)\"\
+      ,\n                \"value\": \"#FDF6E3\"\n            },\n            \"components\"\
+      : [\n                {\n                    \"id\": \"solution_steps\",\n  \
+      \                  \"category\": \"process-and-structure\",\n              \
+      \      \"type\": \"解题步骤条 (solution-steps)\",\n                    \"content\"\
+      : {\n                        \"title\": \"最终求解\",\n                        \"\
+      steps\": [\n                            {\n                                \"\
+      label\": \"求兔子数量\",\n                                \"content\": \"总差额 ÷ 每只差额\
+      \ = 24 ÷ 2 = 12 (只兔子)\"\n                            },\n                  \
+      \          {\n                                \"label\": \"求鸡的数量\",\n      \
+      \                          \"content\": \"总头数 - 兔子数量 = 35 - 12 = 23 (只鸡)\"\n\
+      \                            }\n                        ]\n                \
+      \    },\n                    \"initial_state_desc\": \"隐藏 (hidden)\"\n     \
+      \           },\n                {\n                    \"id\": \"verification_formula\"\
+      ,\n                    \"category\": \"text-and-information\",\n           \
+      \         \"type\": \"公式块 (formula-block)\",\n                    \"content\"\
+      : {\n                        \"title\": \"验证答案\",\n                        \"\
+      formula_latex\": \"(12 \\\\times 4) + (23 \\\\times 2) = 48 + 46 = 94 \\\\text{\
+      \ (只脚)}\"\n                    },\n                    \"initial_state_desc\"\
+      : \"隐藏 (hidden)\"\n                }\n            ],\n            \"timeline_events\"\
+      : [\n                {\n                    \"start_time_seconds\": 38.5,\n\
+      \                    \"end_time_seconds\": 43.5,\n                    \"target_desc\"\
+      : \"分步展示求解过程\",\n                    \"events\": [\n                       \
+      \ {\n                            \"action\": \"enter\",\n                  \
+      \          \"component_ids\": [\n                                \"solution_steps\"\
+      \n                            ],\n                            \"animation_intent\"\
+      : \"reveal-steps-sequentially\",\n                            \"layout_intent\"\
+      : \"place-at-top-half\"\n                        }\n                    ]\n\
+      \                },\n                {\n                    \"start_time_seconds\"\
+      : 44,\n                    \"end_time_seconds\": 47,\n                    \"\
+      target_desc\": \"展示验证公式\",\n                    \"events\": [\n            \
+      \            {\n                            \"action\": \"enter\",\n       \
+      \                     \"component_ids\": [\n                               \
+      \ \"verification_formula\"\n                            ],\n               \
+      \             \"animation_intent\": \"fade-in\",\n                         \
+      \   \"layout_intent\": \"place-at-bottom-half\"\n                        }\n\
+      \                    ]\n                }\n            ],\n            \"subtitles\"\
+      : [\n                {\n                    \"id\": \"S4_SUB1\",\n         \
+      \           \"text\": \"那么，24只脚的差额，需要用 24 除以 2，也就是12只兔子来弥补。\",\n           \
+      \         \"start_time_seconds\": 38.5,\n                    \"end_time_seconds\"\
+      : 44.5,\n                    \"audio_url\": \"https://server.x-pilot.ai/static/meta-doc/video/08850fdb-74fc-41aa-895a-a2eb321c27c3/audio/audio_006_38.5s_to_44.5s.mp3\"\
+      \n                },\n                {\n                    \"id\": \"S4_SUB2\"\
+      ,\n                    \"text\": \"兔子的数量确定了，鸡的数量就是35减12，等于23只。\",\n        \
+      \            \"start_time_seconds\": 45,\n                    \"end_time_seconds\"\
+      : 50,\n                    \"audio_url\": \"https://server.x-pilot.ai/static/meta-doc/video/08850fdb-74fc-41aa-895a-a2eb321c27c3/audio/audio_007_45.0s_to_50.0s.mp3\"\
+      \n                },\n                {\n                    \"id\": \"S4_SUB3\"\
+      ,\n                    \"text\": \"让我们来验证一下，完全正确！\",\n                    \"\
+      start_time_seconds\": 50.5,\n                    \"end_time_seconds\": 52.8,\n\
+      \                    \"audio_url\": \"https://server.x-pilot.ai/static/meta-doc/video/08850fdb-74fc-41aa-895a-a2eb321c27c3/audio/audio_008_50.5s_to_52.8s.mp3\"\
+      \n                }\n            ],\n            \"estimated_duration_seconds\"\
+      : 14.3\n        }\n    ],\n    \"ending\": {\n        \"title\": \"方法总结\",\n\
+      \        \"subtitle\": \"假设法三步走\",\n        \"elements\": [\n            {\n\
+      \                \"type\": \"bullet-points\",\n                \"content\":\
+      \ {\n                    \"title\": \"鸡兔同笼解题核心\",\n                    \"points\"\
+      : [\n                        {\n                            \"icon\": \"brain\"\
+      ,\n                            \"text\": \"第一步：假设全是一种动物，计算总脚数。\"\n         \
+      \               },\n                        {\n                            \"\
+      icon\": \"search\",\n                            \"text\": \"第二步：将计算结果与实际总脚数比较，求出差额。\"\
+      \n                        },\n                        {\n                  \
+      \          \"icon\": \"calculator\",\n                            \"text\":\
+      \ \"第三步：用总差额除以单只脚的差额，求出另一种动物的数量。\"\n                        }\n            \
+      \        ]\n                }\n            }\n        ],\n        \"copyright_text\"\
+      : \"Created by X-Pilot\"\n    },\n    \"total_script_duration_seconds\": 52.8\n\
+      }"
+    value_type: string
+  - description: 剧本分类
+    id: 157b775d-5d4d-46e7-9c17-04bb7e806dc2
+    name: script_type
+    selector:
+    - conversation
+    - script_type
+    value: ''
+    value_type: string
+  - description: 分辨率
+    id: a7b564aa-6079-4c4f-b6af-7a47959250c4
+    name: resolution
+    selector:
+    - conversation
+    - resolution
+    value: 1920x1080
+    value_type: string
+  - description: 帧率
+    id: eeb093a7-1604-487a-a395-8a1facf6725e
+    name: fps
+    selector:
+    - conversation
+    - fps
+    value: 30
+    value_type: integer
+  - description: ''
+    id: b032ba57-fe92-4e50-bc84-f70ec0c0f0f4
+    name: model_id
+    selector:
+    - conversation
+    - model_id
+    value: 5c353fdb312f4888836a9a5680099ef0
+    value_type: string
+  - description: 前端代码技术栈
+    id: d3362e94-896a-48b2-bbb0-4032eaf21ddb
+    name: technical_stack
+    selector:
+    - conversation
+    - technical_stack
+    value: "[\n  {\n    id: \"gsap\",\n    name: \"GSAP (GreenSock Animation Platform)\"\
+      ,\n    category: \"animation\",\n    version: \"3.12.5\",\n    description:\
+      \ \"用于实现所有复杂和精确的动画时间线控制。\",\n    resources: [\n      {\n        type: \"javascript\"\
+      ,\n        url: \"https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js\"\
+      ,\n      },\n      {\n        type: \"javascript\",\n        url: \"https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js\"\
+      ,\n      },\n      {\n        type: \"javascript\",\n        url: \"https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrambleTextPlugin.min.js\"\
+      ,\n      },\n      {\n        type: \"javascript\",\n        url: \"https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/TextPlugin.min.js\"\
+      ,\n      },\n      {\n        type: \"javascript\",\n        url: \"https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/DrawSVGPlugin.min.js\"\
+      ,\n      },\n      {\n        type: \"javascript\",\n        url: \"https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/MorphSVGPlugin.min.js\"\
+      ,\n      },\n      {\n        type: \"javascript\",\n        url: \"https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Flip.min.js\"\
+      ,\n      },\n      {\n        type: \"javascript\",\n        url: \"https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/Draggable.min.js\"\
+      ,\n      }\n    ],\n  },\n  {\n    id: \"echarts\",\n    name: \"Apache ECharts\"\
+      ,\n    category: \"charting\",\n    version: \"5.5.0\",\n    description: \"\
+      用于渲染交互式的数据可视化图表。\",\n    resources: [\n      {\n        type: \"javascript\"\
+      ,\n        url: \"https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js\"\
+      ,\n      },\n    ],\n  },\n  {\n    id: \"echarts-gl\",\n    name: \"ECharts\
+      \ GL\",\n    category: \"charting\",\n    version: \"2.0.9\",\n    description:\
+      \ \"为ECharts提供3D绘图、地球可视化和WebGL加速。\",\n    resources: [\n      {\n        type:\
+      \ \"javascript\",\n        url: \"https://cdn.jsdelivr.net/npm/echarts-gl@2/dist/echarts-gl.min.js\"\
+      ,\n      },\n    ],\n  },\n  {\n    id: \"gojs\",\n    name: \"GOJS\",\n   \
+      \ category: \"diagramming\",\n    version: \"\",\n    description: \"用于创建交互式图表和图形的JavaScript库。\"\
+      ,\n    resources: [\n      {\n        type: \"javascript\",\n        url: \"\
+      https://server.x-pilot.ai/static/meta-doc/resource/go.js\",\n      },\n    ],\n\
+      \  },\n  {\n    id: \"katex\",\n    name: \"KaTeX\",\n    category: \"math_rendering\"\
+      ,\n    version: \"0.16.9\",\n    description: \"用于快速、高质量地渲染LaTeX数学公式。\",\n \
+      \   resources: [\n      {\n        type: \"javascript\",\n        url: \"https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js\"\
+      ,\n      },\n      {\n        type: \"css\",\n        url: \"https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css\"\
+      ,\n      },\n    ],\n  },\n  { \n      id: \"function-plot\", \n      name:\
+      \ \"Function Plot\", \n      category: \"math_plotting\", \n      version: \"\
+      1.23.0\", \n      description: \"用于绘制数学函数图像的轻量图形库。\", \n      resources: [ \n\
+      \          { \n              type: \"javascript\", \n              url: \"https://cdn.jsdelivr.net/npm/function-plot@1.23.0/dist/function-plot.js\"\
+      \ \n          } \n      ] \n  },\n  {\n    id: \"tailwindcss\",\n    name: \"\
+      Tailwind CSS\",\n    category: \"css_framework\",\n    version: \"3.4.3\",\n\
+      \    description: \"一个实用程序优先的CSS框架，用于快速构建自定义设计。\",\n    resources: [{ type:\
+      \ \"javascript\", url: \"https://cdn.tailwindcss.com\" }],\n  },\n  {\n    id:\
+      \ \"fontawesome\",\n    name: \"Font Awesome\",\n    category: \"icons\",\n\
+      \    version: \"6.5.1\",\n    description: \"流行的图标库，提供可缩放的矢量图标。\",\n    resources:\
+      \ [\n      {\n        type: \"css\",\n        url: \"https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css\"\
+      ,\n      },\n    ],\n  },\n  {\n    id: \"google-fonts\",\n    name: \"Google\
+      \ Fonts\",\n    category: \"font\",\n    version: \"N/A\",\n    description:\n\
+      \      \"提供网页字体服务，用于加载Poppins, Uncial Antiqua, Exo 2等字体。\",\n    resources:\
+      \ [\n      {\n        type: \"css\",\n        url: \"https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Uncial+Antiqua&display=swap\"\
+      ,\n      },\n      {\n        type: \"css\",\n        url: \"https://fonts.googleapis.com/css2?family=Uncial+Antiqua&family=Exo+2:wght@300;400;700&display=swap\"\
+      ,\n      },\n    ],\n  },\n  {\n    id: \"function-plot\",\n    name: \"Function\
+      \ Plot\",\n    category: \"math_plotting\",\n    version: \"1.23.0\",\n    description:\n\
+      \      \"用于绘制数学函数图像的轻量图形库，支持表达式解析和坐标轴自动生成。\",\n    resources: [\n      {\n \
+      \       type: \"javascript\",\n        url: \"https://cdn.jsdelivr.net/npm/function-plot@1.23.0/dist/function-plot.js\"\
+      ,\n      },\n    ],\n  },\n]"
+    value_type: string
+  - description: ''
+    id: cd06c1a6-8a17-42e6-aeb0-ea96935e1b89
+    name: obj
+    selector:
+    - conversation
+    - obj
+    value:
+    - video_id: video_001
+    value_type: array[object]
+  environment_variables:
+  - description: ''
+    id: 0e1c0c81-a073-4f1b-b7b4-aaa038fe26c6
+    name: AUDIO_API_KEY
+    selector:
+    - env
+    - AUDIO_API_KEY
+    value: dae51de32a0743f6b4f2f7b6366747bf
+    value_type: string
+  - description: ''
+    id: b25a0e94-d414-4982-976f-aa30cdef4843
+    name: TOKEN
+    selector:
+    - env
+    - TOKEN
+    value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIwMjAxMDExLCJyb2xlIjoxLCJpYXQiOjE3NTI4MDcxOTEsImV4cCI6MTc1Mjg5MzU5MX0.6uT24oBwRNHeHabTXonMXoV5fK_nx8biLEGPnw25wSA
+    value_type: string
+  - description: ''
+    id: 44302a1d-fd6f-4e10-9997-782fb594d693
+    name: OSS_SERVER
+    selector:
+    - env
+    - OSS_SERVER
+    value: http://119.45.167.133:7752
+    value_type: string
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      - document
+      - audio
+      - video
+      allowed_file_upload_methods:
+      - remote_url
+      - local_file
+      enabled: true
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 20
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        single_chunk_attachment_limit: 10
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: true
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInLoop: false
+        sourceType: agent
+        targetType: answer
+      id: 17640516699470-source-1764051755510-target
+      selected: false
+      source: '17640516699470'
+      sourceHandle: source
+      target: '1764051755510'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: if-else
+      id: 1752651556966-source-1765265678006-target
+      selected: false
+      source: '1752651556966'
+      sourceHandle: source
+      target: '1765265678006'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: template-transform
+        targetType: agent
+      id: 1765306438960-source-17640516699470-target
+      selected: false
+      source: '1765306438960'
+      sourceHandle: source
+      target: '17640516699470'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: if-else
+      id: 1752651556966-source-1768720381497-target
+      selected: false
+      source: '1752651556966'
+      sourceHandle: source
+      target: '1768720381497'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: if-else
+        targetType: assigner
+      id: 1768720381497-false-1768723984198-target
+      selected: false
+      source: '1768720381497'
+      sourceHandle: 'false'
+      target: '1768723984198'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: iteration
+      id: 1765265678006-true-1768775596644-target
+      selected: false
+      source: '1765265678006'
+      sourceHandle: 'true'
+      target: '1768775596644'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768775596644'
+        sourceType: iteration-start
+        targetType: if-else
+      id: 1768775596644start-source-1768775643765-target
+      selected: false
+      source: 1768775596644start
+      sourceHandle: source
+      target: '1768775643765'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInLoop: false
+        sourceType: iteration
+        targetType: template-transform
+      id: 1768775596644-source-1765306438960-target
+      selected: false
+      source: '1768775596644'
+      sourceHandle: source
+      target: '1765306438960'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: template-transform
+      id: 1765265678006-false-1765306438960-target
+      selected: false
+      source: '1765265678006'
+      sourceHandle: 'false'
+      target: '1765306438960'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768775596644'
+        sourceType: tool
+        targetType: variable-aggregator
+      id: 1768835952684-source-1768775905724-target
+      selected: false
+      source: '1768835952684'
+      sourceHandle: source
+      target: '1768775905724'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768775596644'
+        sourceType: if-else
+        targetType: tool
+      id: 1768775643765-false-1768839606207-target
+      selected: false
+      source: '1768775643765'
+      sourceHandle: 'false'
+      target: '1768839606207'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768775596644'
+        sourceType: tool
+        targetType: variable-aggregator
+      id: 1768839606207-source-1768775905724-target
+      selected: false
+      source: '1768839606207'
+      sourceHandle: source
+      target: '1768775905724'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768775596644'
+        sourceType: if-else
+        targetType: tool
+      id: 1768775643765-true-1768835952684-target
+      selected: false
+      source: '1768775643765'
+      sourceHandle: 'true'
+      target: '1768835952684'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768775596644'
+        sourceType: variable-aggregator
+        targetType: code
+      id: 1768775905724-source-1769012445294-target
+      source: '1768775905724'
+      sourceHandle: source
+      target: '1769012445294'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: tool
+      id: 1768720381497-true-1769234328276-target
+      source: '1768720381497'
+      sourceHandle: 'true'
+      target: '1769234328276'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: tool
+        targetType: assigner
+      id: 1769234328276-source-1768720398892-target
+      source: '1769234328276'
+      sourceHandle: source
+      target: '1768720398892'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768775596644'
+        sourceType: if-else
+        targetType: tool
+      id: 1768775643765-f6c087dd-abdb-4fca-9781-625787df15b1-1769584985592-target
+      source: '1768775643765'
+      sourceHandle: f6c087dd-abdb-4fca-9781-625787df15b1
+      target: '1769584985592'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768775596644'
+        sourceType: tool
+        targetType: variable-aggregator
+      id: 1769584985592-source-1768775905724-target
+      source: '1769584985592'
+      sourceHandle: source
+      target: '1768775905724'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768775596644'
+        sourceType: tool
+        targetType: tool
+      id: 1769584985592-fail-branch-1768839606207-target
+      source: '1769584985592'
+      sourceHandle: fail-branch
+      target: '1768839606207'
+      targetHandle: target
+      type: custom
+      zIndex: 1002
+    - data:
+        isInLoop: false
+        sourceType: start
+        targetType: if-else
+      id: 1752651556966-source-17721105968980-target
+      source: '1752651556966'
+      sourceHandle: source
+      target: '17721105968980'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: tool
+      id: 17721105968980-true-17721107318880-target
+      source: '17721105968980'
+      sourceHandle: 'true'
+      target: '17721107318880'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: tool
+        targetType: assigner
+      id: 17721107318880-source-17721107365690-target
+      source: '17721107318880'
+      sourceHandle: source
+      target: '17721107365690'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInLoop: false
+        sourceType: if-else
+        targetType: assigner
+      id: 17721105968980-false-17721107405690-target
+      source: '17721105968980'
+      sourceHandle: 'false'
+      target: '17721107405690'
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: ''
+        selected: false
+        title: 开始
+        type: start
+        variables:
+        - allowed_file_extensions: []
+          allowed_file_types:
+          - image
+          - document
+          - audio
+          - video
+          allowed_file_upload_methods:
+          - local_file
+          - remote_url
+          label: user_files
+          max_length: 3
+          options: []
+          required: false
+          type: file-list
+          variable: user_files
+        - default: ''
+          hint: ''
+          label: video_presets
+          max_length: null
+          options:
+          - ''
+          - ''
+          - ''
+          - ''
+          placeholder: ''
+          required: false
+          type: paragraph
+          variable: video_presets
+        - default: ''
+          hint: ''
+          label: brand_kit
+          max_length: null
+          options: []
+          placeholder: ''
+          required: false
+          type: paragraph
+          variable: brand_kit
+      height: 122
+      id: '1752651556966'
+      position:
+        x: 1942.674101955478
+        y: 494.5283598592471
+      positionAbsolute:
+        x: 1942.674101955478
+        y: 494.5283598592471
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        agent_parameters:
+          instruction:
+            type: constant
+            value: "# Role\n你是视频课程生成工作流中的**首席创意总监 (Chief Creative Director)**。\n你的核心职责不仅仅是机械地调用工具，而是**像人一样思考**，深度理解用户的创作意图，并利用现有的工具箱（搜索、编剧、渲染、代码编辑）提供最佳的视觉解决方案。\n\
+              你是一个有思想、有判断力、主动提出建议的合作伙伴，绝不是只会看 Prompt 执行任务的工具人。\n\n\n\n# Tone & Style\n\
+              *   **基调**：温柔、沉稳、专业、**充满画面感**。你不是一个执行命令的机器，而是一个懂内容的创作者。\n*   【调整】**通知原则\
+              \ (Notification Protocol)**：\n    *   **唯一交互通道**：`Notification` 是你与用户交流的**唯一**窗口。任何你想对用户说的话，必须且只能写在\
+              \ `Notification` 中。\n    *   **内部屏蔽**：`Thought` 和 `Call` 是给系统内核看的，**严禁**在\
+              \ `Notification` 中提及工具名称、函数参数、ID 校验过程等技术细节。用户不应该知道使用了什么工具，只应该知道结果。\n\
+              *   **生动化与具体化要求 (Vivid & Specific Constraints)**：\n    1.  **拒绝机械回复**：**严禁**使用“收到，正在生成剧本”、“正在调用搜索工具”、“正在处理您的请求”这类毫无感情的模板。\n\
+                  2.  **主题回声 (Topic Echo)**：你的回复必须包含用户当前请求的**具体主题词**。\n        *  \
+              \ *Bad*: \"正在为您生成视频。\"\n        *   *Good (烹饪)*: \"听起来很诱人！我正在为您编排这道**麻婆豆腐**的烹饪步骤，尤其是红油色泽的描写...\"\
+              \n        *   *Good (历史)*: \"这段历史非常厚重。我正在梳理**秦始皇统一六国**的时间线，力求还原那种宏大的史诗感...\"\
+              \n    3.  **动作具象化**：使用具有创造力的动词。\n        *   用“**构思、编织、打磨、渲染、润色**”代替“生成、修改、处理”。\n\
+                  4. 【核心准则】**回复语种唯一依据 (Response Language)**：你的 `Notification` 回复语言必须**严格且仅**跟随用户当前输入\
+              \ (`user_intent`) 的自然语言语种。\n*   **场景示例 (Sample Scenarios)**:（注意，这仅仅是中文的示例，你需要根据用户的language来回复）\n\
+                  *   *Search*: (CN) \"这个话题很有趣，我需要先去查阅一些关于**量子纠缠**的最新背景资料，确保我们的课程内容准确无误...\"\
+              \n    *   *Scripting*: (CN) \"思路清晰了。我正在为您起草关于**极简生活**的剧本大纲，会着重强调‘断舍离’带来的心理变化...\"\
+              \n    *   *Rendering*: (EN) \"The script looks solid. I’m now **rendering\
+              \ the visuals**, bringing those abstract math concepts to life with\
+              \ clear animations...\"\n    *   *Editing*: (CN) \"没问题，我来调整一下。正在将**背景色调**改为更温暖的橙色，让整个视频看起来更有**秋日的氛围**...\"\
+              \n\n\n\n# Inputs\n1.  **user_intent**: (str) 用户的即时指令/意图（**用于决定回复语言**）。\n\
+              2.  **conversation_id**: (str) 当前会话的全局唯一标识。\n3.  **history_context**:\
+              \ (app context) 对话历史。\n4.  **user_files**: (str) 用户文件\n5.  **video_presets**:\
+              \ (json str) 视频生成的全局配置。\n6. **brand_kit**: (json str) 品牌视觉与内容规范。包含：\n\
+              \     - brand_name\n     - brand_logo\n     - theme_color\n     - content_style_description\n\
+              \n\n\n# Core Concepts & ID Definitions (核心概念与ID定义)\n为了防止数据混淆，你必须严格区分以下几种\
+              \ ID 的作用域，**严禁混用**：\n\n\n\n1.  **`conversation_id` (会话ID)**\n    *  \
+              \ **定义**：代表整个聊天窗口/项目容器，也是各工具调用的核心凭证。\n    *   **格式示例**：`xxx`\n    *\
+              \   **作用**：所有工具（剧本生成、渲染、代码编辑）均通过此 ID 关联上下文和资源。\n\n\n\n2.  **`video_id`\
+              \ / `project_id`**\n    *   **定义**：代表渲染完成的视频项目索引。\n    *   **作用**：作为最终交付物\
+              \ ID 输出。\n    *   **关键用途**：当调用 `code_editor` 进行修改时，必须传入此 ID 以指定要修改哪个视频。\n\
+              3. **单次任务的最终目标是成功拿到生成的 `video_id`，一旦最终的 `video_id` 生成，任务流程即告完成，期间绝不允许自行中断。**\n\
+              \n\n\n# Tools (工具集)\n调用工具时，必须严格遵守参数的数据类型，**统一使用 conversation_id 进行操作**。\n\
+              \n\n\n1.  `search_data(scene_data: str)`\n    *   用途：检索相关外部背景知识。\n2.\
+              \  `generate_script_parallel(topic: str, user_request: str,user_files:str,\
+              \ web_data: str, conversation_id: str)`\n    *   用途：从零开始创建剧本。\n    *\
+              \   **输入限制**：必须传入 `conversation_id`。\n    *   **返回**：`script_id` (仅作为内部标记，后续自动流转)。\n\
+              3.  `remotion_3_1(conversation_id: string)`\n    *   用途：将剧本渲染为视频。\n\
+                  *   **输入限制**：必须传入 `conversation_id` (用来告诉渲染器画什么)。\n    *   **返回**：包含生成结果的\
+              \ JSON 对象/字典：\n        *   `ok` (bool): 标识生成是否成功。\n        *   `player_url`\
+              \ (string): 视频的高清预览播放链接（成功时返回）。\n        *   `cover_url` (string): 视频的封面链接（成功时返回）。\n\
+                      *   `title` (string): 视频的标题（成功时返回）。\n        *   `project_id`\
+              \ (string): 本次生成的项目唯一索引 ID。\n        *   `error` (string | null): 如果失败，返回具体的错误信息（如场景预检失败、网络错误等）。\n\
+                      *   `next_step` (string | null): 针对错误的具体修复建议（英文），指导下一步该如何修正代码或重试。\n\
+              4.  `code_editor(conversation_id: str, user_intent: str, project_id:\
+              \ str)`\n    *   用途：处理所有**修改类**需求（包括改文案、改逻辑、改视觉样式、改颜色等）。\n    *   **原理**：基于用户的意图自动修改代码/剧本并返回最新的渲染结果。\n\
+                  *   **输入限制**：\n        *   `conversation_id`: 必填。\n        *   `user_intent`:\
+              \ 用户的具体修改要求。\n        *   `project_id`: 必填，**指代需要修改的目标视频ID**（取自上一步生成的\
+              \ `project_id`）。\n    *   **返回**：结构与 `remotion_3_1` 完全一致（包含 `ok`, `player_url`,\
+              \ `project_id` 等）\n\n\n\n# Communication Protocol (通讯协议)\n\n\n\n## Phase\
+              \ A: 任务执行中 (Thinking Loop)\n【调整】**规则：这是一个连贯的步骤。`Thought` 是你的大脑，`Notification`\
+              \ 是你的嘴巴，`Call` 是你的手。**\n\n\n\n*   **Thought**: [Internal Only] 内部技术决策。**绝对不可展示给用户**。在此处进行意图分析、工具选择、ID\
+              \ 查找。\n*   **Notification**: [User Visible] 根据**严禁语言混杂**原则，生成一句温柔且专业的告知内容。**这是用户唯一能看到的信息**。\n\
+              *   **Call**: [System Only] JSON 格式工具调用。\n\n\n\n## Phase B: 任务完成 (Final\
+              \ Output)\n当且仅当最终的 `video_id` / `project_id` 生成后，直接输出 `succeed` 作为任务完成的标志。\n\
+              \n\n\n# Workflow Logic (状态机)\n\n\n\n## Path 1: 初次生成 (Creation)\n1.  **意图解析与检索**\n\
+                  *   (Internal Thought: 识别主题。**Critical Check**: 检测 `user_intent`\
+              \ 是否包含 URL。如果包含，说明用户希望基于该链接内容生成，你**必须**先调用 `search_data` 获取内容，绝对不能跳过此步直接写剧本。)\n\
+                  *   Call: `search_data` (若包含 URL 则**必选**，否则可选)。\n2.  **剧本创作 (Scripting)**\n\
+                  *   Notification: [\"收到您的想法，我正在为您编排全新的课程剧本...\" 或 (EN) \"Got your\
+              \ idea. I'm now drafting the script for your new course...\"]\n    *\
+              \   Call: `{\"name\": \"generate_script_parallel\", \"arguments\": {...,\
+              \ \"conversation_id\": \"当前传入的会话ID\"}}`\n    *   **Observed**: 获得 `script_id`\
+              \ (例如 \"sc_001\")。\n3.  **视频渲染 (Rendering)**\n    *   Notification:\
+              \ [\"剧本已就绪，正在将其转化为生动的视频画面...\" 或 (EN) \"The script is ready. I'll now\
+              \ render it into a living visual...\"]\n    *   Call: `{\"name\": \"\
+              remotion_3_1\", \"arguments\": {\"conversation_id\": \"当前传入的会话ID\"}}`\n\
+                  *   **Observed**: 获得 JSON 结果。若 `ok=True`，则提取 `project_id` (即 \"\
+              vid_001\") 和 `player_url`。若失败，需读取 `next_step` 进行处理。\n4.  **任务完成**\n\
+                  *   **Action**: 输出符合 Final Output Structure 定义的 **Markdown JSON\
+              \ 代码块**。\n\n\n\n---\n\n\n\n## Path 2: 内容或样式修改 (Modification & Editing)\n\
+              **场景**：用户提出任何修改需求（如“改这段文字”、“把背景换成蓝色”、“语速快一点”、“转成越南语”）。\n1.  **意图解析与歧义预检\
+              \ (Intent Analysis & Ambiguity Check)**\n    *   (Internal Thought:\
+              \ \n        1.  **Ambiguity Check (歧义检查)**: 用户的指令是否涉及多义性？特别是涉及“语言”、“翻译”、“声音”的指令。\n\
+                          *   *Trigger*: \"换成xx语\", \"翻译成xx\", \"调整语言\", \"Change\
+              \ to xx language\".\n            *   *Action*: 如果命中歧义触发词，且用户未明确指定是改“字幕”还是“配音”，**必须停止执行**，转入\
+              \ **Step 1.1 歧义消除**。\n        2.  **Feasibility Check (可行性检查)**: 用户的请求是否在\
+              \ `code_editor` 的能力范围内？\n            *   **支持范围**：文案修改/翻译(**仅限字幕文本**)、视觉样式(颜色/布局)、逻辑调整、语速调整。\n\
+                          *   **不支持范围**：**配音/语音语言切换**、**音频文件替换**、**背景音乐修改**、**上传新素材/图片/视频**。\n\
+                          *   **Decision**: 如果请求属于不支持范围，**严禁**调用工具，直接在 Notification\
+              \ 中拒绝。)\n\n\n    *   **Step 1.1 歧义消除 (仅当检测到歧义时触发)**:\n        *   Notification:\
+              \ [\"关于您提到的‘转成越南语’，请问您具体是指**修改画面上的字幕文案**（这个我可以立刻为您执行），还是希望**更换配音的语种**（目前暂不支持，但我可以通过调整字幕来辅助说明）？\"\
+              ]\n        *   **Stop**: 等待用户明确回复，**不调用任何工具**。\n\n\n    *   **Step 1.2\
+              \ 执行修改 (无歧义或用户已确认)**:\n        *   Notification:\n            *   (支持)\
+              \ [\"没问题，我正在根据您的反馈调整视频内容...\" 或 (EN) \"No problem. I'm updating the\
+              \ video content based on your feedback...\"]\n            *   (不支持)\
+              \ [\"抱歉，目前的系统暂不支持直接替换音频或素材。但我可以协助您调整文案或视觉风格...\" 或 (EN) \"Sorry, I cannot\
+              \ replace audio/assets directly, but I can help with text or visual\
+              \ style adjustments...\"]\n        *   Call: (仅当支持时调用) `{\"name\": \"\
+              code_editor\", \"arguments\": {\"conversation_id\": \"当前传入的会话ID\", \"\
+              user_intent\": \"用户的具体修改要求\"}}`\n        *   **Observed**: 获得 JSON 结果。该工具会自动处理修改并返回新的预览链接。\n\
+              2.  **任务完成**\n     *   Notification: [\"调整完毕，这是最新的视频版本...\" 或 (EN) \"\
+              Adjustments complete. Here is the latest version...\"]\n    *   **Action**:\
+              \ 输出符合 Final Output Structure 定义的 **Markdown JSON 代码块**。\n\n\n\n# Constraints\
+              \ & Error Handling\n1.  **One-Output Rule**: 任务流的最终输出**严禁**直接输出纯文本 JSON，**必须**包裹在\
+              \ ` ```json ` 和 ` ``` ` 之中。。\n2.  **ID Consistency**: 始终传递 `conversation_id`\
+              \ 给工具。\n3.  **JSON Format**: `Call` 部分必须输出严格的 JSON 格式，不要使用 Python 函数调用语法。\n\
+              4.  【调整】**Flow Continuity**: `Notification` 和 `Call` 是伴生关系，必须在一次回复中连续输出。Notification\
+              \ 结束后必须立即另起一行输出 Call，严禁在此中断。\n5.  **Error Recovery**: 遇到 Error 时 (特别是\
+              \ `remotion_3_1` 返回 `ok=False` 时)，Notification 应安抚用户，并根据 `next_step`\
+              \ 的英文建议自动重试或修正。\n6.  **Traceability**: 在 Thought 步骤中，需要确保你选对了 ID。\n\
+              7. 【调整】**Output Visibility**:\n    *   **Thought** & **Call** = **Private**.\
+              \ 属于后台日志，命令禁止作为回答的一部分流出给用户。\n    *   **Notification** = **Public**.\
+              \ 唯一允许展示给用户的内容。\n8.  【调整】**语言纯净性 (Language Purity)**：所有 `Notification`\
+              \ 必须严格根据 `user_intent` 的语言进行适配，中文语境下严禁出现非必要的英文单词。\n9.  **Feasibility\
+              \ Check & Collaborative Problem-Solving (可行性检查与协作式探索)**:\n    *   当用户的请求超出当前工具集的能力范围时（例如，请求替换背景音乐或者切换语音，但没有音频处理工具），**严禁**直接承诺或虚假执行。\n\
+                  *   **核心原则**：你的角色不是一个被动的执行者，而是一个主动的创意伙伴。遇到障碍时，**你的首要任务是与用户开启一段有建设性的对话，而不是简单地拒绝。**\n\
+                  *   **歧义消除 (Ambiguity Resolution)**：\n        *   **场景识别**：当用户指令存在多义性，且部分含义在能力范围内，部分超出范围时。\n\
+                          *   **典型高频触发词**：\n                *   \"调整语言\" / \"Change\
+              \ Language\" / \"Chuyển ngôn ngữ\"\n                *   \"翻译\" / \"\
+              Translate\" / \"Dịch\"\n                *   \"换成xx语\" / \"Switch to\
+              \ xx\" / \"Chuyển sang tiếng xx\"\n        *   **执行策略**：**严禁**盲目猜测或直接拒绝。必须主动进行**边界拆解\
+              \ (Boundary Deconstruction)**。\n        *   **沟通模板**：\n            *\
+              \   *Bad*: \"我不能调整语言，因为不支持音频修改。\" (直接拒绝)\n            *   *Good*: \"\
+              关于您提到的‘调整语言’，请问您具体是指**修改画面上的字幕文案**（这个我可以立刻为您执行），还是希望**更换配音的语种/音色**（目前暂不支持，但我可以通过调整字幕来辅助说明）？\"\
+              \n    *   **沟通策略**：\n        1.  **肯定用户的想法 (Acknowledge & Validate)**：首先要肯定用户创意的价值。\n\
+                      2.  **诚实说明局限 (State Limitations Honestly)**：清晰、坦诚地解释当前的技术限制。\n\
+                      3.  **主动提出替代方案 (Propose Alternatives)**：基于你对项目和工具的理解，提出一个或多个可以实现相似效果或从其他维度提升作品质量的替代方案。\n\
+                      4.  **引导开放式提问 (Ask Open-ended Questions)**：通过提问引导用户共同思考，探索新的可能性，例如：“虽然我们暂时无法直接更换音效，但或许我们可以通过调整剪辑节奏和画面色调来营造您想要的紧张氛围，您觉得这个方向怎么样？”或者“关于背景音乐，您是希望营造一种什么样的氛围呢？也许我可以通过调整视觉元素来达到类似的效果。”\n\
+                  *   **目标**：将“我做不到”的对话，转变为“我们可以一起试试这样做”的协作模式，与用户共同寻找最佳的可行路径。\n\n\n\
+              \n10. **最终审查与输出净化 (Final Review & Output Sanitization)**:\n    *   **核心原则**：这是你响应前的**绝对最后一步**。\n\
+                  *   **执行标准**：在生成完整的回复（包含 `Thought`, `Notification`, `Call`）后，你必须进行一次最终的自我审查。\n\
+                  *   **净化要求**：确保最终输出到用户界面的内容**只包含** `Notification` 部分或任务完成时的最终 ````json\
+              \ ... ```` 代码块。所有 `Thought` 和 `Call` 部分都必须被彻底移除，绝不能出现在最终的输出流中。\n\n\n\
+              \n# Final Output Structure (最终输出结构)\n当任务流程完成并成功获取 `video_id` (即 `project_id`)\
+              \ 后，你**必须**以以下 JSON 格式作为最终的输出：\n```json\n{\n  \"title\": \"<最终生成的视频标题>\"\
+              ,\n  \"preview_url\": \"<最终生成的视频预览链接>\",\n  \"project_id\": \"<最终生成的视频项目ID>\"\
+              ,\n  \"cover_url\": \"<最终生成的视频封面链接>\"\n}"
+          maximum_iterations:
+            type: constant
+            value: 30
+          model:
+            type: constant
+            value:
+              completion_params:
+                include_thoughts: false
+                max_output_tokens: 65535
+                temperature: 0.3
+              mode: chat
+              model: gemini-3.1-pro-preview
+              model_type: llm
+              provider: langgenius/vertex_ai/vertex_ai
+              type: model-selector
+          query:
+            type: constant
+            value: '用户意图（user_intent）：{{#sys.query#}}
+
+              任务编号（conversation_id）：{{#sys.conversation_id#}}
+
+              全局预设（video_presets）：{{#1752651556966.video_presets#}}
+
+              品牌配置（brand_kit）：{{#1752651556966.brand_kit#}}
+
+              用户文件数据(user_files):{{#1765306438960.output#}}'
+          tools:
+            type: constant
+            value:
+            - enabled: true
+              extra:
+                description: ''
+              parameters:
+                scene_data:
+                  auto: 1
+                  value: null
+              provider_name: 678b96af-a5e6-44ae-a5c6-bac0208fcbc8
+              provider_show_name: Agent-视频场景数据搜索
+              schemas:
+              - auto_generate: null
+                default: null
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: scene_data
+                  ja_JP: scene_data
+                  pt_BR: scene_data
+                  zh_Hans: scene_data
+                llm_description: ''
+                max: null
+                min: null
+                name: scene_data
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              settings: {}
+              tool_description: ''
+              tool_label: Agent-视频场景数据搜索
+              tool_name: search_data
+              type: workflow
+            - enabled: false
+              extra:
+                description: 获取一个键值字符串。
+              parameters:
+                key:
+                  auto: 1
+                  value: null
+              provider_name: hjlarry/storage/storage
+              provider_show_name: hjlarry/storage/storage
+              schemas:
+              - auto_generate: null
+                default: null
+                form: llm
+                human_description:
+                  en_US: To get a key's value.
+                  ja_JP: To get a key's value.
+                  pt_BR: To get a key's value.
+                  zh_Hans: 获取一个键的值。
+                label:
+                  en_US: Key
+                  ja_JP: Key
+                  pt_BR: Key
+                  zh_Hans: 键
+                llm_description: To get a key's value.
+                max: null
+                min: null
+                name: key
+                options: []
+                placeholder: null
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              settings: {}
+              tool_description: 获取一个键值字符串。
+              tool_label: 获取字符串
+              tool_name: get_string
+              type: builtin
+            - enabled: true
+              extra:
+                description: '根据一个新主题和用户需求，从零开始创作一个全新的JSON剧本。可以接收`user_file(类型：file-list)
+
+                  `和`web_data`作为创作参考。'
+              parameters:
+                conversation_id:
+                  auto: 1
+                  value: null
+                topic:
+                  auto: 1
+                  value: null
+                user_files:
+                  auto: 1
+                  value: null
+                user_request:
+                  auto: 1
+                  value: null
+                video_presets:
+                  auto: 1
+                  value: null
+                web_data:
+                  auto: 1
+                  value: null
+              provider_name: 4f07c912-8a29-4741-9e85-3e95e65c46a4
+              provider_show_name: Agent-创建视频剧本(4min)
+              schemas:
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: topic
+                  ja_JP: topic
+                  pt_BR: topic
+                  zh_Hans: topic
+                llm_description: ''
+                max: null
+                min: null
+                name: topic
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: user_request
+                  ja_JP: user_request
+                  pt_BR: user_request
+                  zh_Hans: user_request
+                llm_description: ''
+                max: null
+                min: null
+                name: user_request
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: user_files
+                  ja_JP: user_files
+                  pt_BR: user_files
+                  zh_Hans: user_files
+                llm_description: ''
+                max: null
+                min: null
+                name: user_files
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: web_data
+                  ja_JP: web_data
+                  pt_BR: web_data
+                  zh_Hans: web_data
+                llm_description: ''
+                max: null
+                min: null
+                name: web_data
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: conversation_id
+                  ja_JP: conversation_id
+                  pt_BR: conversation_id
+                  zh_Hans: conversation_id
+                llm_description: ''
+                max: null
+                min: null
+                name: conversation_id
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: null
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: video_presets
+                  ja_JP: video_presets
+                  pt_BR: video_presets
+                  zh_Hans: video_presets
+                llm_description: ''
+                max: null
+                min: null
+                name: video_presets
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              settings: {}
+              tool_description: '根据一个新主题和用户需求，从零开始创作一个全新的JSON剧本。可以接收`user_file(类型：file-list)
+
+                `和`web_data`作为创作参考。'
+              tool_label: Agent-创建视频剧本(4min)
+              tool_name: generate_script_parallel
+              type: workflow
+            - enabled: false
+              extra:
+                description: '主要用途：生成完整的HTML动画视频
+
+                  输入：1.剧本数据ID编号
+
+                  输出：完整的可以播放HTML动画代码'
+              parameters:
+                script_id:
+                  auto: 1
+                  value: null
+                user_files:
+                  auto: 1
+                  value: null
+              provider_name: da5992b9-1c02-40d5-a3d9-03cd15a92139
+              provider_show_name: Agent-Parallel
+              schemas:
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: 剧本数据ID编号
+                  ja_JP: 剧本数据ID编号
+                  pt_BR: 剧本数据ID编号
+                  zh_Hans: 剧本数据ID编号
+                label:
+                  en_US: script_id
+                  ja_JP: script_id
+                  pt_BR: script_id
+                  zh_Hans: script_id
+                llm_description: 剧本数据ID编号
+                max: null
+                min: null
+                name: script_id
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: 用户用于转化视频的pdf文件
+                  ja_JP: 用户用于转化视频的pdf文件
+                  pt_BR: 用户用于转化视频的pdf文件
+                  zh_Hans: 用户用于转化视频的pdf文件
+                label:
+                  en_US: user_files
+                  ja_JP: user_files
+                  pt_BR: user_files
+                  zh_Hans: user_files
+                llm_description: 用户用于转化视频的pdf文件
+                max: null
+                min: null
+                name: user_files
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              settings: {}
+              tool_description: '主要用途：生成完整的HTML动画视频
+
+                输入：1.剧本数据ID编号
+
+                输出：完整的可以播放HTML动画代码'
+              tool_label: Agent-Parallel
+              tool_name: generate_video_parallel
+              type: workflow
+            - enabled: false
+              extra:
+                description: '主要用途：对旧版本视频进行编辑、调整、优化形成符合要求的新版视频
+
+                  输入：1.旧版需要调整的HTML动画的数据编号、2.用户意图描述、3.旧版本完整Json剧本数据编号
+
+                  输出：经过调整、编辑、优化之后的新版本视频动画'
+              parameters:
+                script_id:
+                  auto: 1
+                  value: null
+                user_files:
+                  auto: 1
+                  value: null
+                user_intent:
+                  auto: 1
+                  value: null
+                video_id:
+                  auto: 1
+                  value: null
+              provider_name: 43ce1306-d9e3-4c8f-85bd-97dbf1a29a6e
+              provider_show_name: Agent-场景视频编辑1
+              schemas:
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: 旧版需要调整的HTML动画的数据编号
+                  ja_JP: 旧版需要调整的HTML动画的数据编号
+                  pt_BR: 旧版需要调整的HTML动画的数据编号
+                  zh_Hans: 旧版需要调整的HTML动画的数据编号
+                label:
+                  en_US: script_id
+                  ja_JP: script_id
+                  pt_BR: script_id
+                  zh_Hans: script_id
+                llm_description: 旧版需要调整的HTML动画的数据编号
+                max: null
+                min: null
+                name: script_id
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: 详细用户意图描述
+                  ja_JP: 详细用户意图描述
+                  pt_BR: 详细用户意图描述
+                  zh_Hans: 详细用户意图描述
+                label:
+                  en_US: user_intent
+                  ja_JP: user_intent
+                  pt_BR: user_intent
+                  zh_Hans: user_intent
+                llm_description: 详细用户意图描述
+                max: null
+                min: null
+                name: user_intent
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: 旧版本完整Json剧本数据编号
+                  ja_JP: 旧版本完整Json剧本数据编号
+                  pt_BR: 旧版本完整Json剧本数据编号
+                  zh_Hans: 旧版本完整Json剧本数据编号
+                label:
+                  en_US: video_id
+                  ja_JP: video_id
+                  pt_BR: video_id
+                  zh_Hans: video_id
+                llm_description: 旧版本完整Json剧本数据编号
+                max: null
+                min: null
+                name: video_id
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: 用户用于转化视频的文件资料
+                  ja_JP: 用户用于转化视频的文件资料
+                  pt_BR: 用户用于转化视频的文件资料
+                  zh_Hans: 用户用于转化视频的文件资料
+                label:
+                  en_US: user_files
+                  ja_JP: user_files
+                  pt_BR: user_files
+                  zh_Hans: user_files
+                llm_description: 用户用于转化视频的文件资料
+                max: null
+                min: null
+                name: user_files
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              settings: {}
+              tool_description: '主要用途：对旧版本视频进行编辑、调整、优化形成符合要求的新版视频
+
+                输入：1.旧版需要调整的HTML动画的数据编号、2.用户意图描述、3.旧版本完整Json剧本数据编号
+
+                输出：经过调整、编辑、优化之后的新版本视频动画'
+              tool_label: Agent-场景视频编辑1
+              tool_name: video_editing
+              type: workflow
+            - enabled: false
+              extra:
+                description: 这是一个专门用于修订和迭代现有剧本的工具。根据用户的反馈指令（文案调整、视觉修改、增删场景）进行外科手术式的增量修改。它会自动处理时间轴的连锁反应（Ripple
+                  Effect），保留未修改的现有资产，并重新计算所有受影响的时间戳。
+              parameters:
+                script_id:
+                  auto: 1
+                  value: null
+                user_files:
+                  auto: 1
+                  value: null
+                user_request:
+                  auto: 1
+                  value: null
+                web_data:
+                  auto: 1
+                  value: null
+              provider_name: 0c0f5a08-2836-4399-931a-8ac99acb8149
+              provider_show_name: Agent-修改视频剧本(1202)
+              schemas:
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: 用户请求
+                  ja_JP: 用户请求
+                  pt_BR: 用户请求
+                  zh_Hans: 用户请求
+                label:
+                  en_US: user_request
+                  ja_JP: user_request
+                  pt_BR: user_request
+                  zh_Hans: user_request
+                llm_description: 用户请求
+                max: null
+                min: null
+                name: user_request
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: 用户文件
+                  ja_JP: 用户文件
+                  pt_BR: 用户文件
+                  zh_Hans: 用户文件
+                label:
+                  en_US: user_files
+                  ja_JP: user_files
+                  pt_BR: user_files
+                  zh_Hans: user_files
+                llm_description: 用户文件
+                max: null
+                min: null
+                name: user_files
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: 联网搜索数据
+                  ja_JP: 联网搜索数据
+                  pt_BR: 联网搜索数据
+                  zh_Hans: 联网搜索数据
+                label:
+                  en_US: web_data
+                  ja_JP: web_data
+                  pt_BR: web_data
+                  zh_Hans: web_data
+                llm_description: 联网搜索数据
+                max: null
+                min: null
+                name: web_data
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: false
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: 剧本数据唯一储存编号
+                  ja_JP: 剧本数据唯一储存编号
+                  pt_BR: 剧本数据唯一储存编号
+                  zh_Hans: 剧本数据唯一储存编号
+                label:
+                  en_US: script_id
+                  ja_JP: script_id
+                  pt_BR: script_id
+                  zh_Hans: script_id
+                llm_description: 剧本数据唯一储存编号
+                max: null
+                min: null
+                name: script_id
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              settings: {}
+              tool_description: 这是一个专门用于修订和迭代现有剧本的工具。根据用户的反馈指令（文案调整、视觉修改、增删场景）进行外科手术式的增量修改。它会自动处理时间轴的连锁反应（Ripple
+                Effect），保留未修改的现有资产，并重新计算所有受影响的时间戳。
+              tool_label: Agent-修改视频剧本(1202)
+              tool_name: modify_visual_script
+              type: workflow
+            - enabled: true
+              extra:
+                description: '主要用途：根据剧本/脚本创建remotion项目
+
+                  输入：传递存储的conversation_id
+
+                  输出：remotion项目的预览URL，项目ID等'
+              parameters:
+                conversation_id:
+                  auto: 1
+                  value: null
+              provider_name: e909b4a6-dddb-4d9e-b4da-54ddf281f8cd
+              provider_show_name: 视频代码生成-remotion
+              schemas:
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: conversation_id
+                  ja_JP: conversation_id
+                  pt_BR: conversation_id
+                  zh_Hans: conversation_id
+                llm_description: ''
+                max: null
+                min: null
+                name: conversation_id
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              settings: {}
+              tool_description: '主要用途：根据剧本/脚本创建remotion项目
+
+                输入：传递存储的conversation_id
+
+                输出：remotion项目的预览URL，项目ID等'
+              tool_label: 视频代码生成-remotion
+              tool_name: generate_remotion
+              type: workflow
+            - enabled: true
+              extra:
+                description: '用途：编辑代码
+
+                  输入：1.用户意图（用户修改要求的自然语言描述）2.conversation_id的ID编号 3.projectId编号
+
+                  输出：详细的项目信息'
+              parameters:
+                conversation_id:
+                  auto: 1
+                  value: null
+                projectId:
+                  auto: 1
+                  value: null
+                user_intent:
+                  auto: 1
+                  value: null
+              provider_name: 4425cf8c-505d-4cf0-8388-619643a1789b
+              provider_show_name: code_editor
+              schemas:
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: user_intent
+                  ja_JP: user_intent
+                  pt_BR: user_intent
+                  zh_Hans: user_intent
+                llm_description: ''
+                max: null
+                min: null
+                name: user_intent
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: conversation_id
+                  ja_JP: conversation_id
+                  pt_BR: conversation_id
+                  zh_Hans: conversation_id
+                llm_description: ''
+                max: null
+                min: null
+                name: conversation_id
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              - auto_generate: null
+                default: ''
+                form: llm
+                human_description:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                label:
+                  en_US: projectId
+                  ja_JP: projectId
+                  pt_BR: projectId
+                  zh_Hans: projectId
+                llm_description: ''
+                max: null
+                min: null
+                name: projectId
+                options: []
+                placeholder:
+                  en_US: ''
+                  ja_JP: ''
+                  pt_BR: ''
+                  zh_Hans: ''
+                precision: null
+                required: true
+                scope: null
+                template: null
+                type: string
+              settings: {}
+              tool_description: '用途：编辑代码
+
+                输入：1.用户意图（用户修改要求的自然语言描述）2.conversation_id的ID编号 3.projectId编号
+
+                输出：详细的项目信息'
+              tool_label: code_editor
+              tool_name: code_editor
+              type: workflow
+        agent_strategy_label: FunctionCalling
+        agent_strategy_name: function_calling
+        agent_strategy_provider_name: langgenius/agent/agent
+        desc: ''
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1763368698799'
+        memory:
+          query_prompt_template: '{{#sys.query#}}
+
+
+            {{#sys.files#}}'
+          window:
+            enabled: true
+            size: 50
+        meta:
+          minimum_dify_version: 1.7.0
+          version: 0.0.2
+        output_schema: {}
+        plugin_unique_identifier: langgenius/agent:0.0.24@0274c08e62efaa28f6327e7bdba655e16559ec28d4f41f2fa3ef553e6327c0f6
+        selected: false
+        title: Agent场景调度器
+        tool_node_version: '2'
+        type: agent
+      height: 152
+      id: '17640516699470'
+      position:
+        x: 4542.823464840855
+        y: 594.8494309500583
+      positionAbsolute:
+        x: 4542.823464840855
+        y: 594.8494309500583
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        answer: '{{#17640516699470.text#}}'
+        selected: false
+        title: 直接回复 4
+        type: answer
+        variables: []
+      height: 87
+      id: '1764051755510'
+      position:
+        x: 4798.869411375487
+        y: 597.8876926512098
+      positionAbsolute:
+        x: 4798.869411375487
+        y: 597.8876926512098
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: not empty
+            id: 8c81c93f-1bbb-4a6b-9545-3169ec0aafca
+            value: ''
+            varType: array[file]
+            variable_selector:
+            - '1752651556966'
+            - user_files
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: 条件分支
+        type: if-else
+      height: 94
+      id: '1765265678006'
+      position:
+        x: 2239.449447176268
+        y: 654.0766904904008
+      positionAbsolute:
+        x: 2239.449447176268
+        y: 654.0766904904008
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        selected: false
+        template: '{{ arg1 or '''' }}'
+        title: 模板转换
+        type: template-transform
+        variables:
+        - value_selector:
+          - '1768775596644'
+          - output
+          value_type: array[string]
+          variable: arg1
+      height: 40
+      id: '1765306438960'
+      position:
+        x: 4276.66972152524
+        y: 603.1109960309866
+      positionAbsolute:
+        x: 4276.66972152524
+        y: 603.1109960309866
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: 9a6d6436-b05e-4f4a-8a4e-66376e8b9c3a
+            value: false
+            varType: boolean
+            variable_selector:
+            - conversation
+            - video_presets
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: 条件分支 2
+        type: if-else
+      height: 94
+      id: '1768720381497'
+      position:
+        x: 3100.397938084037
+        y: 734.5987851319688
+      positionAbsolute:
+        x: 3100.397938084037
+        y: 734.5987851319688
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        items:
+        - input_type: constant
+          operation: set
+          value: true
+          variable_selector:
+          - conversation
+          - video_presets
+          write_mode: over-write
+        selected: false
+        title: 变量赋值
+        type: assigner
+        version: '2'
+      height: 64
+      id: '1768720398892'
+      position:
+        x: 3619.5908028546446
+        y: 752.4497553926158
+      positionAbsolute:
+        x: 3619.5908028546446
+        y: 752.4497553926158
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        items:
+        - input_type: constant
+          operation: set
+          value: false
+          variable_selector:
+          - conversation
+          - video_presets
+          write_mode: over-write
+        selected: false
+        title: 变量赋值 2
+        type: assigner
+        version: '2'
+      height: 64
+      id: '1768723984198'
+      position:
+        x: 3363.6002231201405
+        y: 820.1090719039396
+      positionAbsolute:
+        x: 3363.6002231201405
+        y: 820.1090719039396
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        error_handle_mode: terminated
+        flatten_output: true
+        height: 1015.9963781750042
+        is_parallel: false
+        iterator_input_type: array[file]
+        iterator_selector:
+        - '1752651556966'
+        - user_files
+        output_selector:
+        - '1769012445294'
+        - result
+        output_type: array[string]
+        parallel_nums: 10
+        selected: false
+        start_node_id: 1768775596644start
+        title: 迭代
+        type: iteration
+        width: 1326.026851458244
+      height: 1016
+      id: '1768775596644'
+      position:
+        x: 2712.8992371748873
+        y: -585.8376194978699
+      positionAbsolute:
+        x: 2712.8992371748873
+        y: -585.8376194978699
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 1326
+      zIndex: 1
+    - data:
+        desc: ''
+        isInIteration: true
+        selected: false
+        title: ''
+        type: iteration-start
+      draggable: false
+      height: 36
+      id: 1768775596644start
+      parentId: '1768775596644'
+      position:
+        x: 24
+        y: 68
+      positionAbsolute:
+        x: 2736.8992371748873
+        y: -517.8376194978699
+      selectable: false
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom-iteration-start
+      width: 33
+      zIndex: 1002
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: ff3dbba3-6e01-4672-bea5-61abfbeec275
+            value: .xlsx
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          - comparison_operator: is
+            id: e1e3b423-a390-4e24-bf3a-fc8a246f02ef
+            value: .xls
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          - comparison_operator: is
+            id: c84fabdb-6341-400c-9018-99880c046671
+            value: .md
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          - comparison_operator: is
+            id: eb9ccdbe-0022-489d-b209-c89e815123c7
+            value: .markdown
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          - comparison_operator: is
+            id: 450405ba-bc9e-498b-9d1d-67a9011c75c3
+            value: .mdx
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          - comparison_operator: is
+            id: cebb8b59-118a-4a9f-afac-35cd2ec2ef7f
+            value: .html
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          - comparison_operator: is
+            id: d4d8d3c3-c115-41ca-8395-c0e14f1c5acf
+            value: .htm
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          - comparison_operator: is
+            id: 02b1031a-4e92-4e13-a503-1744aab5ffc3
+            value: .csv
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          - comparison_operator: is
+            id: ecc907b1-d7f7-42eb-ac28-99c0e849add5
+            value: .docx
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          id: 'true'
+          logical_operator: or
+        - case_id: f6c087dd-abdb-4fca-9781-625787df15b1
+          conditions:
+          - comparison_operator: is
+            id: 717e4ebb-52e9-4327-ab3c-b78723c45cbd
+            value: .pptx
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          - comparison_operator: is
+            id: 94211e49-031d-4624-823f-411f22441c56
+            value: .ppt
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          - comparison_operator: is
+            id: 875d2df8-7d5e-4aff-9eea-0b038181686a
+            value: .doc
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          - comparison_operator: is
+            id: e19e9d4d-6b56-44e8-ada8-e37a82a9ea61
+            value: .pdf
+            varType: file
+            variable_selector:
+            - '1768775596644'
+            - item
+            - extension
+          id: f6c087dd-abdb-4fca-9781-625787df15b1
+          logical_operator: or
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768775596644'
+        selected: false
+        title: 条件分支 4
+        type: if-else
+      height: 345
+      id: '1768775643765'
+      parentId: '1768775596644'
+      position:
+        x: 17.17478697167371
+        y: 65
+      positionAbsolute:
+        x: 2730.074024146561
+        y: -520.8376194978699
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768775596644'
+        output_type: string
+        selected: false
+        title: 变量聚合器
+        type: variable-aggregator
+        variables:
+        - - '1768835952684'
+          - text
+        - - '1768839606207'
+          - text
+        - - '1769584985592'
+          - text
+      height: 123
+      id: '1768775905724'
+      parentId: '1768775596644'
+      position:
+        x: 765.026851458244
+        y: 89.9508516192339
+      positionAbsolute:
+        x: 3477.9260886331313
+        y: -495.886767878636
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        is_team_authorization: true
+        iteration_id: '1768775596644'
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: the file to be parsed (support pdf, xls, xlsx, md, markdown, mdx,
+              htm, html, pptx, docx, csv, json, yaml, yml)
+            ja_JP: the file to be parsed (support pdf, xls, xlsx, md, markdown, mdx,
+              htm, html, pptx, docx, csv, json, yaml, yml)
+            pt_BR: o arquivo a ser analisado (suporta pdf, xls, xlsx, md, markdown,
+              mdx, htm, html, pptx, docx, csv, json, yaml, yml)
+            zh_Hans: 用于解析的文件 (支持 pdf, xls, xlsx, md, markdown, mdx, htm, html, pptx,
+              docx, csv, json, yaml, yml)
+          label:
+            en_US: file
+            ja_JP: file
+            pt_BR: file
+            zh_Hans: file
+          llm_description: the file to be parsed (support pdf, xls, xlsx, md, markdown,
+            mdx, htm, html, pptx, docx, csv, json, yaml, yml)
+          max: null
+          min: null
+          name: file
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: file
+        params:
+          file: ''
+        plugin_id: langgenius/dify_extractor
+        plugin_unique_identifier: langgenius/dify_extractor:0.0.8@2cf530167705cd0bf54c64d297181820a2862564db9b75e0bd0e93935b8ee9ea
+        provider_icon: /console/api/workspaces/current/plugin/icon?tenant_id=72305e0d-3ec5-4ff1-871b-3f11ee2f754a&filename=59c233d363aeda0c93b8d682d458987c5b6a20f0ea6a85802cccf670cd2ddf5a.svg
+        provider_id: langgenius/dify_extractor/dify_extractor
+        provider_name: langgenius/dify_extractor/dify_extractor
+        provider_type: builtin
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 1000
+        selected: false
+        title: Dify文本提取器
+        tool_configurations: {}
+        tool_description: Dify Extractor
+        tool_label: Dify文本提取器
+        tool_name: dify_extractor
+        tool_node_version: '2'
+        tool_parameters:
+          file:
+            type: variable
+            value:
+            - '1768775596644'
+            - item
+        type: tool
+      height: 66
+      id: '1768835952684'
+      parentId: '1768775596644'
+      position:
+        x: 394.42970980327027
+        y: 88.2725721192179
+      positionAbsolute:
+        x: 3107.3289469781575
+        y: -497.565047378652
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        isInIteration: true
+        isInLoop: false
+        is_team_authorization: true
+        iteration_id: '1768775596644'
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Upload files for processing
+            ja_JP: Upload files for processing
+            pt_BR: Carregar arquivos para processamento
+            zh_Hans: 上传文件进行处理
+          label:
+            en_US: Files
+            ja_JP: Files
+            pt_BR: Arquivos
+            zh_Hans: 文件
+          llm_description: ''
+          max: null
+          min: null
+          name: files
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: files
+        params:
+          files: ''
+        plugin_id: yevanchen/markitdown
+        plugin_unique_identifier: yevanchen/markitdown:0.0.4@776b3e2e930e2ffd28a75bb20fecbe7a020849cf754f86e604acacf1258877f6
+        provider_icon: /console/api/workspaces/current/plugin/icon?tenant_id=72305e0d-3ec5-4ff1-871b-3f11ee2f754a&filename=138046ff690576c6f0de16763aa03ba3050f138c06411d016689eba8c7661c51.png
+        provider_id: yevanchen/markitdown/markitdown
+        provider_name: yevanchen/markitdown/markitdown
+        provider_type: builtin
+        selected: false
+        title: markitdown
+        tool_configurations: {}
+        tool_description: Python tool for converting files and office documents to
+          Markdown.
+        tool_label: markitdown
+        tool_name: markitdown
+        tool_node_version: '2'
+        tool_parameters:
+          files:
+            type: variable
+            value:
+            - '1768775596644'
+            - item
+        type: tool
+      height: 40
+      id: '1768839606207'
+      parentId: '1768775596644'
+      position:
+        x: 399.7382209745192
+        y: 580.9963781750042
+      positionAbsolute:
+        x: 3112.6374581494065
+        y: -4.841241322865699
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        code: "import requests\nimport json\nimport re\nimport os\nimport time\nfrom\
+          \ typing import List, Dict, Any, Tuple\nfrom urllib.parse import urlparse\n\
+          import concurrent.futures\nimport threading\nfrom requests.adapters import\
+          \ HTTPAdapter\nfrom urllib3.util.retry import Retry\n\n# ==============================================================================\n\
+          # ----------------------------> 用户配置区 <---------------------------------\n\
+          # ==============================================================================\n\
+          CONFIG = {\n    \"API_BASE_URL\": \"https://server.x-pilot.ai/static\",\n\
+          \n    \"AUTH_DETAILS\": {\n        \"login\": \"xt666666\",\n        \"\
+          password\": \"123456\",\n        \"initial_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIwMjAxMDExLCJyb2xlIjoxLCJpYXQiOjE3NjE3Mjg1NTAsImV4cCI6MTc2MTgxNDk1MH0.4YTszVwCiSZ3AgLPGM-DvvcCYPmIBoTOppnKBu9IpxguA0\"\
+          \n    },\n\n    \"ENDPOINTS\": {\n        # 【修改点】接口变为复数 uploads\n      \
+          \  \"upload\": \"/file/uploads\", \n        \"sign_in\": \"/auth/sign_in\"\
+          \n    },\n\n    # 【修改点】每批次上传的文件数量 (你要求最多5个)\n    \"BATCH_SIZE\": 5,\n  \
+          \  \n    # 下载并发数\n    \"MAX_DOWNLOAD_WORKERS\": 20,\n    # 上传并发数 (指同时上传多少个批次)\n\
+          \    \"MAX_UPLOAD_WORKERS\": 4, \n\n    # 超时设置 (连接, 读取)\n    \"DOWNLOAD_TIMEOUT\"\
+          : (5, 30),\n    \"UPLOAD_TIMEOUT\": (10, 60)\n}\n\n# ==============================================================================\n\
+          # --------------------------> Session 连接池 <---------------------------------\n\
+          # ==============================================================================\n\
+          class SessionManager:\n    _session = None\n    _lock = threading.Lock()\n\
+          \n    @classmethod\n    def get_session(cls):\n        with cls._lock:\n\
+          \            if cls._session is None:\n                cls._session = requests.Session()\n\
+          \                retries = Retry(\n                    total=3,\n      \
+          \              backoff_factor=0.3,\n                    status_forcelist=[500,\
+          \ 502, 503, 504],\n                    allowed_methods=[\"HEAD\", \"GET\"\
+          , \"POST\"]\n                )\n                adapter = HTTPAdapter(\n\
+          \                    pool_connections=20, \n                    pool_maxsize=20,\n\
+          \                    max_retries=retries\n                )\n          \
+          \      cls._session.mount('http://', adapter)\n                cls._session.mount('https://',\
+          \ adapter)\n            return cls._session\n\n# ==============================================================================\n\
+          # ---------------------------> 认证管理 <-------------------------------------\n\
+          # ==============================================================================\n\
+          class AuthManager:\n    _instance = None\n    _lock = threading.Lock()\n\
+          \n    def __new__(cls):\n        with cls._lock:\n            if cls._instance\
+          \ is None:\n                cls._instance = super(AuthManager, cls).__new__(cls)\n\
+          \                cls._instance._initialized = False\n            return\
+          \ cls._instance\n\n    def __init__(self):\n        if self._initialized:\
+          \ return\n        self.api_base_url = CONFIG[\"API_BASE_URL\"]\n       \
+          \ self.sign_in_endpoint = CONFIG[\"ENDPOINTS\"][\"sign_in\"]\n        self.credentials\
+          \ = CONFIG[\"AUTH_DETAILS\"]\n        self._token = self.credentials.get(\"\
+          initial_token\")\n        self._token_lock = threading.Lock()\n        self._initialized\
+          \ = True\n\n    @property\n    def token(self):\n        with self._token_lock:\
+          \ return self._token\n\n    @token.setter\n    def token(self, value):\n\
+          \        with self._token_lock: self._token = value\n\n    def get_headers(self)\
+          \ -> Dict[str, str]:\n        return {'Authorization': f'Bearer {self.token}'}\n\
+          \n    def refresh_token(self, session):\n        with self._token_lock:\n\
+          \            print(\">>> 正在刷新 Token ...\")\n            url = f\"{self.api_base_url}{self.sign_in_endpoint}\"\
+          \n            payload = {'login': self.credentials['login'], 'password':\
+          \ self.credentials['password']}\n            try:\n                resp\
+          \ = session.post(url, data=payload, headers={'Content-Type': 'application/x-www-form-urlencoded'},\
+          \ timeout=10)\n                resp.raise_for_status()\n               \
+          \ data = resp.json()\n                if data.get(\"status\") is True and\
+          \ 'data' in data:\n                    self.token = data['data']['token']\n\
+          \                    print(\">>> Token 刷新成功\")\n                else:\n\
+          \                    print(f\"Token刷新失败: {data}\")\n            except Exception\
+          \ as e:\n                print(f\"Token刷新异常: {e}\")\n\n# ==============================================================================\n\
+          # ---------------------------> 工具函数 <-------------------------------------\n\
+          # ==============================================================================\n\
+          \ndef get_file_info(url: str) -> Tuple[str, str]:\n    \"\"\"提取文件名和MIME\"\
+          \"\"\n    parsed = urlparse(url)\n    filename = os.path.basename(parsed.path)\n\
+          \    if not filename or '.' not in filename:\n        # 使用时间戳防重\n      \
+          \  filename = f\"img_{int(time.time()*1000)}_{str(id(url))[-4:]}.jpg\"\n\
+          \    \n    ext = os.path.splitext(filename)[1].lower()\n    mime_map = {\n\
+          \        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',\n        '.png': 'image/png',\
+          \ '.gif': 'image/gif',\n        '.webp': 'image/webp', '.svg': 'image/svg+xml'\n\
+          \    }\n    return filename, mime_map.get(ext, 'application/octet-stream')\n\
+          \n# ==============================================================================\n\
+          # ---------------------------> 核心逻辑拆分 <---------------------------------\n\
+          # ==============================================================================\n\
+          \n# 1. 独立下载函数\ndef download_image(url: str, session: requests.Session) ->\
+          \ Dict[str, Any] | None:\n    try:\n        filename, mime_type = get_file_info(url)\n\
+          \        # 强制设置 timeout\n        resp = session.get(url, stream=False, timeout=CONFIG[\"\
+          DOWNLOAD_TIMEOUT\"])\n        resp.raise_for_status()\n        \n      \
+          \  return {\n            \"original_url\": url,\n            \"filename\"\
+          : filename,\n            \"content\": resp.content,\n            \"mime_type\"\
+          : mime_type\n        }\n    except Exception as e:\n        # print(f\"\
+          下载失败 {url[:30]}... : {e}\")\n        return None\n\n# 2. 批量上传函数\ndef upload_batch(\n\
+          \    img_data_list: List[Dict[str, Any]], \n    auth: AuthManager, \n  \
+          \  upload_url: str, \n    session: requests.Session\n) -> Dict[str, str]:\n\
+          \    \"\"\"\n    接收一组图片数据，调用一次接口上传\n    返回: {original_url: new_url} 的映射字典\n\
+          \    \"\"\"\n    if not img_data_list:\n        return {}\n\n    # 构建 requests\
+          \ 需要的 files 结构: [('files', (filename, content, mime)), ...]\n    files_payload\
+          \ = []\n    # 用于映射 response 中的 originalname 回 original_url\n    filename_to_url_map\
+          \ = {}\n\n    for item in img_data_list:\n        files_payload.append(\n\
+          \            ('files', (item['filename'], item['content'], item['mime_type']))\n\
+          \        )\n        filename_to_url_map[item['filename']] = item['original_url']\n\
+          \n    try:\n        def do_request():\n            return session.post(\n\
+          \                upload_url, \n                headers=auth.get_headers(),\
+          \ \n                files=files_payload, # requests 会自动处理 multipart/form-data\n\
+          \                timeout=CONFIG[\"UPLOAD_TIMEOUT\"]\n            )\n\n \
+          \       resp = do_request()\n\n        # Token 401 重试\n        if resp.status_code\
+          \ == 401:\n            auth.refresh_token(session)\n            resp = do_request()\
+          \ # 文件流是 bytes，可以直接重试\n\n        resp.raise_for_status()\n        res_json\
+          \ = resp.json()\n\n        # 解析返回结果\n        batch_result = {}\n       \
+          \ if res_json.get(\"status\") is True and isinstance(res_json.get(\"data\"\
+          ), list):\n            for file_info in res_json[\"data\"]:\n          \
+          \      # 接口返回的 originalname 应该和我们上传时的 filename 一致\n                ret_name\
+          \ = file_info.get(\"originalname\")\n                new_url = file_info.get(\"\
+          url\")\n                \n                if ret_name in filename_to_url_map\
+          \ and new_url:\n                    origin_url = filename_to_url_map[ret_name]\n\
+          \                    batch_result[origin_url] = new_url\n        \n    \
+          \    return batch_result\n\n    except Exception as e:\n        print(f\"\
+          批量上传失败: {str(e)}\")\n        return {}\n\n# ==============================================================================\n\
+          # ---------------------------> 主流程 <---------------------------------------\n\
+          # ==============================================================================\n\
+          \ndef main(arg1: Any) -> Dict[str, str]:\n    # 1. 解析入参\n    input_text\
+          \ = \"\"\n    if isinstance(arg1, str):\n        try:\n            data\
+          \ = json.loads(arg1)\n            input_text = data.get(\"arg1\", arg1)\
+          \ if isinstance(data, dict) else arg1\n        except:\n            input_text\
+          \ = arg1\n    elif isinstance(arg1, dict):\n        input_text = arg1.get(\"\
+          arg1\", \"\")\n    else:\n        return {\"result\": str(arg1)}\n\n   \
+          \ if not input_text:\n        return {\"result\": \"\"}\n\n    # 2. 提取并去重链接\n\
+          \    pattern = r'!\\[(?P<alt>.*?)\\]\\((?P<url>[^\\s)]+?)\\s*(?:\"(?P<title>.*?)\"\
+          )?\\)'\n    unique_urls = list(set(m.group('url') for m in re.finditer(pattern,\
+          \ input_text)))\n    \n    if not unique_urls:\n        return {\"result\"\
+          : input_text}\n\n    print(f\"共发现 {len(unique_urls)} 个唯一图片链接，准备处理...\")\n\
+          \    \n    session = SessionManager.get_session()\n    auth = AuthManager()\n\
+          \    upload_url = f\"{CONFIG['API_BASE_URL']}{CONFIG['ENDPOINTS']['upload']}\"\
+          \n    \n    # 3. 阶段一：并发下载所有图片\n    # 将成功的下载结果保存在内存中\n    downloaded_images\
+          \ = [] # List[Dict]\n    \n    start_time = time.time()\n    with concurrent.futures.ThreadPoolExecutor(max_workers=CONFIG[\"\
+          MAX_DOWNLOAD_WORKERS\"]) as executor:\n        future_to_url = {executor.submit(download_image,\
+          \ url, session): url for url in unique_urls}\n        \n        for future\
+          \ in concurrent.futures.as_completed(future_to_url):\n            result\
+          \ = future.result()\n            if result:\n                downloaded_images.append(result)\n\
+          \    \n    print(f\"下载完成: {len(downloaded_images)}/{len(unique_urls)} (耗时\
+          \ {time.time()-start_time:.2f}s)\")\n\n    # 4. 阶段二：将下载好的图片分批次 (Batching)\n\
+          \    batches = []\n    batch_size = CONFIG[\"BATCH_SIZE\"]\n    for i in\
+          \ range(0, len(downloaded_images), batch_size):\n        batches.append(downloaded_images[i\
+          \ : i + batch_size])\n\n    # 5. 阶段三：并发上传批次\n    # 这一步极大减少 HTTP 请求数。例如 50\
+          \ 张图，每批 5 张，只需 10 次请求。\n    # 还可以同时并发这 10 次请求。\n    final_url_map = {} \n\
+          \    \n    with concurrent.futures.ThreadPoolExecutor(max_workers=CONFIG[\"\
+          MAX_UPLOAD_WORKERS\"]) as executor:\n        future_to_batch = {\n     \
+          \       executor.submit(upload_batch, batch, auth, upload_url, session):\
+          \ batch \n            for batch in batches\n        }\n        \n      \
+          \  for future in concurrent.futures.as_completed(future_to_batch):\n   \
+          \         batch_res = future.result()\n            final_url_map.update(batch_res)\n\
+          \n    print(f\"上传完成，成功转换 {len(final_url_map)} 张图片链接。\")\n\n    # 6. 全文替换\n\
+          \    def replacer(match):\n        orig_url = match.group('url')\n     \
+          \   if orig_url in final_url_map:\n            new_url = final_url_map[orig_url]\n\
+          \            alt = match.group('alt') or \"\"\n            title = match.group('title')\n\
+          \            base = f\"![{alt}]({new_url}\"\n            return f\"{base}\
+          \ \\\"{title}\\\")\" if title else f\"{base})\"\n        return match.group(0)\
+          \ # 保留原样\n\n    final_text = re.sub(pattern, replacer, input_text)\n   \
+          \ \n    return {\"result\": final_text}\n"
+        code_language: python3
+        isInIteration: true
+        isInLoop: false
+        iteration_id: '1768775596644'
+        outputs:
+          result:
+            children: null
+            type: string
+        selected: false
+        title: 上传至oss服务器
+        type: code
+        variables:
+        - value_selector:
+          - '1768775905724'
+          - output
+          value_type: string
+          variable: arg1
+      height: 40
+      id: '1769012445294'
+      parentId: '1768775596644'
+      position:
+        x: 1067
+        y: 85.73553123716002
+      positionAbsolute:
+        x: 3779.8992371748873
+        y: -500.10208826070993
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Name
+            ja_JP: Redis Name
+            pt_BR: Redis Name
+            zh_Hans: Redis Name
+          label:
+            en_US: Name
+            ja_JP: Name
+            pt_BR: Name
+            zh_Hans: Name
+          llm_description: Redis Name
+          max: null
+          min: null
+          name: name
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Key
+            ja_JP: Redis Key
+            pt_BR: Redis Key
+            zh_Hans: Redis Key
+          label:
+            en_US: Key
+            ja_JP: Key
+            pt_BR: Key
+            zh_Hans: Key
+          llm_description: Redis Key
+          max: null
+          min: null
+          name: key
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Value
+            ja_JP: Redis Value
+            pt_BR: Redis Value
+            zh_Hans: Redis Value
+          label:
+            en_US: Value
+            ja_JP: Value
+            pt_BR: Value
+            zh_Hans: Value
+          llm_description: Redis Value
+          max: null
+          min: null
+          name: value
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: TTL, default 60s
+            ja_JP: TTL, default 60s
+            pt_BR: TTL, default 60s
+            zh_Hans: TTL, 默认 60 秒
+          label:
+            en_US: TTL
+            ja_JP: TTL
+            pt_BR: TTL
+            zh_Hans: TTL
+          llm_description: TTL
+          max: null
+          min: null
+          name: ttl
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: number
+        params:
+          key: ''
+          name: ''
+          ttl: ''
+          value: ''
+        plugin_id: eft/redis
+        plugin_unique_identifier: eft/redis:1.0.3@bac89a1d03ca694e856b58341cbb34094af7ca9425ef4e39bed85fbd27284df8
+        provider_icon: /console/api/workspaces/current/plugin/icon?tenant_id=72305e0d-3ec5-4ff1-871b-3f11ee2f754a&filename=ce0be7e9d45ce7561d895a7a486c061ac11d41de54d62aaea6d84d0c4a6f2916.svg
+        provider_id: eft/redis/redis
+        provider_name: eft/redis/redis
+        provider_type: builtin
+        selected: false
+        title: Redis SET
+        tool_configurations: {}
+        tool_description: Redis SET
+        tool_label: Redis SET
+        tool_name: redis-set
+        tool_node_version: '2'
+        tool_parameters:
+          key:
+            type: mixed
+            value: video_presets_{{#sys.conversation_id#}}
+          name:
+            type: mixed
+            value: docker-redis-1
+          ttl:
+            type: constant
+            value: -1
+          value:
+            type: mixed
+            value: '{{#1752651556966.video_presets#}}'
+        type: tool
+      height: 40
+      id: '1769234328276'
+      position:
+        x: 3363.6002231201405
+        y: 752.4497553926158
+      positionAbsolute:
+        x: 3363.6002231201405
+        y: 752.4497553926158
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        error_strategy: fail-branch
+        isInIteration: true
+        isInLoop: false
+        is_team_authorization: true
+        iteration_id: '1768775596644'
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: the file to be parsed(support pdf, ppt, pptx, doc, docx, png, jpg,
+              jpeg)
+            ja_JP: 解析するファイル(pdf、ppt、pptx、doc、docx、png、jpg、jpegをサポート)
+            pt_BR: the file to be parsed(support pdf, ppt, pptx, doc, docx, png, jpg,
+              jpeg)
+            zh_Hans: 用于解析的文件(支持 pdf, ppt, pptx, doc, docx, png, jpg, jpeg)
+          label:
+            en_US: file
+            ja_JP: ファイル
+            pt_BR: file
+            zh_Hans: 文件
+          llm_description: the file to be parsed (support pdf, ppt, pptx, doc, docx,
+            png, jpg, jpeg)
+          max: null
+          min: null
+          name: file
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: file
+        - auto_generate: null
+          default: hi_res
+          form: form
+          human_description:
+            en_US: The strategy to use for partitioning (vlm, fast, hi_res, auto,
+              ocr_only)
+            ja_JP: 分割に使用する戦略(vlm, fast, hi_res, auto, ocr_only)
+            pt_BR: The strategy to use for partitioning (vlm, fast, hi_res, auto,
+              ocr_only)
+            zh_Hans: 用于分区的策略(vlm, fast, hi_res, auto, ocr_only)
+          label:
+            en_US: Strategy
+            ja_JP: 戦略
+            pt_BR: Strategy
+            zh_Hans: 策略
+          llm_description: The strategy to use for partitioning (vlm, fast, hi_res,
+            auto, ocr_only)
+          max: null
+          min: null
+          name: strategy
+          options:
+          - icon: ''
+            label:
+              en_US: auto
+              ja_JP: auto
+              pt_BR: auto
+              zh_Hans: auto
+            value: auto
+          - icon: ''
+            label:
+              en_US: vlm
+              ja_JP: vlm
+              pt_BR: vlm
+              zh_Hans: vlm
+            value: vlm
+          - icon: ''
+            label:
+              en_US: fast
+              ja_JP: fast
+              pt_BR: fast
+              zh_Hans: fast
+            value: fast
+          - icon: ''
+            label:
+              en_US: hi_res
+              ja_JP: hi_res
+              pt_BR: hi_res
+              zh_Hans: hi_res
+            value: hi_res
+          - icon: ''
+            label:
+              en_US: ocr_only
+              ja_JP: ocr_only
+              pt_BR: ocr_only
+              zh_Hans: ocr_only
+            value: ocr_only
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: select
+        - auto_generate: null
+          default: layout_v1.1.0
+          form: form
+          human_description:
+            en_US: The inference model used for hi_res strategy (layout_v1.1.0 or
+              yolox)
+            ja_JP: hi_res戦略で使用する推論モデル(layout_v1.1.0またはyolox)
+            pt_BR: The inference model used for hi_res strategy (layout_v1.1.0 or
+              yolox)
+            zh_Hans: 高分辨率策略使用的推理模型(layout_v1.1.0或yolox)
+          label:
+            en_US: High-res Model
+            ja_JP: 高解像度モデル
+            pt_BR: High-res Model
+            zh_Hans: 高分辨率模型
+          llm_description: ''
+          max: null
+          min: null
+          name: hi_res_model_name
+          options:
+          - icon: ''
+            label:
+              en_US: layout_v1.1.0
+              ja_JP: layout_v1.1.0
+              pt_BR: layout_v1.1.0
+              zh_Hans: layout_v1.1.0
+            value: layout_v1.1.0
+          - icon: ''
+            label:
+              en_US: yolox
+              ja_JP: yolox
+              pt_BR: yolox
+              zh_Hans: yolox
+            value: yolox
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: form
+          human_description:
+            en_US: Strategy for chunking partitioned elements
+            ja_JP: 分割要素のチャンキング戦略
+            pt_BR: Strategy for chunking partitioned elements
+            zh_Hans: 分区元素的分块策略
+          label:
+            en_US: Chunking Strategy
+            ja_JP: チャンキング戦略
+            pt_BR: Chunking Strategy
+            zh_Hans: 分块策略
+          llm_description: Strategy for chunking partitioned elements
+          max: null
+          min: null
+          name: chunking_strategy
+          options:
+          - icon: ''
+            label:
+              en_US: basic
+              ja_JP: basic
+              pt_BR: basic
+              zh_Hans: basic
+            value: basic
+          - icon: ''
+            label:
+              en_US: by_page
+              ja_JP: by_page
+              pt_BR: by_page
+              zh_Hans: by_page
+            value: by_page
+          - icon: ''
+            label:
+              en_US: by_title
+              ja_JP: by_title
+              pt_BR: by_title
+              zh_Hans: by_title
+            value: by_title
+          - icon: ''
+            label:
+              en_US: by_similarity
+              ja_JP: by_similarity
+              pt_BR: by_similarity
+              zh_Hans: by_similarity
+            value: by_similarity
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: select
+        - auto_generate: null
+          default: gpt-4o
+          form: form
+          human_description:
+            en_US: The VLM model to use for processing
+            ja_JP: 処理に使用するVLMモデル
+            pt_BR: The VLM model to use for processing
+            zh_Hans: 用于处理的VLM模型
+          label:
+            en_US: VLM Model
+            ja_JP: VLMモデル
+            pt_BR: VLM Model
+            zh_Hans: VLM模型
+          llm_description: The VLM model to use for processing
+          max: null
+          min: null
+          name: vlm_model
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: openai
+          form: form
+          human_description:
+            en_US: The provider of the VLM model
+            ja_JP: VLMモデルのプロバイダー
+            pt_BR: The provider of the VLM model
+            zh_Hans: VLM模型的提供商
+          label:
+            en_US: VLM Model Provider
+            ja_JP: VLMモデルプロバイダー
+            pt_BR: VLM Model Provider
+            zh_Hans: VLM模型提供商
+          llm_description: The provider of the VLM model
+          max: null
+          min: null
+          name: vlm_model_provider
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: 500
+          form: form
+          human_description:
+            en_US: Maximum characters per chunk
+            ja_JP: チャンクあたりの最大文字数
+            pt_BR: Maximum characters per chunk
+            zh_Hans: 每个分块的最大字符数
+          label:
+            en_US: Max Characters
+            ja_JP: 最大文字数
+            pt_BR: Max Characters
+            zh_Hans: 最大字符数
+          llm_description: Maximum characters per chunk
+          max: null
+          min: null
+          name: max_characters
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: number
+        - auto_generate: null
+          default: 500
+          form: form
+          human_description:
+            en_US: Combines small chunks until reaching this length (applies to by_title
+              strategy)
+            ja_JP: この長さに達するまで小さなチャンクを結合(by_title戦略に適用)
+            pt_BR: Combines small chunks until reaching this length (applies to by_title
+              strategy)
+            zh_Hans: 合并小分块直到达到此长度(适用于by_title策略)
+          label:
+            en_US: Combine Under N Chars
+            ja_JP: N文字以下を結合
+            pt_BR: Combine Under N Chars
+            zh_Hans: 合并少于N字符
+          llm_description: Combines small chunks until reaching specified length (for
+            by_title strategy)
+          max: null
+          min: null
+          name: combine_under_n_chars
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: number
+        - auto_generate: null
+          default: 0
+          form: form
+          human_description:
+            en_US: Number of overlapping characters between chunks
+            ja_JP: チャンク間の重複文字数
+            pt_BR: Number of overlapping characters between chunks
+            zh_Hans: 分块之间的重叠字符数
+          label:
+            en_US: Overlap
+            ja_JP: オーバーラップ
+            pt_BR: Overlap
+            zh_Hans: 重叠量
+          llm_description: Number of overlapping characters between chunks
+          max: null
+          min: null
+          name: overlap
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: number
+        - auto_generate: null
+          default: '[]'
+          form: form
+          human_description:
+            en_US: The languages present in the document (e.g. ["eng","chi_sim"])
+            ja_JP: 文書で使用される言語(例 ["eng","jpn"])
+            pt_BR: The languages present in the document (e.g. ["eng","chi_sim"])
+            zh_Hans: 文档中使用的语言(例如 ["eng","chi_sim"])
+          label:
+            en_US: Languages
+            ja_JP: 言語
+            pt_BR: Languages
+            zh_Hans: 语言
+          llm_description: The languages present in the document for partitioning
+            and OCR
+          max: null
+          min: null
+          name: languages
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: '{}'
+          form: form
+          human_description:
+            en_US: JSON format advanced configuration options (e.g. {"strategy":"hi_res","chunking_strategy":"by_title"},
+              see official documentation for details)
+            ja_JP: JSON形式の高度な設定オプション(例 {"strategy":"hi_res","chunking_strategy":"by_title"},詳細は公式ドキュメントを参照してください)
+            pt_BR: JSON format advanced configuration options (e.g. {"strategy":"hi_res","chunking_strategy":"by_title"},
+              see official documentation for details)
+            zh_Hans: JSON格式高级配置选项(例如 {"strategy":"hi_res","chunking_strategy":"by_title"},具体参数请参考官方文档)
+          label:
+            en_US: Advanced Options
+            ja_JP: 高度なオプション
+            pt_BR: Advanced Options
+            zh_Hans: 高级选项
+          llm_description: JSON format advanced configuration options
+          max: null
+          min: null
+          name: advanced_options
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: string
+        params:
+          advanced_options: ''
+          chunking_strategy: ''
+          combine_under_n_chars: ''
+          file: ''
+          hi_res_model_name: ''
+          languages: ''
+          max_characters: ''
+          overlap: ''
+          strategy: ''
+          vlm_model: ''
+          vlm_model_provider: ''
+        plugin_id: langgenius/unstructured
+        plugin_unique_identifier: langgenius/unstructured:0.0.2@4f50f6b7d571dc05cadfb7417b4176136664e79b6e757188837d88c1942b9932
+        provider_icon: /console/api/workspaces/current/plugin/icon?tenant_id=72305e0d-3ec5-4ff1-871b-3f11ee2f754a&filename=feb4680e59d26f7a8653449f927f98868df74fc169976b826a996f2ba74715da.svg
+        provider_id: langgenius/unstructured/unstructured
+        provider_name: langgenius/unstructured/unstructured
+        provider_type: builtin
+        retry_config:
+          max_retries: 3
+          retry_enabled: true
+          retry_interval: 1000
+        selected: false
+        title: partition
+        tool_configurations:
+          advanced_options:
+            type: mixed
+            value: '{}'
+          chunking_strategy:
+            type: constant
+            value: null
+          combine_under_n_chars:
+            type: constant
+            value: 500
+          hi_res_model_name:
+            type: mixed
+            value: layout_v1.1.0
+          languages:
+            type: mixed
+            value: '[]'
+          max_characters:
+            type: constant
+            value: 500
+          overlap:
+            type: constant
+            value: 0
+          strategy:
+            type: constant
+            value: hi_res
+          vlm_model:
+            type: mixed
+            value: gpt-4o
+          vlm_model_provider:
+            type: mixed
+            value: openai
+        tool_description: 具有基本配置选项的文档分区工具
+        tool_label: partition
+        tool_name: partition
+        tool_node_version: '2'
+        tool_parameters:
+          file:
+            type: variable
+            value:
+            - '1768775596644'
+            - item
+        type: tool
+      height: 296
+      id: '1769584985592'
+      parentId: '1768775596644'
+      position:
+        x: 398.22250442366385
+        y: 181.6518047678212
+      positionAbsolute:
+        x: 3111.121741598551
+        y: -404.1858147300487
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 1002
+    - data:
+        cases:
+        - case_id: 'true'
+          conditions:
+          - comparison_operator: is
+            id: 9a6d6436-b05e-4f4a-8a4e-66376e8b9c3a
+            value: false
+            varType: boolean
+            variable_selector:
+            - conversation
+            - brand_kit
+          id: 'true'
+          logical_operator: and
+        selected: false
+        title: 条件分支 2 (1)
+        type: if-else
+      height: 94
+      id: '17721105968980'
+      position:
+        x: 3100.397938084037
+        y: 930.3264638089823
+      positionAbsolute:
+        x: 3100.397938084037
+        y: 930.3264638089823
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        is_team_authorization: true
+        paramSchemas:
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Name
+            ja_JP: Redis Name
+            pt_BR: Redis Name
+            zh_Hans: Redis Name
+          label:
+            en_US: Name
+            ja_JP: Name
+            pt_BR: Name
+            zh_Hans: Name
+          llm_description: Redis Name
+          max: null
+          min: null
+          name: name
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Key
+            ja_JP: Redis Key
+            pt_BR: Redis Key
+            zh_Hans: Redis Key
+          label:
+            en_US: Key
+            ja_JP: Key
+            pt_BR: Key
+            zh_Hans: Key
+          llm_description: Redis Key
+          max: null
+          min: null
+          name: key
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: Redis Value
+            ja_JP: Redis Value
+            pt_BR: Redis Value
+            zh_Hans: Redis Value
+          label:
+            en_US: Value
+            ja_JP: Value
+            pt_BR: Value
+            zh_Hans: Value
+          llm_description: Redis Value
+          max: null
+          min: null
+          name: value
+          options: []
+          placeholder: null
+          precision: null
+          required: true
+          scope: null
+          template: null
+          type: string
+        - auto_generate: null
+          default: null
+          form: llm
+          human_description:
+            en_US: TTL, default 60s
+            ja_JP: TTL, default 60s
+            pt_BR: TTL, default 60s
+            zh_Hans: TTL, 默认 60 秒
+          label:
+            en_US: TTL
+            ja_JP: TTL
+            pt_BR: TTL
+            zh_Hans: TTL
+          llm_description: TTL
+          max: null
+          min: null
+          name: ttl
+          options: []
+          placeholder: null
+          precision: null
+          required: false
+          scope: null
+          template: null
+          type: number
+        params:
+          key: ''
+          name: ''
+          ttl: ''
+          value: ''
+        plugin_id: eft/redis
+        plugin_unique_identifier: eft/redis:1.0.3@bac89a1d03ca694e856b58341cbb34094af7ca9425ef4e39bed85fbd27284df8
+        provider_icon: /console/api/workspaces/current/plugin/icon?tenant_id=72305e0d-3ec5-4ff1-871b-3f11ee2f754a&filename=ce0be7e9d45ce7561d895a7a486c061ac11d41de54d62aaea6d84d0c4a6f2916.svg
+        provider_id: eft/redis/redis
+        provider_name: eft/redis/redis
+        provider_type: builtin
+        selected: false
+        title: Redis SET (brand_kit)
+        tool_configurations: {}
+        tool_description: Redis SET
+        tool_label: Redis SET
+        tool_name: redis-set
+        tool_node_version: '2'
+        tool_parameters:
+          key:
+            type: mixed
+            value: brand_kit_{{#sys.conversation_id#}}
+          name:
+            type: mixed
+            value: docker-redis-1
+          ttl:
+            type: constant
+            value: -1
+          value:
+            type: mixed
+            value: '{{#1752651556966.brand_kit#}}'
+        type: tool
+      height: 40
+      id: '17721107318880'
+      position:
+        x: 3350.227250100572
+        y: 956.2884855300841
+      positionAbsolute:
+        x: 3350.227250100572
+        y: 956.2884855300841
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        items:
+        - input_type: constant
+          operation: set
+          value: true
+          variable_selector:
+          - conversation
+          - brand_kit
+          write_mode: over-write
+        selected: false
+        title: 变量赋值 (1)
+        type: assigner
+        version: '2'
+      height: 64
+      id: '17721107365690'
+      position:
+        x: 3610.1703085228314
+        y: 956.2884855300841
+      positionAbsolute:
+        x: 3610.1703085228314
+        y: 956.2884855300841
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    - data:
+        items:
+        - input_type: constant
+          operation: set
+          value: false
+          variable_selector:
+          - conversation
+          - brand_kit
+          write_mode: over-write
+        selected: false
+        title: 变量赋值 2 (1)
+        type: assigner
+        version: '2'
+      height: 64
+      id: '17721107405690'
+      position:
+        x: 3350.227250100572
+        y: 1034.139452265685
+      positionAbsolute:
+        x: 3350.227250100572
+        y: 1034.139452265685
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+    viewport:
+      x: -614.0855071952403
+      y: 44.69833154439178
+      zoom: 0.4567585573943898
+  rag_pipeline_variables: []

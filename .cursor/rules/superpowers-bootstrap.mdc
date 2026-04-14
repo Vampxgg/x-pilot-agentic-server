@@ -1,0 +1,10 @@
+---
+description: Always use superpowers skills when starting tasks
+globs: *
+---
+# Superpowers Bootstrap Rule
+
+When starting any conversation or task, you MUST check if any skill from the `.cursor/skills` directory applies to the task. 
+Use the `using-superpowers` skill as a reference for how to use other skills.
+
+If the user asks to brainstorm, plan, debug, or write tests, you MUST invoke the corresponding skill (e.g. `brainstorming`, `writing-plans`, `systematic-debugging`, `test-driven-development`).

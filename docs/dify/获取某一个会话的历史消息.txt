@@ -1,0 +1,32 @@
+curl --location --request GET 'http://35.232.154.66:5125/v1/messages?conversation_id=09417004-7e5d-44a9-b3b2-a8e1393eb2b1&user=20201011&limit=100' \
+--header 'Authorization: Bearer app-jTJNNtHCS6fMlJDRQG4gYURE' \
+--header 'User-Agent: Apifox/1.0.0 (https://apifox.com)' \
+--header 'Accept: */*' \
+--header 'Host: 35.232.154.66:5125' \
+--header 'Connection: keep-alive'
+
+
+{
+    "limit": 100,
+    "has_more": false,
+    "data": [
+        {
+            "id": "85f1865a-7d24-4a52-990c-b6c3ccd3aa42",
+            "conversation_id": "09417004-7e5d-44a9-b3b2-a8e1393eb2b1",
+            "parent_message_id": "00000000-0000-0000-0000-000000000000",
+            "inputs": {
+                "user_files": [],
+                "video_presets": "{\"config.language\":\"zh\",\"config.video_modes\":\"concise-highlight\",\"config.model_id\":\"7f92f8afb8ec43bf81429cc1c9199cb1\"}"
+            },
+            "query": "毫米波雷达",
+            "answer": "<think>\n\n**Crafting the Millimeter Wave Script**\n\nI'm currently focused on generating a script for a video about millimeter wave radar. It's a fresh topic, so I'm starting from scratch. I'm leveraging the `generate_script_parallel` tool, feeding it the user's intent as both the 'topic' and 'user_request'. This is the initial step to build the foundation for an informative video.\n\n\n**Generating the Script Outline**\n\nI'm now generating the script outline for the millimeter wave radar video. I'm using the `generate_script_parallel` tool, feeding it the \"millimeter wave radar\" topic as both the `topic` and `user_request`. I'm also providing the `conversation_id` and `video_presets`. The `user_files` and `web_data` parameters are omitted, as they're currently irrelevant.\n\n\n\n\n</think>收到您的想法，我正在为您编排关于**毫米波雷达**的全新课程剧本，会着重阐述它的工作原理和应用场景，力求内容既专业又引人入胜。\n\n剧本已就绪，我正在将这份关于**毫米波雷达**的精彩内容转化为生动的视频画面，让抽象的原理变得触手可及。\n\n<think>\n\n**Confirming Video Generation**\n\nI've successfully generated the script for the \"毫米波雷达\" video. The generation tool confirmed success, providing a preview URL, project ID, and cover image. The system seems operational.\n\n\n**Verifying Completion & Output**\n\nI've confirmed the script generation and video rendering for the \"毫米波雷达\" video are complete. The `generate_remotion` tool returned the necessary confirmation with `ok=True`. Now, I'm preparing the final JSON structure for the complete task output.\n\n\n\n\n</think>```json\n{\n  \"preview_url\": \"https://e2b.x-pilot.ai/play?projectId=jBI-hW5q3YUBfxlqEwHaC&sig=d09a1decaabd1d3c006f9f13deb47122fcc564429f4dd8ef88762c6e038de788\",\n  \"project_id\": \"jBI-hW5q3YUBfxlqEwHaC\",\n  \"cover_url\": \"https://server.x-pilot.ai/static/meta-doc/png/2c2d290d8bdd5cd75b76e580a2cc9f97.png\"\n}\n```",
+            "feedback": null,
+            "retriever_resources": [],
+            "created_at": 1768767168,
+            "agent_thoughts": [],
+            "message_files": [],
+            "status": "normal",
+            "error": null
+        }
+    ]
+}

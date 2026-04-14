@@ -1,0 +1,53 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxConcurrency: 5
+maxIterations: 25
+timeout: 300000
+allowedTools:
+  - knowledge_search
+  - knowledge_list
+  - web_search
+  - http_request
+  - file_read
+  - workspace_write
+  - workspace_read
+metadata:
+  domain: interactive-tutorial
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [topic, modules]
+    properties:
+      topic:
+        type: string
+      modules:
+        type: array
+        items:
+          type: object
+          required: [title, keyPoints, source]
+          properties:
+            title:
+              type: string
+            keyPoints:
+              type: array
+              items:
+                type: object
+                required: [content]
+                properties:
+                  content:
+                    type: string
+                  data:
+                    type: object
+                  source:
+                    type: string
+                    enum: [knowledge_base, web, user_file, inferred]
+                  interactive:
+                    type: boolean
+            source:
+              type: string
+evolution:
+  enabled: true
+  requireApproval: true

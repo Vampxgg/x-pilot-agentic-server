@@ -1,0 +1,61 @@
+server:
+  port: 3000
+  host: 0.0.0.0
+
+agents:
+  baseDir: ./apps
+  defaults:
+    model: z-ai/glm-5
+    workerModel: z-ai/glm-5
+    fallbackModels:
+      - moonshotai/kimi-k2.5
+    maxConcurrency: 5
+    heartbeat:
+      enabled: true
+      intervalMs: 3600000
+    evolution:
+      enabled: true
+      requireApproval: true
+    timeout: 300000
+
+memory:
+  store: file
+  consolidation:
+    enabled: true
+    intervalMs: 86400000
+
+llm:
+  retry:
+    maxRetries: 3
+  providers:
+    openai:
+      apiKey: ${OPENAI_API_KEY}
+    anthropic:
+      apiKey: ${ANTHROPIC_API_KEY}
+    openrouter:
+      apiKey: ${OPENROUTER_API_KEY}
+      baseUrl: https://openrouter.ai/api/v1
+    zhipu:
+      apiKey: ${ZHIPU_API_KEY}
+      baseUrl: https://open.bigmodel.cn/api/paas/v4
+
+knowledge:
+  dify:
+    baseUrl: ${DIFY_API_BASE_URL}
+    apiKey: ${DIFY_DATASET_API_KEY}
+  retrieval:
+    defaultSearchMethod: hybrid_search
+    defaultTopK: 10
+    scoreThreshold: 0
+    maxTokens: 8000
+    timeout: 45000
+  rerank:
+    enabled: true
+    provider: siliconflow
+    model: BAAI/bge-reranker-v2-m3
+    apiKey: ${SILICONFLOW_API_KEY}
+    apiUrl: https://api.siliconflow.cn/v1/rerank
+    timeout: 30000
+  cache:
+    datasetTTL: 300000
+    documentTTL: 600000

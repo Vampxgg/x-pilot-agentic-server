@@ -1,0 +1,48 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxConcurrency: 8
+maxIterations: 50
+timeout: 600000
+hideThinkOutput: false
+streamMode: "stream"
+allowedTools:
+  - start_generation_pipeline
+  - spawn_sub_agent
+  - spawn_parallel_agents
+  - workspace_read
+  - workspace_write
+  - workspace_list
+  - reassemble_app
+metadata:
+  domain: interactive-tutorial
+pipeline:
+  steps:
+    - name: research
+      agent: tutorial-content-researcher
+      optional: true
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+    - name: architect
+      agent: tutorial-scene-architect
+      dependsOn: [research]
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+    - name: save-blueprint
+      handler: saveBlueprint
+      dependsOn: [architect]
+    - name: coder
+      agent: tutorial-scene-coder
+      dependsOn: [save-blueprint]
+      retry:
+        maxAttempts: 2
+        backoffMs: 5000
+    - name: assemble
+      handler: assembleApp
+      dependsOn: [coder]
+evolution:
+  enabled: true
+  requireApproval: true
