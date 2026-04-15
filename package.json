@@ -3,10 +3,10 @@
   "version": "0.1.0",
   "description": "X-Pilot AI Agentic Server Foundation for Vocational Education Platform",
   "type": "module",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/src/index.js",
     "start:prod": "npm run build && npm start",
     "dev": "tsx watch src/index.ts",
     "test": "vitest run",
