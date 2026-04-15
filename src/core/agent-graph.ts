@@ -13,13 +13,23 @@ import type {
 import { summarizeWorkingMemory, addMemoryEntry, createWorkingMemory } from "../memory/short-term.js";
 import { formatSkillsForPrompt } from "../skills/skill-loader.js";
 import { logger } from "../utils/logger.js";
+import { getConfig } from "../utils/config.js";
 
 // ---------------------------------------------------------------------------
 // State Annotation
 // ---------------------------------------------------------------------------
 
 function messagesReducer(current: BaseMessage[], update: BaseMessage[]): BaseMessage[] {
-  return [...current, ...update];
+  const merged = [...current, ...update];
+  const maxMessages = getConfig().memory.checkpoint?.maxMessages ?? 100;
+
+  if (merged.length <= maxMessages) return merged;
+
+  const systemMsgs = merged.filter((m) => m._getType() === "system");
+  const nonSystem = merged.filter((m) => m._getType() !== "system");
+  const trimmed = nonSystem.slice(-maxMessages);
+
+  return systemMsgs.length > 0 ? [systemMsgs[0]!, ...trimmed] : trimmed;
 }
 
 function toolCallsReducer(current: ToolCallRecord[], update: ToolCallRecord[]): ToolCallRecord[] {

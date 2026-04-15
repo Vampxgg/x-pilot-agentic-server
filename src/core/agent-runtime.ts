@@ -1,4 +1,6 @@
 import { MemorySaver } from "@langchain/langgraph";
+import { BaseCheckpointSaver } from "@langchain/langgraph-checkpoint";
+import { PostgresSaver } from "@langchain/langgraph-checkpoint-postgres";
 import { HumanMessage } from "@langchain/core/messages";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import { randomUUID } from "node:crypto";
@@ -50,12 +52,29 @@ export interface InvokeOptions {
   streamThinkTokens?: boolean;
 }
 
-function createCheckpointer() {
+async function createCheckpointer(): Promise<BaseCheckpointSaver> {
   const config = getConfig();
-  if (config.memory.store === "postgres") {
-    logger.warn("PostgreSQL checkpointer not yet installed. Using MemorySaver. Install @langchain/langgraph-checkpoint-postgres for production.");
+  const ckptConfig = config.memory.checkpoint;
+
+  switch (ckptConfig?.store) {
+    case "postgres": {
+      const url = ckptConfig.postgresUrl
+        || process.env.DATABASE_URL
+        || "";
+      if (!url) {
+        logger.warn("No PostgreSQL URL configured for checkpoint. Falling back to MemorySaver.");
+        return new MemorySaver();
+      }
+      logger.info("Initializing PostgreSQL checkpointer...");
+      const saver = PostgresSaver.fromConnString(url);
+      await saver.setup();
+      logger.info("PostgreSQL checkpointer ready");
+      return saver;
+    }
+    default:
+      logger.info("Using in-memory MemorySaver (no persistence)");
+      return new MemorySaver();
   }
-  return new MemorySaver();
 }
 
 function extractTextContent(content: unknown): string {
@@ -70,11 +89,17 @@ function extractTextContent(content: unknown): string {
 }
 
 export class AgentRuntime {
-  private checkpointer = createCheckpointer();
+  private checkpointerPromise: Promise<BaseCheckpointSaver>;
+  private _checkpointer: BaseCheckpointSaver | null = null;
   private memoryManager: MemoryManager;
   private skillCrystallizer: SkillCrystallizer;
 
   constructor() {
+    this.checkpointerPromise = createCheckpointer().then((cp) => {
+      this._checkpointer = cp;
+      return cp;
+    });
+
     const defaults = getConfig().agents.defaults;
     const model = getModelForAgent({
       model: defaults.workerModel ?? defaults.model,
@@ -170,7 +195,12 @@ export class AgentRuntime {
     return filtered;
   }
 
-  private buildGraph(
+  private async getCheckpointer(): Promise<BaseCheckpointSaver> {
+    if (this._checkpointer) return this._checkpointer;
+    return this.checkpointerPromise;
+  }
+
+  private async buildGraph(
     agentDef: AgentDefinition,
     threadId: string,
     tenantId: string,
@@ -191,7 +221,8 @@ export class AgentRuntime {
     } else {
       graph = buildAgentGraph(agentDef, model, tools, toolEventCb);
     }
-    return graph.compile({ checkpointer: this.checkpointer });
+    const checkpointer = await this.getCheckpointer();
+    return graph.compile({ checkpointer });
   }
 
   async invokeAgent(
@@ -222,7 +253,7 @@ export class AgentRuntime {
       eventBus.emitAgentStarted(agentName, sessionId);
     }
 
-    const compiled = this.buildGraph(agentDef, tid, tenantId, userId, sessionId, context);
+    const compiled = await this.buildGraph(agentDef, tid, tenantId, userId, sessionId, context);
 
     const longTermMemory = await this.memoryManager.loadLongTermMemory(tenantId, agentName);
     const taskContext = context ? JSON.stringify(context, null, 2) : undefined;
@@ -386,7 +417,7 @@ export class AgentRuntime {
       await workspaceManager.ensureExists(tenantId, userId, sessionId);
     }
 
-    const compiled = this.buildGraph(agentDef, tid, tenantId, userId, sessionId, context);
+    const compiled = await this.buildGraph(agentDef, tid, tenantId, userId, sessionId, context);
 
     const longTermMemory = await this.memoryManager.loadLongTermMemory(tenantId, agentName);
     const taskContext = context ? JSON.stringify(context, null, 2) : undefined;
@@ -541,7 +572,7 @@ export class AgentRuntime {
       },
     };
 
-    const compiled = this.buildGraph(agentDef, tid, tenantId, userId, sessionId || undefined, context, toolEventCb, ctx);
+    const compiled = await this.buildGraph(agentDef, tid, tenantId, userId, sessionId || undefined, context, toolEventCb, ctx);
 
     const longTermMemory = await this.memoryManager.loadLongTermMemory(tenantId, agentName);
     const taskContext = context ? JSON.stringify(context, null, 2) : undefined;

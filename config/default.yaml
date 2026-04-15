@@ -23,6 +23,10 @@ memory:
   consolidation:
     enabled: true
     intervalMs: 86400000
+  checkpoint:
+    store: postgres
+    postgresUrl: ${CHECKPOINT_POSTGRES_URL}
+    maxMessages: 100
 
 llm:
   retry:

@@ -381,6 +381,11 @@ export interface AppConfig {
       enabled: boolean;
       intervalMs: number;
     };
+    checkpoint: {
+      store: "memory" | "postgres";
+      postgresUrl?: string;
+      maxMessages?: number;
+    };
   };
   llm: {
     retry: {

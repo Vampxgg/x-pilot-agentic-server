@@ -24,6 +24,11 @@ const DEFAULT_CONFIG: AppConfig = {
   memory: {
     store: "file",
     consolidation: { enabled: true, intervalMs: 86_400_000 },
+    checkpoint: {
+      store: "postgres",
+      postgresUrl: "",
+      maxMessages: 100,
+    },
   },
   llm: {
     retry: {
@@ -101,6 +106,19 @@ export function loadConfig(configPath?: string): AppConfig {
   if (process.env.PORT) _config.server.port = parseInt(process.env.PORT, 10);
   if (process.env.HOST) _config.server.host = process.env.HOST;
   if (process.env.MEMORY_STORE) _config.memory.store = process.env.MEMORY_STORE as "file" | "postgres";
+
+  if (!_config.memory.checkpoint) {
+    _config.memory.checkpoint = { store: "postgres", postgresUrl: "", maxMessages: 100 };
+  }
+  if (process.env.CHECKPOINT_STORE) {
+    _config.memory.checkpoint.store = process.env.CHECKPOINT_STORE as "memory" | "postgres";
+  }
+  if (process.env.CHECKPOINT_POSTGRES_URL) {
+    _config.memory.checkpoint.postgresUrl = process.env.CHECKPOINT_POSTGRES_URL;
+  }
+  if (process.env.CHECKPOINT_MAX_MESSAGES) {
+    _config.memory.checkpoint.maxMessages = parseInt(process.env.CHECKPOINT_MAX_MESSAGES, 10);
+  }
 
   return _config;
 }
