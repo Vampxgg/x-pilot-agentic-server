@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { readFile, writeFile, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { getTenantId, getUserId } from "../../../src/api/middleware/auth.js";
+import { resolvePublicBaseUrl } from "../../../src/utils/public-url.js";
 import { createStreamWriter, type StreamWriterOptions } from "../../../src/core/stream-writer-factory.js";
 import type { ChatRequest, GenerateRequest, EditRequest, RuntimeErrorReport } from "./types.js";
 
@@ -350,7 +351,7 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
         return reply.send({ fixed: false, reason: "rebuild did not produce output" });
       }
 
-      const url = `/api/files/tutorials/${tutorialDir}/dist/index.html`;
+      const url = `${resolvePublicBaseUrl(request)}/api/files/tutorials/${tutorialDir}/dist/index.html`;
       logger.info(`[runtime-error] Fix applied and rebuilt: ${url}`);
       return reply.send({ fixed: true, url });
     } catch (err) {

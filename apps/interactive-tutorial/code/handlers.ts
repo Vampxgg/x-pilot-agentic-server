@@ -6,6 +6,7 @@ import { promisify } from "node:util";
 import type { PipelineHandlerContext } from "../../../src/core/types.js";
 import { workspaceManager } from "../../../src/core/workspace.js";
 import { logger } from "../../../src/utils/logger.js";
+import { resolvePublicBaseUrl } from "../../../src/utils/public-url.js";
 import { validateAllComponents, removeDeadImports, parseBuildErrors, typeCheckProject } from "./validators.js";
 import { repairFile, groupErrorsByFile, formatBuildErrors } from "./ai-repair.js";
 import type { TutorialMeta, RepairRecord } from "./types.js";
@@ -16,6 +17,10 @@ const TEMPLATE_DIR = resolve(process.cwd(), "..", "react-code-rander");
 const TUTORIALS_DIR = resolve(process.cwd(), "data", "tutorials");
 
 const EXCLUDE_DIRS = new Set(["node_modules", ".git", "dist", "components"]);
+
+function tutorialPublicFileUrl(sessionId: string): string {
+  return `${resolvePublicBaseUrl()}/api/files/tutorials/${sessionId}/dist/index.html`;
+}
 
 function excludeFilter(src: string): boolean {
   const parts = src.replace(/\\/g, "/").split("/");
@@ -536,7 +541,7 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
 
   // 5. Save metadata (optional record — no downstream code depends on this)
   const title = blueprint?.title as string || "互动教材";
-  const url = `/api/files/tutorials/${sessionId}/dist/index.html`;
+  const url = tutorialPublicFileUrl(sessionId);
   const meta: TutorialMeta = {
     tutorialId: sessionId,
     title,
@@ -608,7 +613,7 @@ async function firstAssembly(
   const blueprintRaw = await workspaceManager.readArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json");
   const blueprint = safeParseJSON(blueprintRaw);
   const title = (blueprint?.title as string) || "互动教材";
-  const url = `/api/files/tutorials/${sessionId}/dist/index.html`;
+  const url = tutorialPublicFileUrl(sessionId);
 
   const meta: TutorialMeta = { tutorialId: sessionId, title, url, createdAt: new Date().toISOString() };
   await workspaceManager.writeArtifact(tenantId, userId, sessionId, "artifacts/tutorial-meta.json", JSON.stringify(meta, null, 2));
@@ -654,7 +659,7 @@ export async function reassembleForSession(
     throw new Error(`Rebuild failed: ${buildResult.warnings.join("; ")}`);
   }
 
-  const url = `/api/files/tutorials/${sessionId}/dist/index.html`;
+  const url = tutorialPublicFileUrl(sessionId);
   const blueprintRaw = await workspaceManager.readArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json");
   const blueprint = safeParseJSON(blueprintRaw);
   const title = (blueprint?.title as string) || "互动教材";
