@@ -6,8 +6,7 @@ import { getModelByName } from "../../../src/llm/model-router.js";
 import { getConfig } from "../../../src/utils/config.js";
 import { logger } from "../../../src/utils/logger.js";
 import type { BuildError } from "./types.js";
-
-const TEMPLATE_DIR = resolve(process.cwd(), "..", "react-code-rander");
+import { getTemplateDir } from "./template-dir.js";
 
 const COMPONENT_ALLOWED_IMPORTS = [
   "@/sdk",
@@ -46,7 +45,7 @@ let _sdkExportsCache: string | null = null;
 async function loadSdkExports(): Promise<string> {
   if (_sdkExportsCache) return _sdkExportsCache;
 
-  const indexPath = resolve(TEMPLATE_DIR, "src", "sdk", "index.ts");
+  const indexPath = resolve(getTemplateDir(), "src", "sdk", "index.ts");
   if (!existsSync(indexPath)) {
     _sdkExportsCache = "(SDK exports unavailable)";
     return _sdkExportsCache;

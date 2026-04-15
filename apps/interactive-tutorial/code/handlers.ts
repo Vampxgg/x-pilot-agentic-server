@@ -10,10 +10,10 @@ import { resolvePublicBaseUrl } from "../../../src/utils/public-url.js";
 import { validateAllComponents, removeDeadImports, parseBuildErrors, typeCheckProject } from "./validators.js";
 import { repairFile, groupErrorsByFile, formatBuildErrors } from "./ai-repair.js";
 import type { TutorialMeta, RepairRecord } from "./types.js";
+import { getTemplateDir } from "./template-dir.js";
 
 const execAsync = promisify(exec);
 
-const TEMPLATE_DIR = resolve(process.cwd(), "..", "react-code-rander");
 const TUTORIALS_DIR = resolve(process.cwd(), "data", "tutorials");
 
 const EXCLUDE_DIRS = new Set(["node_modules", ".git", "dist", "components"]);
@@ -111,7 +111,7 @@ async function runBuild(
   try {
     await injectTutorialMeta(sourceDir, meta);
 
-    const viteBin = join(TEMPLATE_DIR, "node_modules", ".bin", "vite.cmd");
+    const viteBin = join(getTemplateDir(), "node_modules", ".bin", "vite.cmd");
     const viteCmd = existsSync(viteBin)
       ? `"${viteBin}" build --outDir "${distDir}" --minify false`
       : `npx vite build --outDir "${distDir}" --minify false`;
@@ -458,7 +458,7 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
 
   // 1. Copy template (exclude node_modules, .git, dist, components)
   mkdirSync(sourceDir, { recursive: true });
-  cpSync(TEMPLATE_DIR, sourceDir, { recursive: true, filter: excludeFilter });
+  cpSync(getTemplateDir(), sourceDir, { recursive: true, filter: excludeFilter });
 
   // Prepare fresh components dir
   const componentsDir = join(sourceDir, "src", "components");
@@ -466,7 +466,7 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
   mkdirSync(componentsDir, { recursive: true });
 
   // 2. Symlink node_modules from template
-  const templateModules = join(TEMPLATE_DIR, "node_modules");
+  const templateModules = join(getTemplateDir(), "node_modules");
   const targetModules = join(sourceDir, "node_modules");
   if (existsSync(templateModules) && !existsSync(targetModules)) {
     try {
@@ -581,13 +581,13 @@ async function firstAssembly(
   logger.info(`[firstAssembly] Building from scratch: session=${sessionId}`);
 
   mkdirSync(sourceDir, { recursive: true });
-  cpSync(TEMPLATE_DIR, sourceDir, { recursive: true, filter: excludeFilter });
+  cpSync(getTemplateDir(), sourceDir, { recursive: true, filter: excludeFilter });
 
   const componentsDir = join(sourceDir, "src", "components");
   if (existsSync(componentsDir)) rmSync(componentsDir, { recursive: true, force: true });
   mkdirSync(componentsDir, { recursive: true });
 
-  const templateModules = join(TEMPLATE_DIR, "node_modules");
+  const templateModules = join(getTemplateDir(), "node_modules");
   const targetModules = join(sourceDir, "node_modules");
   if (existsSync(templateModules) && !existsSync(targetModules)) {
     try {

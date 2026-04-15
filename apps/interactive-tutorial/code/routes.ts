@@ -7,6 +7,7 @@ import { getTenantId, getUserId } from "../../../src/api/middleware/auth.js";
 import { resolvePublicBaseUrl } from "../../../src/utils/public-url.js";
 import { createStreamWriter, type StreamWriterOptions } from "../../../src/core/stream-writer-factory.js";
 import type { ChatRequest, GenerateRequest, EditRequest, RuntimeErrorReport } from "./types.js";
+import { getTemplateDir } from "./template-dir.js";
 
 const DIRECTOR_AGENT = "interactive-tutorial-director";
 
@@ -327,11 +328,9 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
       const { exec: execCb } = await import("node:child_process");
       const { promisify } = await import("node:util");
       const execAsync = promisify(execCb);
-      const TEMPLATE_DIR = resolve(process.cwd(), "..", "react-code-rander");
-
       if (existsSync(distDir)) rmSync(distDir, { recursive: true, force: true });
 
-      const viteBin = join(TEMPLATE_DIR, "node_modules", ".bin", "vite.cmd");
+      const viteBin = join(getTemplateDir(), "node_modules", ".bin", "vite.cmd");
       const viteCmd = existsSync(viteBin)
         ? `"${viteBin}" build --outDir "${distDir}" --minify false`
         : `npx vite build --outDir "${distDir}" --minify false`;

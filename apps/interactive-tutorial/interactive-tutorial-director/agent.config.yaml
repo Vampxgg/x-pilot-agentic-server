@@ -17,6 +17,7 @@ allowedTools:
   - reassemble_app
 metadata:
   domain: interactive-tutorial
+  templateDir: ../react-code-rander
 pipeline:
   steps:
     - name: research

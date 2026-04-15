@@ -5,9 +5,9 @@ import { join, resolve } from "node:path";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
 import type { FileValidationError, BuildError } from "./types.js";
+import { getTemplateDir } from "./template-dir.js";
 
 const execAsync = promisify(exec);
-const TEMPLATE_DIR = resolve(process.cwd(), "..", "react-code-rander");
 
 const COMPONENT_ALLOWED_IMPORTS = [
   '@/sdk',
@@ -238,8 +238,8 @@ export async function typeCheckProject(sourceDir: string): Promise<BuildError[]>
       ? `"${join(sourceDir, "node_modules", ".bin", "tsc.cmd")}"`
       : existsSync(join(sourceDir, "node_modules", ".bin", "tsc"))
         ? `"${join(sourceDir, "node_modules", ".bin", "tsc")}"`
-        : existsSync(join(TEMPLATE_DIR, "node_modules", ".bin", "tsc.cmd"))
-          ? `"${join(TEMPLATE_DIR, "node_modules", ".bin", "tsc.cmd")}"`
+        : existsSync(join(getTemplateDir(), "node_modules", ".bin", "tsc.cmd"))
+          ? `"${join(getTemplateDir(), "node_modules", ".bin", "tsc.cmd")}"`
           : null;
 
     if (!tscCmd) return [];
