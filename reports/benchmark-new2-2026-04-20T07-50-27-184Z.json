@@ -1,0 +1,104 @@
+{
+  "tag": "new2",
+  "startedAt": "2026-04-20T07:46:04.218Z",
+  "finishedAt": "2026-04-20T07:50:27.184Z",
+  "results": [
+    {
+      "topicId": "binary_search",
+      "topic": "二分查找算法可视化",
+      "sessionId": "bench-binary_search-1776671164217",
+      "success": false,
+      "totalMs": 262966,
+      "firstPreviewMs": null,
+      "stepDurations": {},
+      "fanOutCount": null,
+      "fanOutSuccessCount": null,
+      "url": null,
+      "error": "Pipeline step \"assemble\" failed: Build failed: Removed 4 dead import(s) from App.tsx; Build failed with unparseable errors (round 1): vite v5.4.21 building for production...\ntransforming...\n✓ 4593 modules transformed.\nrendering chunks...\n\n\n(!) outDir E:\\Vampxgg\\E2B\\agentic-sever\\x-pilot-agentic-server\\data\\tutorials\\bench-binary_search-1776671164217\\dist is not inside project root and will not be emptied.\nUse --emptyOutDir to override.\n\nx Build failed in 31.86s\nerror during build:\n[vite:build-html] The \"fileName\" or \"name\" properties of emitted chunks and assets must be strings that are neither absolute nor relative paths, rec; Build failed after all repair rounds: vite v5.4.21 building for production...\ntransforming...\n✓ 4593 modules transformed.\nrendering chunks...\n\n\n(!) outDir E:\\Vampxgg\\E2B\\agentic-sever\\x-pilot-agentic-server\\data\\tutorials\\bench-binary_search-1776671164217\\dist is not inside project root and will not be emptied.\nUse --emptyOutDir to override.\n\nx Build failed in 12.82s\nerror during build:\n[vite:build-html] The \"fileName\" or \"name\" properties of emitted chunks and assets must be strings that are neither absolute nor relative paths, rec",
+      "timeline": [
+        {
+          "ts": "2026-04-20T07:46:04.234Z",
+          "stage": "step_started",
+          "phase": "research",
+          "message": "Step \"research\" started"
+        },
+        {
+          "ts": "2026-04-20T07:46:04.245Z",
+          "stage": "cache_hit",
+          "phase": "research",
+          "message": "Research cache hit"
+        },
+        {
+          "ts": "2026-04-20T07:46:04.246Z",
+          "stage": "step_finished",
+          "phase": "research",
+          "message": "Step \"research\" completed",
+          "durationMs": 12
+        },
+        {
+          "ts": "2026-04-20T07:46:04.246Z",
+          "stage": "step_started",
+          "phase": "architect",
+          "message": "Step \"architect\" started"
+        },
+        {
+          "ts": "2026-04-20T07:47:32.656Z",
+          "stage": "step_finished",
+          "phase": "architect",
+          "message": "Step \"architect\" completed",
+          "durationMs": 88410
+        },
+        {
+          "ts": "2026-04-20T07:47:32.656Z",
+          "stage": "step_started",
+          "phase": "save-blueprint",
+          "message": "Step \"save-blueprint\" started"
+        },
+        {
+          "ts": "2026-04-20T07:47:32.657Z",
+          "stage": "step_finished",
+          "phase": "save-blueprint",
+          "message": "Step \"save-blueprint\" completed",
+          "durationMs": 1
+        },
+        {
+          "ts": "2026-04-20T07:47:32.657Z",
+          "stage": "step_started",
+          "phase": "components",
+          "message": "Step \"components\" started"
+        },
+        {
+          "ts": "2026-04-20T07:47:32.657Z",
+          "stage": "step_started",
+          "phase": "app-shell",
+          "message": "Step \"app-shell\" started"
+        },
+        {
+          "ts": "2026-04-20T07:49:40.496Z",
+          "stage": "step_finished",
+          "phase": "app-shell",
+          "message": "Step \"app-shell\" completed",
+          "durationMs": 127839
+        },
+        {
+          "ts": "2026-04-20T07:49:40.497Z",
+          "stage": "step_started",
+          "phase": "assemble",
+          "message": "Step \"assemble\" started"
+        },
+        {
+          "ts": "2026-04-20T07:49:40.498Z",
+          "stage": "prepare",
+          "phase": "assemble",
+          "message": "Preparing build environment"
+        },
+        {
+          "ts": "2026-04-20T07:49:40.567Z",
+          "stage": "build",
+          "phase": "assemble",
+          "message": "Building app with 1 files"
+        }
+      ]
+    }
+  ]
+}

@@ -22,11 +22,45 @@ outputFormat:
         type: string
       components:
         type: array
+        minItems: 3
+        maxItems: 12
         items:
           type: object
           required: [file_name, purpose, sdk_widgets]
+          properties:
+            file_name:
+              type: string
+              pattern: "^[A-Z][A-Za-z0-9]+\\.tsx$"
+              description: "PascalCase 组件文件名（含 .tsx 后缀），整个 components 数组中必须唯一"
+            purpose:
+              type: string
+            sdk_widgets:
+              type: array
+              items:
+                type: string
+            data_points:
+              type: array
+              items:
+                type: string
       teaching_guide:
         type: object
+      layout_intent:
+        type: object
+        description: "可选。给下游 Coder 的布局设计意图，描述本教材应有的叙事节奏、组件关系、视觉身份与信息密度。不给 Tailwind class、不给具体配色十六进制，只描述方向。"
+        properties:
+          narrative:
+            type: string
+            description: "叙事节奏关键词，如 linear / exploratory / comparative / sandbox / story / total-detail-total"
+          relations:
+            type: string
+            description: "components 之间的逻辑关系，如 parallel / progressive / comparative / nested / parameter-space / time-series / spatial"
+          visual_identity:
+            type: string
+            description: "主题情绪关键词与色彩 DNA 方向，如 'deep-space-tech：深蓝+青+霓虹紫点缀' / 'classical-humanities：米白+赭石+墨绿' / 'bio-organic：苔绿+陶土+暖白'"
+          density:
+            type: string
+            enum: [compact, balanced, spacious]
+            description: "信息密度倾向"
 evolution:
   enabled: true
   requireApproval: true

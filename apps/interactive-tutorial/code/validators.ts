@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { readdir } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
@@ -8,6 +8,50 @@ import type { FileValidationError, BuildError } from "./types.js";
 import { getTemplateDir } from "./template-dir.js";
 
 const execAsync = promisify(exec);
+
+/**
+ * Cached set of valid lucide-react named exports (PascalCase), built lazily by
+ * reading the template's node_modules/lucide-react/dynamicIconImports.js and
+ * converting the kebab-case keys to PascalCase. Used to catch typos like
+ * `Road` (not a real icon — should be `Route`) BEFORE vite spends 10s
+ * transforming 4500+ modules just to fail at the rollup link step with a
+ * truncated `"Road" is not exported by ...` error that the parser then
+ * silently dropped.
+ */
+let _lucideIconCache: Set<string> | null = null;
+
+function loadLucideIcons(): Set<string> {
+  if (_lucideIconCache) return _lucideIconCache;
+  const candidates = [
+    join(getTemplateDir(), "node_modules", "lucide-react", "dynamicIconImports.js"),
+  ];
+  const set = new Set<string>();
+  for (const p of candidates) {
+    if (!existsSync(p)) continue;
+    try {
+      const text = readFileSync(p, "utf-8");
+      const re = /"([a-z0-9-]+)":/g;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(text)) !== null) {
+        set.add(kebabToPascal(m[1]!));
+      }
+      // A handful of icons have aliases / extra exports not in the dynamic map;
+      // be conservative and also accept the icon name + "Icon" suffix.
+      const aliases: string[] = [];
+      for (const name of set) aliases.push(`${name}Icon`);
+      for (const a of aliases) set.add(a);
+    } catch {
+      // best-effort: if we can't read the file, skip the check entirely
+      return new Set();
+    }
+  }
+  _lucideIconCache = set;
+  return set;
+}
+
+function kebabToPascal(s: string): string {
+  return s.split("-").map(p => p ? p[0]!.toUpperCase() + p.slice(1) : p).join("");
+}
 
 const COMPONENT_ALLOWED_IMPORTS = [
   '@/sdk',
@@ -54,9 +98,40 @@ export async function validateComponentFile(filePath: string): Promise<string[]>
     }
   }
 
+  errors.push(...validateLucideImports(content));
+
   const brackets = checkBrackets(content);
   if (brackets) errors.push(brackets);
 
+  return errors;
+}
+
+/**
+ * Scan `import { Foo, Bar } from 'lucide-react'` lines and reject any name
+ * that isn't a real lucide icon. Returns [] if the icon set can't be loaded
+ * (e.g. running outside a workspace with the template installed) so we don't
+ * generate false positives during tests.
+ */
+function validateLucideImports(content: string): string[] {
+  const errors: string[] = [];
+  const icons = loadLucideIcons();
+  if (icons.size === 0) return errors;
+  // Match: import {  A, B as C, type D  } from 'lucide-react'
+  const re = /import\s*(?:type\s+)?\{([^}]+)\}\s*from\s*['"]lucide-react['"]/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(content)) !== null) {
+    const names = m[1]!.split(',').map(s => s.trim()).filter(Boolean);
+    const bad: string[] = [];
+    for (const raw of names) {
+      // Strip "type " prefix and "X as Y" alias (only the imported name matters).
+      const cleaned = raw.replace(/^type\s+/, '').split(/\s+as\s+/)[0]!.trim();
+      if (!cleaned) continue;
+      if (!icons.has(cleaned)) bad.push(cleaned);
+    }
+    if (bad.length > 0) {
+      errors.push(`Unknown lucide-react icon(s): ${bad.join(', ')} — check name spelling at lucide.dev/icons`);
+    }
+  }
   return errors;
 }
 
@@ -126,12 +201,14 @@ export async function validateAllComponents(componentsDir: string): Promise<File
 
 /**
  * Remove import lines from App.tsx that reference component files that no longer exist.
- * Returns the number of import lines removed.
+ * Returns both the number of removed import lines AND the total `./components/X`
+ * import lines seen, so the caller can detect "removed === total" (every component
+ * import was dead) and treat that as a hard failure rather than a silent pass.
  */
 export async function removeDeadImports(
   appFilePath: string,
   existingComponentFiles: string[],
-): Promise<number> {
+): Promise<{ removed: number; total: number }> {
   const content = await readFile(appFilePath, 'utf-8');
   const lines = content.split('\n');
 
@@ -140,9 +217,11 @@ export async function removeDeadImports(
   );
 
   let removedCount = 0;
+  let totalCount = 0;
   const newLines = lines.map(line => {
     const importMatch = line.match(/import\s+.*?\s+from\s+['"]\.\/components\/([^'"]+)['"]/);
     if (importMatch) {
+      totalCount++;
       const importedPath = importMatch[1]!.replace(/\.tsx?$/, '');
       if (!existingSet.has(importedPath)) {
         removedCount++;
@@ -156,7 +235,7 @@ export async function removeDeadImports(
     await writeFile(appFilePath, newLines.join('\n'), 'utf-8');
   }
 
-  return removedCount;
+  return { removed: removedCount, total: totalCount };
 }
 
 export function parseBuildErrors(output: string): BuildError[] {
@@ -190,6 +269,43 @@ export function parseBuildErrors(output: string): BuildError[] {
     if (fileMatch) {
       const nextLine = lines[i + 1] || '';
       errors.push({ file: fileMatch[1]!, line: parseInt(fileMatch[2]!, 10), message: nextLine.trim(), type: 'unknown' });
+      continue;
+    }
+
+    // Rollup "X is not exported by Y" — emitted as e.g.
+    //   src/components/Foo.tsx (2:14): "Road" is not exported by "../node_modules/lucide-react/..."
+    // Without this branch, parseBuildErrors returns 0 and buildWithAIRepair
+    // bails out without ever invoking the AI repair path for the most common
+    // failure (icon/symbol typos in lucide-react & friends).
+    const rollupExportMatch = line.match(/^\s*(.+?\.tsx?)\s*\((\d+):\d+\):\s*"([^"]+)"\s+is not exported by\s+"([^"]+)"/);
+    if (rollupExportMatch) {
+      errors.push({
+        file: rollupExportMatch[1]!,
+        line: parseInt(rollupExportMatch[2]!, 10),
+        message: `"${rollupExportMatch[3]}" is not exported by "${rollupExportMatch[4]}"`,
+        type: 'import',
+      });
+      continue;
+    }
+
+    // Generic vite plugin error: [vite:plugin-name] message...
+    // No file/line is available in the line itself; the next 1-3 lines often
+    // carry the body. We surface them as a single 'unknown' error so the
+    // repair loop and the operator at least see the cause instead of an empty
+    // "unparseable" warning.
+    const vitePluginMatch = line.match(/^\s*\[(vite:[^\]]+|plugin\s+[^\]]+)\]\s*(.+)$/);
+    if (vitePluginMatch) {
+      const tail = lines.slice(i + 1, i + 4)
+        .map(l => l.trim())
+        .filter(l => l && !l.startsWith('at '))
+        .join(' ');
+      errors.push({
+        file: '<vite>',
+        line: 0,
+        message: `[${vitePluginMatch[1]}] ${vitePluginMatch[2]} ${tail}`.trim(),
+        type: 'unknown',
+      });
+      continue;
     }
   }
 
