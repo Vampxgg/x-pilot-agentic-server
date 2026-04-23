@@ -64,6 +64,8 @@ export const AgentState = Annotation.Root({
   iteration: Annotation<number>({ reducer: lastValueNum, default: () => 0 }),
   maxIterations: Annotation<number>({ reducer: lastValueNum, default: () => 20 }),
   done: Annotation<boolean>({ reducer: lastValueBool, default: () => false }),
+  /** Tracks consecutive empty-response nudges to cap retries. */
+  emptyResponseRetries: Annotation<number>({ reducer: lastValueNum, default: () => 0 }),
 });
 
 export type AgentGraphState = typeof AgentState.State;
@@ -313,6 +315,29 @@ export function createActNode(tools: StructuredToolInterface[], toolEventCb?: To
   };
 }
 
+/**
+ * Nudge node: injected when the LLM returns an empty response (no tool calls)
+ * on its first attempt(s). Adds a firm reminder message and routes back to
+ * `think` so the model gets another chance to produce tool calls.
+ */
+export function createNudgeNode() {
+  return async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
+    logger.info(`[${state.agentName}] Nudge: reminding agent to use tools (retry ${state.emptyResponseRetries + 1})`);
+
+    const nudgeMessage = new HumanMessage(
+      `[System Reminder] Your previous response was empty or did not include any tool calls. ` +
+      `You have NOT completed your task yet — no files have been written. ` +
+      `You MUST use the tools available to you (e.g. workspace_write) to complete your assigned task. ` +
+      `Re-read your instructions and produce the required output NOW.`,
+    );
+
+    return {
+      messages: [nudgeMessage],
+      emptyResponseRetries: state.emptyResponseRetries + 1,
+    };
+  };
+}
+
 export function createObserveNode() {
   return async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
     const updatedMemory = addMemoryEntry(state.workingMemory, {
@@ -386,7 +411,13 @@ Provide a JSON reflection with: summary, lessonsLearned (array), suggestedImprov
 // Routing Functions
 // ---------------------------------------------------------------------------
 
-export function routeAfterThink(state: AgentGraphState): "act" | "reflect" {
+/**
+ * Max consecutive times we will nudge the LLM to use tools before giving up.
+ * Keeps the loop bounded if the model genuinely cannot produce tool calls.
+ */
+const MAX_EMPTY_RESPONSE_NUDGES = 2;
+
+export function routeAfterThink(state: AgentGraphState): "act" | "nudge" | "reflect" {
   const lastMessage = state.messages[state.messages.length - 1];
 
   if (lastMessage && "tool_calls" in lastMessage) {
@@ -394,6 +425,22 @@ export function routeAfterThink(state: AgentGraphState): "act" | "reflect" {
     if (aiMsg.tool_calls && aiMsg.tool_calls.length > 0) {
       return "act";
     }
+  }
+
+  // If the agent has never called any tool AND we haven't exhausted nudge
+  // retries, send a nudge message instead of ending prematurely.
+  const hasNoWorkDone = state.toolCalls.length === 0 && state.subAgentResults.length === 0;
+  const canNudge =
+    hasNoWorkDone &&
+    state.emptyResponseRetries < MAX_EMPTY_RESPONSE_NUDGES &&
+    state.iteration < state.maxIterations;
+
+  if (canNudge) {
+    logger.warn(
+      `[${state.agentName}] Empty response with no prior tool calls ` +
+      `(nudge ${state.emptyResponseRetries + 1}/${MAX_EMPTY_RESPONSE_NUDGES}), retrying`,
+    );
+    return "nudge";
   }
 
   return "reflect";
@@ -429,11 +476,13 @@ export function buildAgentGraph(
     .addNode("think", createThinkNode(model, tools))
     .addNode("act", createActNode(tools, toolEventCb))
     .addNode("observe", createObserveNode())
+    .addNode("nudge", createNudgeNode())
     .addNode("reflect", createReflectNode(model))
     .addEdge(START, "perceive")
     .addEdge("perceive", "think")
     .addConditionalEdges("think", routeAfterThink)
     .addEdge("act", "observe")
+    .addEdge("nudge", "think")
     .addConditionalEdges("observe", routeAfterObserve)
     .addEdge("reflect", END);
 

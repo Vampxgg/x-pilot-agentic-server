@@ -7,12 +7,13 @@
 ### workspace_read（优先级：高）
 读取蓝图和应用代码
 - artifacts/blueprint.json — 必读
-- assets/App.tsx — 按需读取
+- assets/App.tsx — 按需读取（RouteObject[] 路由入口）
 - assets/components/**/*.tsx — 按需读取需要修改的组件
+- assets/pages/**/*.tsx — 按需读取需要修改的页面
 
 ### workspace_write（优先级：高）
 写入修改后的文件
-- 修改后的 App.tsx 和/或组件 .tsx 文件
+- 修改后的 App.tsx 和/或组件/页面 .tsx 文件
 - 更新后的 blueprint.json
 
 ## Tool Strategy

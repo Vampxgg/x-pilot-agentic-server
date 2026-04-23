@@ -10,7 +10,7 @@ import { workspaceManager } from "../../../src/core/workspace.js";
 import { eventBus } from "../../../src/core/event-bus.js";
 import { logger } from "../../../src/utils/logger.js";
 import { resolvePublicBaseUrl } from "../../../src/utils/public-url.js";
-import { validateAllComponents, removeDeadImports, parseBuildErrors, typeCheckProject } from "./validators.js";
+import { validateAllComponents, removeDeadImports, deInlineComponents, parseBuildErrors, typeCheckProject } from "./validators.js";
 import { repairFile, groupErrorsByFile, formatBuildErrors } from "./ai-repair.js";
 import type { TutorialMeta, RepairRecord } from "./types.js";
 import { getTemplateDir } from "./template-dir.js";
@@ -23,10 +23,7 @@ const TUTORIALS_DIR = resolve(process.cwd(), "data", "tutorials");
 const REPAIR_CONCURRENCY = Number(process.env.TUTORIAL_REPAIR_CONCURRENCY ?? 6);
 
 /** Per-template files that should be junctioned (large, immutable). Junction works on dirs only. */
-// NOTE: template's "script/" dir (sdk-showcase) is intentionally excluded — it's a
-// dev-time SDK component showcase, not part of the generated tutorial bundle.
-// We strip its rollup entry from vite.config.ts in stripScriptEntryFromViteConfig().
-const JUNCTIONED_DIRS = ["public", "src/sdk"] as const;
+const JUNCTIONED_DIRS = ["public"] as const;
 
 /** Top-level template files we always copy fresh (small, may be tweaked per tutorial). */
 const ROOT_TEMPLATE_FILES = [
@@ -37,56 +34,68 @@ const ROOT_TEMPLATE_FILES = [
   "tsconfig.node.json",
   "vite.config.ts",
   "postcss.config.js",
-  "tailwind.config.js",
-  "eslint.config.js",
+  "tailwind.config.ts",
+  "components.json",
   ".gitignore",
 ] as const;
 
 /** Per-tutorial src files we copy from template (small) before overlaying user code. */
-const SRC_TEMPLATE_FILES = ["main.tsx", "index.css", "App.tsx"] as const;
+const SRC_TEMPLATE_FILES = ["main.tsx", "index.css", "vite-env.d.ts"] as const;
+
+/**
+ * Template src directories/files that form the "reserved zone" — they must be
+ * copied into every per-tutorial source tree so AI-generated code can reference
+ * them (e.g. `@/components/ui/button`, `@/lib/utils`). These are never
+ * overwritten by AI-generated files.
+ */
+const TEMPLATE_RESERVED_DIRS = [
+  "src/components/ui",
+  "src/components/layout",
+  "src/components/system",
+  "src/providers",
+  "src/router",
+  "src/runtime",
+  "src/lib",
+  "src/types",
+] as const;
+
+const TEMPLATE_RESERVED_FILES = [
+  "src/components/theme-provider.tsx",
+  "src/components/theme-toggle.tsx",
+  "src/pages/RouteErrorPage.tsx",
+  "src/pages/NotFoundPage.tsx",
+] as const;
 
 function tutorialPublicFileUrl(sessionId: string): string {
   return `${resolvePublicBaseUrl()}/api/files/tutorials/${sessionId}/dist/index.html`;
 }
 
 /**
- * Remove the template's secondary `script/sdk-showcase.html` rollup entry from
- * the per-tutorial vite.config.ts. The showcase is a dev-time SDK demo and must
- * not be built (or even referenced) in generated tutorials, otherwise vite
- * aborts with "Could not resolve entry module" because we no longer junction
- * the script/ dir into the per-tutorial source.
- *
- * Strategy: drop the entire `build.rollupOptions` block. The default vite
- * behaviour (single `index.html` entry) is exactly what tutorials need.
+ * Copy reserved-zone directories and files from the template into the
+ * per-tutorial source tree. These provide the stable runtime shell that
+ * AI-generated code depends on (shadcn/ui components, AppLayout, router, etc.).
  */
-function stripScriptEntryFromViteConfig(sourceDir: string): void {
-  const cfgPath = join(sourceDir, "vite.config.ts");
-  if (!existsSync(cfgPath)) return;
-  const original = readFileSync(cfgPath, "utf-8");
-
-  // Only rewrite if the script entry is actually referenced.
-  if (!original.includes("script/sdk-showcase")) return;
-
-  // Remove the `build: { rollupOptions: { input: { ... } } }` block. The regex
-  // explicitly matches the three nested braces (build → rollupOptions → input)
-  // so we don't accidentally swallow the outer `defineConfig({ ... })` close.
-  const stripped = original.replace(
-    /,?\s*build:\s*\{\s*rollupOptions:\s*\{\s*input:\s*\{[\s\S]*?\}\s*,?\s*\}\s*,?\s*\}\s*,?/m,
-    "",
-  );
-
-  if (stripped === original) {
-    logger.warn(`[stripScriptEntry] vite.config.ts pattern did not match for ${cfgPath} — leaving file untouched`);
-    return;
+function copyReservedZone(template: string, sourceDir: string): void {
+  for (const dir of TEMPLATE_RESERVED_DIRS) {
+    const from = join(template, dir);
+    if (!existsSync(from)) continue;
+    const to = join(sourceDir, dir);
+    mkdirSync(join(to, ".."), { recursive: true });
+    cpSync(from, to, { recursive: true, force: true });
   }
-  writeFileSync(cfgPath, stripped, "utf-8");
+  for (const file of TEMPLATE_RESERVED_FILES) {
+    const from = join(template, file);
+    if (!existsSync(from)) continue;
+    const to = join(sourceDir, file);
+    mkdirSync(join(to, ".."), { recursive: true });
+    cpSync(from, to, { force: true });
+  }
 }
 
 /**
  * Prepare the per-tutorial source dir using junction symlinks for large/immutable
- * directories (node_modules, src/sdk, public) and selective copies for small
- * template files. Avoids the multi-second recursive cp of the entire SDK on
- * every generation.
+ * directories (node_modules, public) and selective copies for small template
+ * files plus the reserved-zone runtime shell.
  *
  * Returns elapsed milliseconds for observability.
  */
@@ -106,11 +115,6 @@ function prepareSourceDir(sourceDir: string): { elapsedMs: number; mode: "juncti
     }
   }
 
-  // 1.5. Drop the template's sdk-showcase rollup entry — the script/ dir is no
-  //      longer junctioned into per-tutorial sources, and including it would
-  //      break vite build with "Could not resolve entry module".
-  stripScriptEntryFromViteConfig(sourceDir);
-
   // 2. Copy small src/* template files (will be overlaid by syncAppFiles later)
   for (const f of SRC_TEMPLATE_FILES) {
     const from = join(template, "src", f);
@@ -118,6 +122,9 @@ function prepareSourceDir(sourceDir: string): { elapsedMs: number; mode: "juncti
       cpSync(from, join(sourceDir, "src", f), { force: true });
     }
   }
+
+  // 2.5. Copy reserved-zone runtime shell (shadcn/ui, layout, router, etc.)
+  copyReservedZone(template, sourceDir);
 
   // 3. Junction big immutable dirs
   for (const dir of JUNCTIONED_DIRS) {
@@ -148,16 +155,6 @@ function prepareSourceDir(sourceDir: string): { elapsedMs: number; mode: "juncti
     }
   }
 
-  // 5. Fresh empty src/components (will be filled by syncAppFiles)
-  const componentsDir = join(sourceDir, "src", "components");
-  if (existsSync(componentsDir)) {
-    const st = statSync(componentsDir);
-    if (st.isDirectory()) {
-      rmSync(componentsDir, { recursive: true, force: true });
-    }
-  }
-  mkdirSync(componentsDir, { recursive: true });
-
   return { elapsedMs: Date.now() - start, mode };
 }
 
@@ -184,45 +181,66 @@ async function syncAppFiles(
   const wsPath = workspaceManager.getPath(tenantId, userId, sessionId);
   const synced: string[] = [];
 
+  /** Unescape string-escaped newlines produced by some LLM outputs. */
+  function unescapeContent(raw: string): string {
+    if (!raw.includes("\n") && raw.includes("\\n")) {
+      return raw.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\r/g, "\r");
+    }
+    return raw;
+  }
+
+  /** Recursively copy .ts/.tsx files from src to dest, tracking synced paths. */
+  async function copyDir(src: string, dest: string, prefix: string): Promise<void> {
+    const entries = await readdir(src, { withFileTypes: true });
+    for (const entry of entries) {
+      const srcPath = join(src, entry.name);
+      const destPath = join(dest, entry.name);
+      if (entry.isDirectory()) {
+        await mkdir(destPath, { recursive: true });
+        await copyDir(srcPath, destPath, prefix);
+      } else if (entry.name.endsWith(".tsx") || entry.name.endsWith(".ts")) {
+        const content = unescapeContent(await readFile(srcPath, "utf-8"));
+        await writeFile(destPath, content, "utf-8");
+        synced.push(prefix + relative(dest, destPath).replace(/\\/g, "/"));
+      }
+    }
+  }
+
   // 1. Sync App.tsx
   const wsAppFile = join(wsPath, "assets", "App.tsx");
   if (existsSync(wsAppFile)) {
-    let content = await readFile(wsAppFile, "utf-8");
-    if (!content.includes("\n") && content.includes("\\n")) {
-      content = content.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\r/g, "\r");
-    }
+    const content = unescapeContent(await readFile(wsAppFile, "utf-8"));
     await writeFile(join(sourceDir, "src", "App.tsx"), content, "utf-8");
     synced.push("App.tsx");
   }
 
-  // 2. Sync components/
+  // 2. Sync components/ — only AI-generated components, preserving reserved zone
   const componentsTarget = join(sourceDir, "src", "components");
-  if (existsSync(componentsTarget)) {
-    rmSync(componentsTarget, { recursive: true, force: true });
-  }
-  mkdirSync(componentsTarget, { recursive: true });
-
   const wsComponents = join(wsPath, "assets", "components");
   if (existsSync(wsComponents)) {
-    async function copyDir(src: string, dest: string): Promise<void> {
-      const entries = await readdir(src, { withFileTypes: true });
-      for (const entry of entries) {
-        const srcPath = join(src, entry.name);
-        const destPath = join(dest, entry.name);
-        if (entry.isDirectory()) {
-          await mkdir(destPath, { recursive: true });
-          await copyDir(srcPath, destPath);
-        } else if (entry.name.endsWith(".tsx") || entry.name.endsWith(".ts")) {
-          let content = await readFile(srcPath, "utf-8");
-          if (!content.includes("\n") && content.includes("\\n")) {
-            content = content.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\r/g, "\r");
-          }
-          await writeFile(destPath, content, "utf-8");
-          synced.push("components/" + relative(componentsTarget, destPath));
-        }
+    await copyDir(wsComponents, componentsTarget, "components/");
+  }
+
+  // 3. Sync pages/ — AI-generated pages (skip reserved pages)
+  const RESERVED_PAGES = new Set(["RouteErrorPage.tsx", "NotFoundPage.tsx"]);
+  const pagesTarget = join(sourceDir, "src", "pages");
+  mkdirSync(pagesTarget, { recursive: true });
+  const wsPages = join(wsPath, "assets", "pages");
+  if (existsSync(wsPages)) {
+    const entries = await readdir(wsPages, { withFileTypes: true });
+    for (const entry of entries) {
+      if (RESERVED_PAGES.has(entry.name)) continue;
+      const srcPath = join(wsPages, entry.name);
+      const destPath = join(pagesTarget, entry.name);
+      if (entry.isDirectory()) {
+        await mkdir(destPath, { recursive: true });
+        await copyDir(srcPath, destPath, "pages/");
+      } else if (entry.name.endsWith(".tsx") || entry.name.endsWith(".ts")) {
+        const content = unescapeContent(await readFile(srcPath, "utf-8"));
+        await writeFile(destPath, content, "utf-8");
+        synced.push("pages/" + entry.name);
       }
     }
-    await copyDir(wsComponents, componentsTarget);
   }
 
   return synced;
@@ -330,61 +348,125 @@ function summarizeBuildOutput(output: string, maxChars: number = 4000): string {
   return "…" + stripped.slice(stripped.length - maxChars).trim();
 }
 
-async function cleanDeadImports(appFile: string, componentsDir: string): Promise<number> {
-  if (!existsSync(appFile) || !existsSync(componentsDir)) return 0;
-  const existing = await collectComponentFiles(componentsDir);
-  const { removed, total } = await removeDeadImports(appFile, existing);
-  // If every single `./components/X` import was dead, refusing to build avoids
-  // shipping an "empty app" where vite happily compiles an App.tsx whose
-  // component slots are all undefined. This is the silent failure mode of
-  // architect-missing → app-shell-hallucinated-imports → cleanDeadImports
-  // commenting out everything → vite success but blank UI at runtime.
-  if (total >= 1 && removed === total) {
-    throw new Error(
-      `[ASSEMBLE ERROR] All ${total} component import(s) in App.tsx point to missing files — ` +
-        `src/components is effectively empty. Refusing to build an app whose component slots ` +
-        `would all be undefined at runtime.`,
-    );
+/**
+ * Clean dead imports from App.tsx and all page files under src/pages/.
+ * Pages may import components that were removed by AI repair; those
+ * dead imports need to be commented out as well.
+ */
+async function cleanDeadImports(appFile: string, sourceDir: string): Promise<number> {
+  const componentsDir = join(sourceDir, "src", "components");
+  const pagesDir = join(sourceDir, "src", "pages");
+  const existingComponents = existsSync(componentsDir)
+    ? await collectComponentFiles(componentsDir)
+    : [];
+  const existingPages = existsSync(pagesDir)
+    ? await collectComponentFiles(pagesDir)
+    : [];
+
+  let totalRemoved = 0;
+
+  // 1. Clean App.tsx
+  if (existsSync(appFile)) {
+    const { removed, total } = await removeDeadImports(appFile, existingComponents, existingPages);
+    if (total >= 1 && removed === total) {
+      throw new Error(
+        `[ASSEMBLE ERROR] All ${total} component/page import(s) in App.tsx point to missing files — ` +
+          `refusing to build an app whose slots would all be undefined at runtime.`,
+      );
+    }
+    totalRemoved += removed;
   }
-  return removed;
+
+  // 2. Clean dead component imports from page files
+  if (existsSync(pagesDir)) {
+    const RESERVED_PAGES = new Set(["RouteErrorPage.tsx", "NotFoundPage.tsx"]);
+    try {
+      const entries = await readdir(pagesDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile() || RESERVED_PAGES.has(entry.name)) continue;
+        if (!entry.name.endsWith(".tsx") && !entry.name.endsWith(".ts")) continue;
+        const pageFile = join(pagesDir, entry.name);
+        const { removed } = await removeDeadImports(pageFile, existingComponents, []);
+        totalRemoved += removed;
+      }
+    } catch { /* ignore readdir errors */ }
+  }
+
+  return totalRemoved;
 }
 
 /**
- * Pre-build structural gate: parse src/App.tsx for `./components/X` imports and
- * verify each one corresponds to an actual file under src/components. Throws
- * `[ASSEMBLE ERROR]` if any reference is missing — this catches the case where
- * blueprint.json was missing, app-shell-coder hallucinated component names, and
- * the components fan-out produced no files. Without this gate cleanDeadImports
- * would silently comment them all out and ship an empty app.
+ * Pre-build structural gate: parse App.tsx and page files for component/page
+ * imports and verify each one corresponds to an actual file. Supports both old
+ * `./components/X` and new `@/components/X`, `@/pages/X` import styles.
+ *
+ * Throws `[ASSEMBLE ERROR]` if any reference is missing — this catches the
+ * case where blueprint.json was missing, the coder hallucinated component
+ * names, or the code step produced no files.
  */
 async function assertAppShellReferencesExist(sourceDir: string): Promise<void> {
-  const appFile = join(sourceDir, "src", "App.tsx");
   const componentsDir = join(sourceDir, "src", "components");
-  if (!existsSync(appFile)) return; // upstream syncedFiles check already errored
+  const pagesDir = join(sourceDir, "src", "pages");
 
-  const appSource = await readFile(appFile, "utf-8");
-  const importRegex = /from\s+['"]\.\/components\/([^'"]+)['"]/g;
-  const referenced = new Set<string>();
-  for (const m of appSource.matchAll(importRegex)) {
-    referenced.add(m[1]!.replace(/\.tsx?$/, ""));
+  const RESERVED_PAGES = new Set(["RouteErrorPage", "NotFoundPage"]);
+
+  async function collectRefsFromFile(filePath: string): Promise<{ components: Set<string>; pages: Set<string> }> {
+    const components = new Set<string>();
+    const pages = new Set<string>();
+    if (!existsSync(filePath)) return { components, pages };
+
+    const source = await readFile(filePath, "utf-8");
+
+    const oldStyleRegex = /from\s+['"]\.\/components\/([^'"]+)['"]/g;
+    for (const m of source.matchAll(oldStyleRegex)) {
+      components.add(m[1]!.replace(/\.tsx?$/, ""));
+    }
+
+    const aliasCompRegex = /from\s+['"]@\/components\/([^'"]+)['"]/g;
+    for (const m of source.matchAll(aliasCompRegex)) {
+      const ref = m[1]!.replace(/\.tsx?$/, "");
+      if (!ref.startsWith("ui/") && !ref.startsWith("layout/") && !ref.startsWith("system/") && !ref.startsWith("theme-")) {
+        components.add(ref);
+      }
+    }
+
+    const aliasPagesRegex = /from\s+['"]@\/pages\/([^'"]+)['"]/g;
+    for (const m of source.matchAll(aliasPagesRegex)) {
+      const ref = m[1]!.replace(/\.tsx?$/, "");
+      if (!RESERVED_PAGES.has(ref)) {
+        pages.add(ref);
+      }
+    }
+
+    return { components, pages };
   }
-  if (referenced.size === 0) return;
 
-  const existingFiles = existsSync(componentsDir)
-    ? await collectComponentFiles(componentsDir)
+  const appFile = join(sourceDir, "src", "App.tsx");
+  const appRefs = await collectRefsFromFile(appFile);
+
+  const existingComponents = existsSync(componentsDir)
+    ? (await collectComponentFiles(componentsDir)).map(f => f.replace(/\.tsx?$/, ""))
     : [];
-  const existingSet = new Set(existingFiles.map(f => f.replace(/\.tsx?$/, "")));
+  const existingPages = existsSync(pagesDir)
+    ? (await collectComponentFiles(pagesDir)).map(f => f.replace(/\.tsx?$/, ""))
+    : [];
+
+  const componentSet = new Set(existingComponents);
+  const pageSet = new Set(existingPages);
 
   const missing: string[] = [];
-  for (const ref of referenced) {
-    if (!existingSet.has(ref)) missing.push(ref);
+  for (const ref of appRefs.components) {
+    if (!componentSet.has(ref)) missing.push(`components/${ref}`);
+  }
+  for (const ref of appRefs.pages) {
+    if (!pageSet.has(ref)) missing.push(`pages/${ref}`);
   }
 
   if (missing.length > 0) {
     throw new Error(
-      `[ASSEMBLE ERROR] App.tsx references ${missing.length} missing component(s): ${missing.join(", ")}. ` +
-        `This usually means the architect blueprint was missing or empty and app-shell-coder ` +
-        `hallucinated component names. Re-run the generation pipeline.`,
+      `[ASSEMBLE ERROR] App.tsx references ${missing.length} missing file(s): ${missing.join(", ")}. ` +
+        `This usually means the architect blueprint was missing or empty and the coder ` +
+        `hallucinated names. Re-run the generation pipeline.`,
     );
   }
 }
@@ -393,6 +475,36 @@ async function assertAppShellReferencesExist(sourceDir: string): Promise<void> {
  * Repair a batch of (file, errors) pairs in parallel with a concurrency cap.
  * Returns the number of files actually repaired plus an updated repairLog.
  */
+/**
+ * Check if a file path belongs to the template reserved zone and should
+ * never be deleted or repaired by the AI repair pipeline.
+ */
+function isReservedZoneFile(filePath: string): boolean {
+  const normalized = filePath.replace(/\\/g, "/");
+  return (
+    normalized.includes("/components/ui/") ||
+    normalized.includes("/components/layout/") ||
+    normalized.includes("/components/system/") ||
+    normalized.includes("/components/theme-provider.tsx") ||
+    normalized.includes("/components/theme-toggle.tsx") ||
+    normalized.includes("/providers/") ||
+    normalized.includes("/router/") ||
+    normalized.includes("/runtime/") ||
+    normalized.includes("/lib/") ||
+    normalized.includes("/types/")
+  );
+}
+
+/**
+ * True if a file is AI-generated user code that can safely be removed
+ * as a fallback when repair fails.
+ */
+function isRemovableUserFile(filePath: string): boolean {
+  if (isReservedZoneFile(filePath)) return false;
+  const normalized = filePath.replace(/\\/g, "/");
+  return normalized.includes("/components/") || normalized.includes("/pages/");
+}
+
 async function repairFilesInParallel(
   grouped: Map<string, ReturnType<typeof parseBuildErrors>>,
   round: number,
@@ -407,6 +519,7 @@ async function repairFilesInParallel(
     Array.from(grouped.entries()).map(([file, errors]) =>
       queue.add(async () => {
         if (!existsSync(file)) return;
+        if (isReservedZoneFile(file)) return;
         const errText = formatBuildErrors(errors);
         try {
           const sourceCode = await readFile(file, "utf-8");
@@ -416,7 +529,7 @@ async function repairFilesInParallel(
             repairLog.push({ round, filePath: file, fixed: true, originalErrors: errText });
             warnings.push(`[${options.tag}] AI repaired: ${file}`);
             repaired++;
-          } else if (options.fallbackRemove && file.includes("components")) {
+          } else if (options.fallbackRemove && isRemovableUserFile(file)) {
             rmSync(file, { force: true });
             repairLog.push({ round, filePath: file, fixed: false, originalErrors: errText });
             warnings.push(`[${options.tag}] AI repair failed, removed: ${file}`);
@@ -426,7 +539,7 @@ async function repairFilesInParallel(
           }
         } catch (err) {
           logger.error(`[buildWithAIRepair] Error during repair of ${file}: ${err}`);
-          if (options.fallbackRemove && file.includes("components")) {
+          if (options.fallbackRemove && isRemovableUserFile(file)) {
             rmSync(file, { force: true });
             warnings.push(`[${options.tag}] Repair error, removed: ${file}`);
           }
@@ -482,20 +595,34 @@ async function buildWithAIRepair(
             }
           }
           if (!repaired) {
-            if (existsSync(ve.file)) rmSync(ve.file, { force: true });
-            repairLog.push({ round: 0, filePath: ve.file, fixed: false, originalErrors: errSummary });
-            warnings.push(`AI repair failed, removed: ${ve.file} — ${errSummary}`);
-            logger.warn(`[buildWithAIRepair] Removed invalid component: ${ve.file}`);
+            if (isRemovableUserFile(ve.file) && existsSync(ve.file)) {
+              rmSync(ve.file, { force: true });
+              repairLog.push({ round: 0, filePath: ve.file, fixed: false, originalErrors: errSummary });
+              warnings.push(`AI repair failed, removed: ${ve.file} — ${errSummary}`);
+              logger.warn(`[buildWithAIRepair] Removed invalid component: ${ve.file}`);
+            } else {
+              repairLog.push({ round: 0, filePath: ve.file, fixed: false, originalErrors: errSummary });
+              warnings.push(`AI repair failed for reserved file: ${ve.file} — ${errSummary} (kept)`);
+            }
           }
         }),
       ),
     );
   }
 
-  // Stage 1.5: Clean dead imports from App.tsx
-  const deadRemoved = await cleanDeadImports(appFile, componentsDir);
+  // Stage 1.5a: Check for inline component definitions (warning-only since single
+  // coder architecture makes this rare; kept for observability)
+  const pagesDir = join(sourceDir, "src", "pages");
+  const deInlined = await deInlineComponents(pagesDir, componentsDir);
+  if (deInlined > 0) {
+    warnings.push(`De-inlined ${deInlined} component(s) from page files (replaced with imports)`);
+    logger.warn(`[buildWithAIRepair] De-inlined ${deInlined} component(s) — single coder should not produce these`);
+  }
+
+  // Stage 1.5b: Clean dead imports from App.tsx and page files
+  const deadRemoved = await cleanDeadImports(appFile, sourceDir);
   if (deadRemoved > 0) {
-    warnings.push(`Removed ${deadRemoved} dead import(s) from App.tsx`);
+    warnings.push(`Removed ${deadRemoved} dead import(s) from App.tsx and page files`);
   }
 
   // Stage 2: Build with AI repair loop. Note: we no longer run tsc as a pre-check
@@ -531,6 +658,13 @@ async function buildWithAIRepair(
     // assembleApp surface a clear "[CONFIG ERROR]" upstream.
     const repairable = buildErrors.filter(e => e.file !== '<vite>' && existsSync(e.file));
     if (repairable.length === 0) {
+      // Before giving up as CONFIG ERROR, check if these are missing-import errors
+      // that can be fixed by cleaning dead imports from page/App files.
+      const deadCleaned = await cleanDeadImports(appFile, sourceDir);
+      if (deadCleaned > 0) {
+        warnings.push(`Cleaned ${deadCleaned} dead import(s) after component removal (round ${round}), retrying...`);
+        continue;
+      }
       warnings.push(
         `[CONFIG ERROR] Build failure looks like a vite/rollup configuration issue, ` +
         `not user-component code (round ${round}). Manual intervention required.\n` +
@@ -547,7 +681,7 @@ async function buildWithAIRepair(
       tag: `Round ${round}`,
     });
 
-    await cleanDeadImports(appFile, componentsDir);
+    await cleanDeadImports(appFile, sourceDir);
 
     if (anyRepaired === 0) {
       warnings.push(`No files repaired in round ${round}, stopping`);
@@ -569,7 +703,7 @@ async function buildWithAIRepair(
         tag: "tsc-fallback",
       });
       if (repaired > 0) {
-        await cleanDeadImports(appFile, componentsDir);
+        await cleanDeadImports(appFile, sourceDir);
       }
     }
   } catch (err) {
@@ -649,7 +783,7 @@ function normalizeBlueprint(blueprint: Record<string, unknown>): { blueprint: Re
 /**
  * Pipeline handler: ensure blueprint.json is valid JSON in workspace.
  * Also normalizes components[].file_name to be unique PascalCase .tsx so that the
- * downstream component fan-out does not collide on file paths.
+ * downstream coder does not collide on file paths.
  */
 export async function saveBlueprint(ctx: PipelineHandlerContext): Promise<unknown> {
   const { tenantId, userId, sessionId } = ctx;
@@ -686,8 +820,7 @@ export async function saveBlueprint(ctx: PipelineHandlerContext): Promise<unknow
   // The most common cause is the architect's ReACT reflection loop falsely
   // declaring `done=true` after only reading research.json, never calling
   // `workspace_write({name: "artifacts/blueprint.json"})`. Returning null here
-  // would silently degrade `components` fan-out to zero instances and let
-  // app-shell-coder hallucinate component imports → empty app at runtime.
+  // would let the coder hallucinate component imports → empty app at runtime.
   // Instead, re-invoke the architect once with an explicit research-context
   // brief; if it still fails, throw [ARCHITECT FAILED] so the director can
   // surface the failure instead of producing a broken tutorial.
@@ -807,7 +940,7 @@ function extractCodeBlocks(text: string): Array<{ filePath: string; code: string
     }
 
     if (!filePath) {
-      if (code.match(/^(?:import|\/\/)[\s\S]*?function\s+App\b/) || code.includes("export default function App")) {
+      if (code.match(/^(?:import|\/\/)[\s\S]*?function\s+App\b/) || code.includes("export default function App") || code.includes("RouteObject[]")) {
         filePath = "App.tsx";
       } else {
         filePath = inferFilePathFromCode(code);
@@ -902,24 +1035,22 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
   const componentsDir = join(sourceDir, "src", "components");
 
   // 3. Fallback: extract code blocks from coder's raw LLM output or pipeline result.
-  //    With the new pipeline (component fan-out + app-shell-coder), workspace files are
-  //    written directly via workspace_write — but we keep this fallback for the legacy
-  //    coder agent and for resilience when fan-out partially fails.
+  //    The single tutorial-coder writes files via workspace_write — but we keep this
+  //    fallback for resilience when the coder partially fails or uses inline code.
   if (syncedFiles.length === 0) {
     logger.warn("[assembleApp] No files in workspace — attempting to extract from coder output");
 
     const candidateTexts: string[] = [];
 
     for (const logFile of [
+      "logs/tutorial-coder-raw-output.txt",
       "logs/tutorial-scene-coder-raw-output.txt",
-      "logs/tutorial-app-shell-coder-raw-output.txt",
-      "logs/tutorial-component-coder-raw-output.txt",
     ]) {
       const raw = await workspaceManager.readArtifact(tenantId, userId, sessionId, logFile);
       if (raw) candidateTexts.push(raw);
     }
 
-    for (const stepName of ["coder", "components", "app-shell"]) {
+    for (const stepName of ["code", "coder"]) {
       const stepRaw = ctx.previousResults.get(stepName);
       if (stepRaw) {
         candidateTexts.push(typeof stepRaw === "string" ? stepRaw : JSON.stringify(stepRaw, null, 2));
@@ -934,6 +1065,12 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
             const appPath = join(sourceDir, "src", "App.tsx");
             await writeFile(appPath, code, "utf-8");
             await workspaceManager.writeArtifact(tenantId, userId, sessionId, "assets/App.tsx", code);
+          } else if (filePath.startsWith("pages/")) {
+            const pagesDir = join(sourceDir, "src", "pages");
+            const fullPath = join(pagesDir, filePath.replace(/^pages\//, ""));
+            await mkdir(join(fullPath, ".."), { recursive: true });
+            await writeFile(fullPath, code, "utf-8");
+            await workspaceManager.writeArtifact(tenantId, userId, sessionId, `assets/${filePath}`, code);
           } else {
             const fullPath = join(componentsDir, filePath.replace(/^components\//, ""));
             await mkdir(join(fullPath, ".."), { recursive: true });
@@ -949,7 +1086,7 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
   }
 
   if (syncedFiles.length === 0) {
-    const coderRaw = ctx.previousResults.get("coder") ?? ctx.previousResults.get("components") ?? ctx.previousResults.get("app-shell");
+    const coderRaw = ctx.previousResults.get("code") ?? ctx.previousResults.get("coder");
     const snippet = coderRaw
       ? (typeof coderRaw === "string" ? coderRaw : JSON.stringify(coderRaw)).slice(0, 300)
       : "(no coder output)";

@@ -17,7 +17,7 @@ allowedTools:
   - reassemble_app
 metadata:
   domain: interactive-tutorial
-  templateDir: ../react-code-rander
+  templateDir: ../template_rander
 pipeline:
   steps:
     - name: research
@@ -35,29 +35,17 @@ pipeline:
     - name: save-blueprint
       handler: saveBlueprint
       dependsOn: [architect]
-    # 组件级 fan-out：把 blueprint 的 components 数组逐项交给单组件 coder 并行生成
-    # 注意 fanOutFrom 指向 save-blueprint（而非 architect），因为 saveBlueprint 做了
-    # workspace artifacts/blueprint.json 优先的三级 fallback，能稳定返回结构化对象；
-    # architect step 的原始 LLM 输出可能只是自然语言总结（当模型选择用 workspace_write 落盘时）。
-    - name: components
-      agent: tutorial-component-coder
-      dependsOn: [save-blueprint]
-      parallel: true
-      fanOutFrom: save-blueprint.components
-      optional: true
-      retry:
-        maxAttempts: 2
-        backoffMs: 3000
-    # App.tsx 骨架：与组件 fan-out 同批并行执行（仅依赖 architect 的 file_name 列表）
-    - name: app-shell
-      agent: tutorial-app-shell-coder
+    # 单一 Coder：读蓝图后串行写入所有文件（App.tsx + pages + components）
+    # 取代原来的 components(fan-out) + app-shell(并行) 两步
+    - name: code
+      agent: tutorial-coder
       dependsOn: [save-blueprint]
       retry:
         maxAttempts: 2
         backoffMs: 3000
     - name: assemble
       handler: assembleApp
-      dependsOn: [components, app-shell]
+      dependsOn: [code]
 evolution:
   enabled: true
   requireApproval: true

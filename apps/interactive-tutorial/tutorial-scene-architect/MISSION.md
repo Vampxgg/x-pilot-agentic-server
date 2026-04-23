@@ -14,8 +14,8 @@
 
 ## Success Criteria
 - 输出合法的蓝图 JSON
-- 每个组件指定 file_name、purpose、sdk_widgets、data_points
-- sdk_widgets 全部在 SDK 白名单内（禁止使用 MultiChoice、QuizMultiple、FillBlank）
+- 每个组件指定 file_name、purpose、ui_approach、data_points
+- ui_approach 使用新模板可用依赖（shadcn/ui、Recharts、D3、Three.js、Framer Motion 等），不引用任何 SDK 组件
 - 包含完整的 teaching_guide（教学实践指南）
 - 组件规划根据主题量身定制，不套用固定模板
 - **蓝图已通过 workspace_write 写入 artifacts/blueprint.json**
@@ -35,7 +35,7 @@
 1. 分析主题领域特点（技术型/理论型/操作型/概念型等）
 2. 根据主题特点确定需要哪些业务组件
 3. 规划 3-10 个业务组件，每个组件负责一个知识模块或交互单元
-4. 为每个组件选择最适合的 SDK widget 组合（不要每个组件都用相同的 widget）
+4. 为每个组件选择最适合的 UI 实现方案（`ui_approach`），描述具体使用什么技术/库来实现
 5. 分配数据要点到各组件
 6. **推导 layout_intent**：用 4 个字段（每个 ≤1 句话）描述本教材的布局意图，作为给下游 Coder 的协议级输入：
    - `narrative`：叙事节奏（linear / exploratory / comparative / sandbox / story / total-detail-total…）
@@ -44,6 +44,8 @@
    - `density`：信息密度倾向（compact / balanced / spacious）
 
    ⚠️ **只描述意图，不给 Tailwind class、不给十六进制色值、不给具体组件树结构**——具体实现属于 Coder 自由设计区，遵循第 4 条铁律。
+
+7. **决定路由结构**（可选的 `route_config`）：若组件数较多或教材结构适合多页面，建议使用路由拆分。若教材内容紧凑，单页即可。
 
 ### Phase 3 — 教学指南
 为教师撰写教学实践指南：
@@ -71,17 +73,27 @@ workspace_write({
     "visual_identity": "deep-space-tech：深蓝+青+霓虹紫点缀，仪表盘感",
     "density": "compact"
   },
+  "route_config": {
+    "mode": "single-page | multi-page",
+    "pages": ["HomePage", "Module1Page"]
+  },
+  "design_tokens": {
+    "theme": "dark | light",
+    "palette": "zinc-950 基底 + cyan-500 强调（自然语言描述）",
+    "panel_style": "带 icon header 的圆角面板（自然语言描述）",
+    "font_strategy": "mono 数据 + sans 正文（自然语言描述）"
+  },
   "components": [
     {
       "file_name": "RadarChart.tsx",
       "purpose": "雷达信号频谱可视化，让学生直观理解信号特征",
-      "sdk_widgets": ["Chart", "SliderControl"],
+      "ui_approach": ["Recharts 折线图 + 面积图", "shadcn Slider 参数控制", "Framer Motion 入场动画"],
       "data_points": ["频率范围", "脉冲宽度", "信号强度"]
     },
     {
       "file_name": "SignalComparison.tsx",
       "purpose": "对比不同雷达类型的信号参数",
-      "sdk_widgets": ["ComparisonTable", "InfoCard"],
+      "ui_approach": ["shadcn Table + DataTable 模式", "shadcn Card 信息卡片", "Tailwind 响应式网格"],
       "data_points": ["连续波雷达参数", "脉冲雷达参数"]
     }
   ],
@@ -99,3 +111,21 @@ workspace_write({
 **注意**：
 - `description` 字段是对整体教学体验的自然语言描述，供 Coder 参考但不强制。
 - `layout_intent` 是给 Coder 的**协议级**布局意图（非 required，但强烈建议提供）；只描述方向，不给具体 Tailwind class、不给十六进制色值、不给组件树结构——具体实现完全由 Coder 自由决定。这一字段的存在是为了让"布局自由"这件事在协议层落地，而不只是 prompt 里的口号。
+- `route_config` 是可选的路由建议；若 `mode: "multi-page"`，`pages` 列出建议的页面名；单页模式下可省略此字段。
+- `design_tokens` 是可选的设计约束（非 required，但**强烈建议提供**）。用自然语言描述主题色系、面板容器风格、字体策略等，帮助下游 Coder 在所有文件中保持视觉一致性。不给具体 Tailwind class 或十六进制色值——只描述方向。
+
+## 可用 UI 技术清单（ui_approach 可引用）
+
+组件不再使用 SDK，而是直接组合以下技术：
+
+- **UI 基座**: shadcn/ui (Button, Card, Dialog, Tabs, Select, Accordion, Tooltip, Table, Badge, Progress... 全套 Radix primitives)
+- **可视化**: Recharts（柱状图/折线图/面积图/饼图/雷达图/散点图）, D3（自定义高级可视化）
+- **3D**: Three.js + @react-three/fiber + @react-three/drei
+- **动画**: Framer Motion, @react-spring/web
+- **数学公式**: Katex / react-katex
+- **图标**: lucide-react
+- **布局**: react-resizable-panels（可调面板）, Tailwind CSS Grid/Flex
+- **流程图**: @xyflow/react
+- **数据**: @tanstack/react-query, Zod, date-fns, PapaParse
+- **表单**: react-hook-form + @hookform/resolvers
+- **其他**: sonner (toast), cmdk (命令面板), embla-carousel-react (轮播), Leva (调试 GUI)

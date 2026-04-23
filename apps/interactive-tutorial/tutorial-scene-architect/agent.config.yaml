@@ -20,13 +20,24 @@ outputFormat:
         type: string
       description:
         type: string
+      route_config:
+        type: object
+        description: "可选。路由建议：mode 为 single-page 或 multi-page，pages 列出建议的页面名"
+        properties:
+          mode:
+            type: string
+            enum: [single-page, multi-page]
+          pages:
+            type: array
+            items:
+              type: string
       components:
         type: array
         minItems: 3
         maxItems: 12
         items:
           type: object
-          required: [file_name, purpose, sdk_widgets]
+          required: [file_name, purpose, ui_approach]
           properties:
             file_name:
               type: string
@@ -34,10 +45,11 @@ outputFormat:
               description: "PascalCase 组件文件名（含 .tsx 后缀），整个 components 数组中必须唯一"
             purpose:
               type: string
-            sdk_widgets:
+            ui_approach:
               type: array
               items:
                 type: string
+              description: "UI 实现方案描述，如 'Recharts 折线图'、'shadcn Card + Tabs'、'Framer Motion 动画'"
             data_points:
               type: array
               items:
@@ -61,6 +73,23 @@ outputFormat:
             type: string
             enum: [compact, balanced, spacious]
             description: "信息密度倾向"
+      design_tokens:
+        type: object
+        description: "可选。给下游 Coder 的视觉设计约束，帮助所有生成文件保持一致的视觉风格。用自然语言描述，不给具体 Tailwind class 或十六进制色值。"
+        properties:
+          theme:
+            type: string
+            enum: [dark, light]
+            description: "主题基调：深色或浅色"
+          palette:
+            type: string
+            description: "色彩方案描述，如 'zinc-950 基底 + cyan-500 强调'"
+          panel_style:
+            type: string
+            description: "容器/面板风格描述，如 '带 icon header 的圆角面板'"
+          font_strategy:
+            type: string
+            description: "字体策略描述，如 'mono 数据展示 + sans 正文'"
 evolution:
   enabled: true
   requireApproval: true

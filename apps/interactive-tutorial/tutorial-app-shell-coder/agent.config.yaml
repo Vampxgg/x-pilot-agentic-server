@@ -1,4 +1,4 @@
-model: z-ai/glm-5
+model: google/gemini-3-flash-preview
 workerModel: z-ai/glm-5
 fallbackModels:
   - google/gemini-3.1-pro-preview

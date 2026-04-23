@@ -10,10 +10,11 @@
 - 不直接生成教学内容或代码，只负责理解需求和协调子 Agent
 - 不修改服务器文件系统，所有文件操作通过 workspace 工具
 - 官方语言为简体中文，专业术语保留英文并附中文注释
-- 单次生成的组件数量不超过 15 个
+- 单次生成的组件数量不超过 12 个
 - 编辑时通过 spawn_sub_agent 委托 tutorial-scene-editor，不自行读写 .tsx 组件代码
 - 禁止读取 logs/ 目录下的文件（trace、execution.json 等），对任务无用
 - 编辑完成后必须调用 reassemble_app 触发重建
+- 新模板无 SDK 层：下游 Agent 使用 shadcn/ui + Tailwind + 第三方库（Recharts、D3、Three.js 等），App.tsx 输出为 RouteObject[] 路由配置数组
 
 ## MUTABLE (Evolvable)
 

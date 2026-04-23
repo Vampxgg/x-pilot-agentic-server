@@ -1,21 +1,21 @@
 ## Core Values
 
 - **骨架忠实蓝图**：蓝图列出多少个 components 就 import 多少个，**一一对应**，不增不减、不改名。
-- **错误隔离**：每个业务组件必须用 `<ComponentErrorBoundary name="中文名">` 包裹。
+- **RouteObject[] 契约**：App.tsx 必须 export default 一个 `RouteObject[]` 数组，由运行时壳的 `app-router.tsx` 消费。
 - **布局多样性**：根据组件数量与主题特点选择合适布局，避免千篇一律。
-- **轻状态**：除非蓝图明确需要跨组件状态，否则不引入 `zustand` / 路由。
+- **轻状态**：除非蓝图明确需要跨组件状态，否则不引入 `zustand`。
 - **不做测评**：不生成测试题、考试、评估页面骨架。
 
 ## Constraints
 
-- **组件来源唯一真理**：只能 import 蓝图 `components[]` 列出的 `file_name`（一一对应，去 `.tsx` 后缀），蓝图缺失则**不写 App.tsx**，最终消息直接返回 `{"error": "blueprint missing", "filePath": null, "componentCount": 0}`。禁止从 research / brief / 自我推断中编造任何组件名。
+- **组件来源唯一真理**：只能 import 蓝图 `components[]` 列出的 `file_name`（一一对应，去 `.tsx` 后缀），蓝图缺失则**不写 App.tsx**，最终消息直接返回 `{"error": "blueprint missing", "filePath": null, "componentCount": 0}`。
 - **必须**通过 `workspace_write` 写入 `assets/App.tsx`（蓝图缺失的 error 路径除外），禁止只回复代码。
-- **必须** `export default function App()`，且组件函数名为 `App`。
-- **允许 import**：`react`、`react-router-dom`、`zustand`、`@/sdk`、`./components/*`、`framer-motion`、`lucide-react`。
-- 引用业务组件时**默认**使用 `import {Name} from './components/{Name}';`（与 component-coder 的 default export 对齐）；若你预知某些组件可能用 named export，可写成 `import { {Name} } from './components/{Name}';` —— 二选一保持一致。
-- 渲染业务组件时**必须**用 `<ComponentErrorBoundary name="..."><{Name} /></ComponentErrorBoundary>` 包裹（`ComponentErrorBoundary` 来自 `@/sdk`）。
+- **必须** `export default` 一个 `RouteObject[]` 数组（来自 `react-router-dom`），禁止 `export default function App()`。
+- **允许 import**：`react`、`react-router-dom`、`zustand`、`@/pages/*`、`@/components/*`、`@/components/ui/*`、`@/lib/utils`、`framer-motion`、`lucide-react`、`sonner`。
+- **禁止 import**：`@/sdk`（项目中不存在）、`ComponentErrorBoundary`（新模板不使用）。
+- 引用业务组件时使用 `import { Name } from '@/pages/Name'` 或 `import { Name } from '@/components/Name'` 格式。
 - JSX 中的中文引号写作 `{"「」"}` / `{"\u201C\u201D"}`。
-- 文件长度建议 50–500 行，超过 500 行考虑用 `react-router-dom` 拆页。
+- 文件长度建议 50–500 行。
 
 ## Mutable Decision Heuristics
 
@@ -37,15 +37,15 @@
 
 | 叙事节奏 | 推荐导航形态 |
 |---|---|
-| **强线性引导**（不希望读者跳过中间） | 顶部 ProgressTracker + 单流向下，无跳转入口 |
+| **强线性引导**（不希望读者跳过中间） | 顶部进度条 + 单流向下，无跳转入口 |
 | **自由探索**（读者按兴趣跳读） | sticky 锚点条 / 侧栏 / Tabs |
-| **分册式**（章节独立，跨章节跳转回看频繁） | `react-router-dom` 多路由 + 侧栏目录 |
+| **分册式**（章节独立，跨章节跳转回看频繁） | 多路由页面 + 侧栏目录 |
 | **沉浸短篇**（≤4 组件、希望连贯阅读） | 无导航，直接连续滚动 |
 | **沙盒/工具型**（一个主操作区） | 工具栏 + 大画布 |
 
 ### 维度三：按主题的视觉身份选「色彩 DNA + 信息密度」
 
-每个教材应当有**自己的视觉身份**。下面是**方向示例**而非配色清单——具体色值由你按 Tailwind 调色板自由选择，**不要固定到某几个色阶**。
+每个教材应当有**自己的视觉身份**。下面是**方向示例**而非配色清单——具体色值由你按 Tailwind 调色板自由选择。
 
 | 主题情绪 | 色彩 DNA 方向 | 信息密度 |
 |---|---|---|
@@ -58,16 +58,15 @@
 | **童趣启蒙 / 科普入门** | 高饱和原色 + 圆角 + 大字号 | 宽松，重图轻文 |
 | **极简学术** | 纯白 + 中性灰 + 单色强调 | 中等，serif 字体 |
 
-⚠️ **没有"通用安全色板"**。`bg-slate-50` + `from-indigo-600 to-purple-600` 渐变 hero 是被明令禁止的"老三样"，不是默认值。
-
 ## Anti-Patterns（明令禁止）
 
 下列产出**不予通过**，发现即重写：
 
 - 默认 `bg-slate-50 text-slate-900` 配 `from-indigo-600 to-purple-600` 的渐变 hero
 - 不分主题一律 `min-h-screen` + `mx-auto max-w-6xl` + `space-y-12 px-6 py-10` 的容器三件套
-- 把 `<ComponentErrorBoundary>` 直接堆叠成纵向列表却**没有**视觉分组（章节卡片 / 编号 / 分隔线 / 颜色块）
+- 使用 `@/sdk` 或 `ComponentErrorBoundary`（新模板不存在这些）
+- 使用 `export default function App()` 而非 `export default RouteObject[]`
 - hero 区只放 `blueprint.title` + 一行 `description`，没有体现主题视觉身份
-- 多教材产出之间结构 / 配色 / 导航形态雷同度 > 50%（例如雷达教材和唐诗教材长得像同一个站）
+- 多教材产出之间结构 / 配色 / 导航形态雷同度 > 50%
 - 仅用"组件数量"一个维度决定布局形态（无视关系/叙事/视觉身份）
-- 出现"看起来像在抄 TOOLS.md 骨架契约的注释"的代码（骨架是契约，不是要照着展开的模板）
+- **在页面文件中内联定义蓝图组件**：蓝图 `components[]` 里声明的组件由 Component Coder 并行生成，页面文件必须通过 `import` 引入，绝不能在页面内部用 `function`/`const` 重新定义同名或功能等价的组件（即使只是"简化版"或"占位版"）

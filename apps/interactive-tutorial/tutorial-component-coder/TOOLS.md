@@ -30,66 +30,81 @@ workspace_write({
 
 ---
 
-## SDK 组件 API 参考（必须严格遵循）
+## 可用依赖速查表
 
-下表列出常用 SDK 组件，详细 props 见父项目 `tutorial-scene-coder/TOOLS.md`。本 Agent 遵循同样的 API 约定。
+新模板不使用 SDK，而是直接使用 shadcn/ui + Tailwind + 第三方库。以下是可用依赖清单：
 
-### 信息呈现类
+### UI 基础（shadcn/ui — 从 `@/components/ui/{name}` 导入）
 
-- `<InfoCard title description icon? variant? collapsible? />`
-- `<BulletPoints title? ordered? items={[{text, detail?}]} />`
-- `<StepGuide steps={[{label, content}]} onStepChange? />` — 注意 `label` 不是 `title`
-- `<Callout type="tip|warning|note|important" title?>{...}</Callout>`
-- `<KeyTakeaway variant? title? points={[...]} />`
-- `<LearningObjectives title? objectives={[{text, completed?}]} onToggle? />`
-- `<StatCard label value unit? trend? icon? />`
-- `<ProgressTracker label current total variant? />`
+- `Button` — `import { Button } from '@/components/ui/button'`
+- `Card, CardHeader, CardTitle, CardContent, CardFooter` — `import { Card, ... } from '@/components/ui/card'`
+- `Tabs, TabsList, TabsTrigger, TabsContent` — `import { Tabs, ... } from '@/components/ui/tabs'`
+- `Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle` — `import { Dialog, ... } from '@/components/ui/dialog'`
+- `Select, SelectTrigger, SelectValue, SelectContent, SelectItem` — `import { Select, ... } from '@/components/ui/select'`
+- `Accordion, AccordionItem, AccordionTrigger, AccordionContent`
+- `Table, TableHeader, TableBody, TableRow, TableHead, TableCell`
+- `Badge`, `Progress`, `Slider`, `Switch`, `Checkbox`, `Input`, `Textarea`
+- `Tooltip, TooltipTrigger, TooltipContent, TooltipProvider`
+- `Sheet, SheetTrigger, SheetContent` — 侧边抽屉
+- `Alert, AlertTitle, AlertDescription`
+- `Separator`, `Label`, `ScrollArea`
+- 以及其他所有 shadcn/ui 组件...
 
-### 数据可视化类
+### 工具函数
 
-- `<Chart title? chartType="bar|line|area|pie|gauge|radar|scatter" data={...} />`
-- `<DataTable title? columns rows striped? highlightRow? sortable? />`
-- `<ComparisonTable title? subjects features={[{name, values}]} />`
-- `<Timeline events={[{date, title, description}]} />`
-- `<FormulaBlock formula label? description? />`
+- `import { cn } from '@/lib/utils'` — className 合并（clsx + tailwind-merge）
 
-### 交互类
+### 可视化
 
-- `<SliderControl label min max step defaultValue unit? onChange />`
-- `<ParameterExplorer title parameters={[...]} compute={(p)=>ReactNode} />`
-- `<DragSort items correctOrder question onComplete />`
-- `<MatchingPairs pairs question onComplete />`
-- `<ClickReveal title hiddenContent />` — 注意 `title` / `hiddenContent`
-- `<ToggleReveal label onContent />`
-- `<Hotspot src alt hotspots={[{id, x, y, label, description}]} />`
-- `<ImageAnnotated src alt annotations={[...]} />`
-- `<BeforeAfter mode? before after />`
+- `Recharts` — `import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, BarChart, Bar, PieChart, Pie, RadarChart, Radar, AreaChart, Area, ScatterChart, Scatter } from 'recharts'`
+- `D3` — `import * as d3 from 'd3'`（适用于自定义 SVG 可视化）
 
-### 代码 / 终端 / 公式
+### 3D
 
-- `<CodeBlock code language? title? showLineNumbers? files? />`
-- `<CodePlayground initialCode? language? readOnly? onRun? />`
-- `<TerminalSimulator commands welcomeMessage? prompt? />`
+- `Three.js` — `import * as THREE from 'three'`
+- `@react-three/fiber` — `import { Canvas } from '@react-three/fiber'`
+- `@react-three/drei` — `import { OrbitControls, Text, ... } from '@react-three/drei'`
 
-### 高阶（要合理使用）
+### 动画
 
-- `<Flowchart nodes edges />` — 节点 `type: start|process|decision|end`
-- `<Mindmap center branches />`
-- `<Scene3D title? cameraPosition? orbitControls? background?>{three.js children}</Scene3D>`
-- `<PhysicsCanvas width? height? setup={(engine, world)=>void} />` — 需要 `import Matter from 'matter-js'`
-- `<VirtualInstrument type value unit range label />` — 需 `import { VirtualInstrument } from '@/sdk/simulation/VirtualInstrument'`
-- `<CircuitDiagram components connections />` — 需 `import { CircuitDiagram } from '@/sdk/simulation/CircuitDiagram'`
+- `Framer Motion` — `import { motion, AnimatePresence } from 'framer-motion'`
+- `@react-spring/web` — `import { useSpring, animated } from '@react-spring/web'`
 
-## Import 模板
+### 数学公式
+
+- `Katex` — `import katex from 'katex'` 或 `import 'katex/dist/katex.min.css'; import { InlineMath, BlockMath } from 'react-katex'`
+
+### 图标
+
+- `lucide-react` — `import { ArrowRight, ChevronDown, ... } from 'lucide-react'`
+
+### 流程图
+
+- `@xyflow/react` — `import { ReactFlow, ... } from '@xyflow/react'`
+
+### 其他
+
+- `react-resizable-panels` — 可调面板
+- `react-hook-form` + `@hookform/resolvers` + `zod` — 表单
+- `sonner` — toast 通知
+- `date-fns` — 日期工具
+- `papaparse` — CSV 解析
+- `embla-carousel-react` — 轮播
+- `leva` — 调试 GUI 面板
+
+## Import 规范
 
 文件头部模板（按需裁剪）：
 
 ```tsx
-import { InfoCard, Chart, /* ...其他 sdk widget */ } from '@/sdk';
 import { useState } from 'react';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 // 可选第三方：
+// import { LineChart, Line, XAxis, YAxis } from 'recharts';
 // import { motion } from 'framer-motion';
-// import { Bolt, Cpu } from 'lucide-react';
+// import { ArrowRight, Cpu } from 'lucide-react';
 ```
 
 **禁止**：
@@ -97,5 +112,5 @@ import { useState } from 'react';
 ```tsx
 import OtherComponent from './OtherComponent';        // ❌ 组件互引
 import { Foo } from '../components/Foo';              // ❌ 同上
-import x from '../sdk';                                // ❌ 用 '@/sdk'
+import { InfoCard } from '@/sdk';                     // ❌ SDK 不存在
 ```

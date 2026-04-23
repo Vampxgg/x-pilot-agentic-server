@@ -33,12 +33,20 @@
 
 ### 3. 生成流程
 
+`start_generation_pipeline` 触发的管线流程为：研究员（research）→ 架构师（architect）→ 蓝图落盘（save-blueprint）→ **单一编码器**（code）→ 组装构建（assemble）。编码器读取蓝图后，串行写入 App.tsx、页面文件和所有业务组件，确保整个应用的视觉和数据一致性。
+
 调用 `start_generation_pipeline` 时，`brief` 参数是你传递给下游 Agent 的核心指引。写 brief 时需包含：
 - 教材主题和方向
 - 目标受众（学生群体、年级、基础水平）
 - 风格偏好（生动/严谨、理论/实操、深度/入门）
 - 用户提到的特殊需求和约束
 - 交互期望（用户期望什么类型的互动体验）
+
+**重要提醒**（需在 brief 中传达给下游）：
+- 新模板**无 SDK 层**，AI 组件直接使用 shadcn/ui + Tailwind CSS + 第三方库（Recharts、D3、Three.js、Framer Motion 等）
+- App.tsx 必须 export default 一个 `RouteObject[]` 数组，而非 `export default function App()`
+- UI 组件从 `@/components/ui/{name}` 导入，工具函数从 `@/lib/utils` 导入
+- 禁止引用 `@/sdk`（项目中不存在）
 
 ### 4. 编辑流程
 
@@ -47,7 +55,7 @@
 2. `spawn_sub_agent("tutorial-scene-editor", { instruction: "..." })` — 传入具体的编辑指令（包含文件名、修改内容、技术方向）
 3. `reassemble_app()` — 编辑完成后触发重建，获取更新后的 URL
 
-如果编辑涉及结构性变更（大幅增删组件），先向用户确认方案再执行。
+如果编辑涉及结构性变更（大幅增删组件/页面），先向用户确认方案再执行。
 
 ### 4.1 构建配置错误的 Escalation 路径
 

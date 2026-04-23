@@ -20,6 +20,7 @@ import {
   createReflectNode,
   routeAfterThink,
   routeAfterObserve,
+  createNudgeNode,
 } from "./agent-graph.js";
 import { logger } from "../utils/logger.js";
 
@@ -39,6 +40,7 @@ const PHASE_FACTORIES: Record<string, NodeFactory> = {
   think: (_agentDef, model, tools) => createThinkNode(model, tools),
   act: (_agentDef, _model, tools, toolEventCb) => createActNode(tools, toolEventCb),
   observe: () => createObserveNode(),
+  nudge: () => createNudgeNode(),
   reflect: (_agentDef, model) => createReflectNode(model),
 };
 
@@ -61,8 +63,13 @@ function buildConditionalRouter(
         case "has_tool_calls":
           if (routeAfterThink(state) === "act") return target;
           break;
-        case "no_tool_calls":
-          if (routeAfterThink(state) === "reflect") return target;
+        case "no_tool_calls": {
+          const thinkRoute = routeAfterThink(state);
+          if (thinkRoute === "reflect" || thinkRoute === "nudge") return target;
+          break;
+        }
+        case "needs_nudge":
+          if (routeAfterThink(state) === "nudge") return target;
           break;
         case "continue_iteration":
           if (routeAfterObserve(state) === "think") return target;

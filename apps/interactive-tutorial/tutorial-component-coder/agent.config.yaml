@@ -1,4 +1,4 @@
-model: qwen/qwen3.6-plus
+model: google/gemini-3-flash-preview
 workerModel: qwen/qwen3.6-plus
 fallbackModels:
   - google/gemini-3.1-pro-preview

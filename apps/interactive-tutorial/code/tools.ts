@@ -33,7 +33,7 @@ export function createReassembleAppTool(
     {
       name: "reassemble_app",
       description:
-        "编辑完成后重建教材应用。同步 workspace 中的 App.tsx 和 components/ 到构建目录，" +
+        "编辑完成后重建教材应用。同步 workspace 中的 App.tsx、components/ 和 pages/ 到构建目录，" +
         "运行 Vite 生产构建，更新 tutorial-meta.json。" +
         "返回更新后的教材预览 URL。在所有文件编辑完成后调用。",
       schema: z.object({}),

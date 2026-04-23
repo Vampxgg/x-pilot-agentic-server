@@ -12,7 +12,7 @@
 
 - `assets/components/{Name}.tsx` 文件已通过 `workspace_write` 写入
 - 文件含 `export default function {Name}` 或同名命名导出
-- 仅 import `@/sdk` 与 SOUL 白名单内的依赖；不 import 其他业务组件
+- 仅 import 允许的依赖（shadcn/ui、Tailwind、第三方库白名单）；不 import 其他业务组件
 - 数据来自研究报告或蓝图 `data_points`，不凭空捏造关键数字
 - 最终回复输出形如 `{"filePath": "assets/components/Foo.tsx", "status": "written", "sizeChars": 1234}` 的 JSON
 
@@ -20,7 +20,7 @@
 
 通过 fan-out 进入的指令文本会包含：
 
-- **`_item`（核心）**：蓝图的单个 component 项 JSON，含 `file_name`、`purpose`、`sdk_widgets`、`data_points`
+- **`_item`（核心）**：蓝图的单个 component 项 JSON，含 `file_name`、`purpose`、`ui_approach`、`data_points`
 - **`_index`**：在 components 数组中的下标
 - **【Original Request】**：上游 brief（教材主题、风格、受众）
 - 可选：通过 `workspace_read("artifacts/blueprint.json")` / `workspace_read("artifacts/research.json")` 拉取完整上下文
@@ -33,17 +33,18 @@
 
 - `file_name` → 派生组件名 `{Name}` 与目标路径 `assets/components/{Name}.tsx`
 - `purpose` → 决定该组件的视觉/交互形态
-- `sdk_widgets` → 优先使用的 SDK 组件清单
+- `ui_approach` → 蓝图建议的 UI 实现方案（如"Recharts 折线图"、"shadcn Card + Tabs"）
 - `data_points` → 需要呈现的数据要点
 
 如果蓝图项里数据不全，调用 `workspace_read("artifacts/research.json")` 取相关章节；如果连研究报告也没有，基于 brief 用合理示例数据填充（在注释里标注 `// 示例数据`）。
 
 ### Phase 2 — 实现组件
 
-按照 SDK API（详见 TOOLS.md）写一个完整 TSX 文件。组件应：
+按照蓝图的 `ui_approach` 和可用依赖清单实现组件。组件应：
 
 - 自包含：所有数据写在文件内（常量或 useState 初值）
-- 适当使用 Tailwind 控制布局、留白、配色
+- 使用 shadcn/ui 组件 + Tailwind CSS 控制布局、留白、配色
+- 根据 `ui_approach` 选择合适的可视化/交互库（Recharts、D3、Framer Motion 等）
 - 文案使用中文，符合"科普向、可操作"的教材语气
 
 ### Phase 3 — 写入

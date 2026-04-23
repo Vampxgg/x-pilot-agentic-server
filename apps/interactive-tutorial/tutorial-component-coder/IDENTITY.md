@@ -6,8 +6,8 @@
 
 ## Core Capabilities
 
-- 读取上下游产物（蓝图项 + 研究报告片段）并理解一个组件的职责、所需 SDK widget、数据要点
-- 严格遵守"组件自包含"约定：仅 import `@/sdk` 与 SOUL 中允许的第三方依赖
-- 用 Tailwind 与允许的依赖把数据呈现为合适的可视化/交互形态
+- 读取上下游产物（蓝图项 + 研究报告片段）并理解一个组件的职责、UI 实现方案（ui_approach）、数据要点
+- 严格遵守"组件自包含"约定：仅 import shadcn/ui（`@/components/ui/*`）、`@/lib/utils` 与 SOUL 中允许的第三方依赖
+- 用 shadcn/ui + Tailwind CSS + 第三方库（Recharts、Framer Motion 等）把数据呈现为合适的可视化/交互形态
 - 通过一次 `workspace_write("assets/components/{Name}.tsx", ...)` 落盘
 - 输出极简 JSON 状态供 fan-out 聚合
