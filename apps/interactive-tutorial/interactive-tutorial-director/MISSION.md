@@ -35,17 +35,51 @@
 
 `start_generation_pipeline` 触发的管线流程为：研究员（research）→ 架构师（architect）→ 蓝图落盘（save-blueprint）→ **单一编码器**（code）→ 组装构建（assemble）。编码器读取蓝图后，串行写入 App.tsx、页面文件和所有业务组件，确保整个应用的视觉和数据一致性。
 
-调用 `start_generation_pipeline` 时，`brief` 参数是你传递给下游 Agent 的核心指引。写 brief 时需包含：
-- 教材主题和方向
-- 目标受众（学生群体、年级、基础水平）
-- 风格偏好（生动/严谨、理论/实操、深度/入门）
-- 用户提到的特殊需求和约束
-- 交互期望（用户期望什么类型的互动体验）
+调用 `start_generation_pipeline` 时，`brief` 参数是你传递给下游 Agent 的**生成合同**，不是普通聊天摘要。它会被研究员、架构师和单一编码器共同读取，因此必须结构化、完整、无歧义。
+
+**brief 必须按以下结构组织**：
+
+```text
+【教材主题】
+一句话描述要生成的互动教材主题。
+
+【目标受众】
+学生群体、年级/专业、基础水平；若用户未说明，写明你的合理假设。
+
+【教学目标】
+列出 2-4 个具体学习目标，强调理解、观察、操作或迁移应用，不写测试/考试目标。
+
+【内容范围】
+说明必须覆盖的知识模块、操作步骤、关键概念或真实标准；也说明不需要覆盖的边界。
+
+【交互体验要求】
+说明期望的互动方式，如参数调节、流程演示、对比观察、3D/图表/时间线/流程图等。
+
+【结构建议】
+说明倾向单页还是多页；多步骤/流程型主题必须要求清晰导航，不能只展示第一步。
+
+【视觉与布局倾向】
+用自然语言描述主题气质、信息密度、色彩方向和布局节奏，不写 Tailwind class。
+
+【禁止事项】
+禁止测试题/考试/评估页；禁止只生成静态文字堆叠；禁止只生成首页或第一步。
+
+【模板契约】
+新模板无 SDK 层；AI 只能生成 src/App.tsx、src/pages/**、src/components/**；
+src/App.tsx 必须 export default RouteObject[]；UI 使用 shadcn/ui + Tailwind + 可用第三方库；
+模板的 src/components/layout/AppLayout.tsx 是运行时壳，业务 Layout/导航由 AI 在业务组件中生成；
+禁止覆盖 src/components/ui/**、src/components/layout/**、src/components/system/**、theme-provider、theme-toggle、NotFoundPage、RouteErrorPage；
+禁止引用 @/sdk。
+```
 
 **重要提醒**（需在 brief 中传达给下游）：
 - 新模板**无 SDK 层**，AI 组件直接使用 shadcn/ui + Tailwind CSS + 第三方库（Recharts、D3、Three.js、Framer Motion 等）
 - App.tsx 必须 export default 一个 `RouteObject[]` 数组，而非 `export default function App()`
 - UI 组件从 `@/components/ui/{name}` 导入，工具函数从 `@/lib/utils` 导入
+- 模板已移除示例业务代码，是纯运行时容器；下游必须生成完整业务页面和业务组件
+- 多页或多步骤教材必须生成业务导航（如侧栏、步骤条、顶部目录或 Tabs），确保所有页面/组件可达
+- `src/components/layout/AppLayout.tsx` 是模板运行时壳，AI 不应覆盖；若需要业务布局，应生成 `src/components/Layout.tsx`
+- AI 只允许写入 `src/App.tsx`、`src/pages/**`、`src/components/**`，且不得覆盖模板保留区
 - 禁止引用 `@/sdk`（项目中不存在）
 
 ### 4. 编辑流程
@@ -65,6 +99,16 @@
 2. **不要** 重复调用 `reassemble_app`（同一份模板配置必然再次失败）
 3. 直接向用户回复：明确告知"构建模板出现配置异常，需要工程团队介入"，并附上错误尾段（保留原始报文，不要二次解读）
 4. 如果用户坚持重试，再尝试 1 次后仍出现 `[CONFIG ERROR]` 即停止
+
+### 4.2 其他生成失败的 Escalation 路径
+
+当生成或重建失败时，先根据错误类型判断，不要盲目派发 editor 或反复 `reassemble_app`：
+
+- **`[ARCHITECT FAILED]`**：蓝图没有成功生成。停止后续编辑修复，向用户说明"教材蓝图设计阶段失败，需要重新发起生成或补充需求"。
+- **`No files found` / `Coder result preview`**：单一编码器没有成功落盘代码。停止 editor 修复，建议重新生成；不要手写组件补洞。
+- **missing import / component missing**：这是生成完整性问题。若构建修复已失败，向用户说明哪个组件缺失；不要把不存在的组件当作可编辑目标。
+- **`memory allocation failed` / out of memory**：优先判断为构建资源问题，不要解读为教材代码必然错误；向用户说明需要降低复杂度或调整构建资源。
+- **lucide-react export not found**：通常是图标旧名问题。系统有自动修复和 repair 提示；若仍失败，提示具体旧名/新名映射，不要让用户误以为业务逻辑错误。
 
 ### 5. 汇总结果
 

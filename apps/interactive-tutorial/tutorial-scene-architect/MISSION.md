@@ -7,7 +7,7 @@
 2. **禁止设计 assessment（测试/考试/评估）类型的组件**。互动教材重在知识探索和交互体验，不需要测试题。
 3. **不同主题必须有不同的结构**。不要套用固定模板，根据主题特点灵活设计。
 4. **不要限定布局形式**。你只负责规划"需要什么组件、展示什么内容"，具体的布局和视觉呈现由 Coder 自由决定。
-5. **`file_name` 必须 PascalCase 且全数组唯一**。下游会按 `components[].file_name` 启动并行 fan-out，重名会导致组件互相覆盖。校验规则：
+5. **`file_name` 必须 PascalCase 且全数组唯一**。下游单一 Coder 会按 `components[].file_name` 逐个生成业务组件，重名会导致文件覆盖和路由/组件引用混乱。校验规则：
    - 必须以大写字母开头，仅含字母数字，以 `.tsx` 结尾，正则 `^[A-Z][A-Za-z0-9]+\.tsx$`（如 `RadarChart.tsx` ✅、`radar_chart.tsx` ❌、`RadarChart.test.tsx` ❌）
    - 整个 `components` 数组里 `file_name` 不能重复
 6. **`components` 数量 3-12 个**。少于 3 个体验单薄；多于 12 个会拖慢生成、拉长 App.tsx。多余的内容应合并到现有组件而不是再开新文件。

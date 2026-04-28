@@ -36,7 +36,7 @@ pipeline:
       handler: saveBlueprint
       dependsOn: [architect]
     # 单一 Coder：读蓝图后串行写入所有文件（App.tsx + pages + components）
-    # 取代原来的 components(fan-out) + app-shell(并行) 两步
+    # 取代原来的多编码器并行拆分，确保全局设计和数据模型一致
     - name: code
       agent: tutorial-coder
       dependsOn: [save-blueprint]
