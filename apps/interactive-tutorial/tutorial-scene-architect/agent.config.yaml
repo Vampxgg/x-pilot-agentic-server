@@ -22,11 +22,107 @@ outputFormat:
         type: string
       components:
         type: array
+        minItems: 3
+        maxItems: 12
         items:
           type: object
           required: [file_name, purpose, sdk_widgets]
+          properties:
+            file_name:
+              type: string
+              pattern: "^[A-Z][A-Za-z0-9]+\\.tsx$"
+              description: "PascalCase 组件文件名（含 .tsx 后缀），整个 components 数组中必须唯一"
+            purpose:
+              type: string
+            sdk_widgets:
+              type: array
+              items:
+                type: string
+            data_points:
+              type: array
+              items:
+                type: string
       teaching_guide:
         type: object
+      layout_intent:
+        type: object
+        description: "可选。给下游 Coder 的布局设计意图，描述本教材应有的叙事节奏、组件关系、视觉身份与信息密度。不给 Tailwind class、不给具体配色十六进制，只描述方向。"
+        properties:
+          narrative:
+            type: string
+            description: "叙事节奏关键词，如 linear / exploratory / comparative / sandbox / story / total-detail-total"
+          relations:
+            type: string
+            description: "components 之间的逻辑关系，如 parallel / progressive / comparative / nested / parameter-space / time-series / spatial"
+          visual_identity:
+            type: string
+            description: "主题情绪关键词与色彩 DNA 方向，如 'deep-space-tech：深蓝+青+霓虹紫点缀' / 'classical-humanities：米白+赭石+墨绿' / 'bio-organic：苔绿+陶土+暖白'"
+          density:
+            type: string
+            enum: [compact, balanced, spacious]
+            description: "信息密度倾向"
+      app_meta:
+        type: object
+        description: "可选。把蓝图升级为「应用」的语义层。下游 app-shell-coder 会据此装配 AppShell / AppProvider / store；component-coder 据此判断本视图是否需要订阅共享状态。所有字段都是描述性 prompt，不写 Tailwind class、不写运行时代码。"
+        properties:
+          task:
+            type: string
+            description: "用户用这个应用要完成的核心任务（一句话），如：'通过参数实验直观理解 PID 控制器三个增益的影响'。这是判断它'是不是应用'的最简标准。"
+          user_journey:
+            type: array
+            description: "用户在应用内的关键步骤序列。每一步对应一个组件/视图（用 file_name 引用），构成 Sidebar 的导航顺序。"
+            items:
+              type: object
+              required: [step, file_name]
+              properties:
+                step:
+                  type: string
+                  description: "这一步用户在做什么，如 '理解原理 → 调整参数 → 观察波形 → 复盘'"
+                file_name:
+                  type: string
+                  description: "对应的 components 中的 file_name"
+          persistent_state:
+            type: array
+            description: "应用级共享状态键的清单。每一项是一个会被多个视图读写、且关闭浏览器后期望保留的 store key。app-shell-coder 据此生成 createAppStore(initialState)。"
+            items:
+              type: object
+              required: [key, purpose]
+              properties:
+                key:
+                  type: string
+                  description: "store key（建议小驼峰或点分命名空间，如 'progress' / 'sim.params' / 'bookmarks'）"
+                purpose:
+                  type: string
+                  description: "这个 key 表达什么、被哪些视图读写"
+                default:
+                  description: "默认值（任意 JSON 类型）"
+          app_chrome:
+            type: object
+            description: "应用骨架配置。app-shell-coder 据此选择 AppShell layout、决定是否挂 Sidebar/StatusBar/Settings/Onboarding。"
+            properties:
+              layout:
+                type: string
+                enum: [sidebar, topbar, workspace]
+                description: "骨架布局；不传时由 app-shell-coder 根据 user_journey 长度与 components 数量推断"
+              has_sidebar:
+                type: boolean
+              has_status_bar:
+                type: boolean
+              has_settings:
+                type: boolean
+                description: "是否挂载 SettingsDrawer（主题/字体/重置进度）"
+              has_onboarding:
+                type: boolean
+                description: "是否在首次访问时展示 Onboarding"
+              header_subtitle:
+                type: string
+                description: "Header 副标题文案；不传则不显示"
+          user_inputs:
+            type: array
+            description: "用户在应用中可能输入的内容类型（用于推断输入控件 + 是否需要 toast/确认反馈）。"
+            items:
+              type: string
+              description: "如 'parameter-slider' / 'multiple-choice-quiz' / 'free-text-note' / 'click-canvas' / 'drag-sort'"
 evolution:
   enabled: true
   requireApproval: true

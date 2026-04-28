@@ -1,0 +1,79 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxIterations: 15
+timeout: 180000
+hideThinkOutput: true
+streamMode: stream
+
+# 需要 workspace_write 写 artifacts/dsl-skeleton.json
+# 需要 workspace_read 读 artifacts/clarified-intent.json + artifacts/research.json（如果上游写入了）
+allowedTools:
+  - workspace_read
+  - workspace_write
+
+metadata:
+  domain: interactive-tutorial-v2
+
+# v2 试错期：禁用 skill crystallization
+evolution:
+  enabled: false
+
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [version, app, context, scenes, actions, transitions, flow]
+    properties:
+      version:
+        type: string
+        enum: ["1.1"]
+      app:
+        type: object
+        required: [id, name]
+        properties:
+          id: { type: string }
+          name: { type: string }
+          description: { type: string }
+          shell: { type: object }
+          theme:
+            type: object
+            properties:
+              preset:
+                type: string
+                enum: [edu-light, tech-blue, notion-warm, industrial, kid-vivid, academic, minimal]
+              tokens: { type: object }
+      context:
+        type: object
+        required: [initial]
+        properties:
+          schema: { type: object }
+          initial: { type: object }
+      scenes:
+        type: object
+        additionalProperties:
+          type: object
+          required: [intent]
+          properties:
+            title: { type: string }
+            intent: { type: string }
+      actions: { type: object }
+      transitions:
+        type: array
+        items:
+          type: object
+          required: [from, action, to]
+          properties:
+            from: { type: string }
+            action: { type: string }
+            to: { type: string }
+            condition: { type: object }
+      flow:
+        type: object
+        required: [initial]
+        properties:
+          initial: { type: string }
+          completion: { type: string }
+      tick: { type: object }
+      computed: { type: object }

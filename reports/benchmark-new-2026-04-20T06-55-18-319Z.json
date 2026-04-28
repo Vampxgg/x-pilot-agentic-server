@@ -1,0 +1,110 @@
+{
+  "tag": "new",
+  "startedAt": "2026-04-20T06:51:21.481Z",
+  "finishedAt": "2026-04-20T06:55:18.319Z",
+  "results": [
+    {
+      "topicId": "binary_search",
+      "topic": "二分查找算法可视化",
+      "sessionId": "bench-binary_search-1776667881481",
+      "success": false,
+      "totalMs": 236838,
+      "firstPreviewMs": null,
+      "stepDurations": {},
+      "fanOutCount": null,
+      "fanOutSuccessCount": null,
+      "url": null,
+      "error": "Pipeline step \"assemble\" failed: Build failed: Removed 4 dead import(s) from App.tsx; Build failed with unparseable errors (round 1): vite v5.4.21 building for production...\n✓ 0 modules transformed.\n\n\n(!) outDir E:\\Vampxgg\\E2B\\agentic-sever\\x-pilot-agentic-server\\data\\tutorials\\bench-binary_search-1776667881481\\dist is not inside project root and will not be emptied.\nUse --emptyOutDir to override.\n\nx Build failed in 12ms\nerror during build:\nCould not resolve entry module \"script/sdk-showcase.html\".\n    at getRollupError (file:///E:/Vampxgg/E2B/agentic-sever/react-code-rander/node_modules/rollup/dist/es/shared/parseAst.js:406:4; Build failed after all repair rounds: vite v5.4.21 building for production...\n✓ 0 modules transformed.\n\n\n(!) outDir E:\\Vampxgg\\E2B\\agentic-sever\\x-pilot-agentic-server\\data\\tutorials\\bench-binary_search-1776667881481\\dist is not inside project root and will not be emptied.\nUse --emptyOutDir to override.\n\nx Build failed in 17ms\nerror during build:\nCould not resolve entry module \"script/sdk-showcase.html\".\n    at getRollupError (file:///E:/Vampxgg/E2B/agentic-sever/react-code-rander/node_modules/rollup/dist/es/shared/parseAst.js:406:4",
+      "timeline": [
+        {
+          "ts": "2026-04-20T06:51:21.505Z",
+          "stage": "step_started",
+          "phase": "research",
+          "message": "Step \"research\" started"
+        },
+        {
+          "ts": "2026-04-20T06:52:06.964Z",
+          "message": "研究报告已完成并写入 artifacts/research.json"
+        },
+        {
+          "ts": "2026-04-20T06:52:09.862Z",
+          "message": "已完成二分查找算法的教学资料收集工作，包含原理、步骤、复杂度对比及测验题，报告已生成。"
+        },
+        {
+          "ts": "2026-04-20T06:52:30.953Z",
+          "stage": "step_finished",
+          "phase": "research",
+          "message": "Step \"research\" completed",
+          "durationMs": 69449
+        },
+        {
+          "ts": "2026-04-20T06:52:30.953Z",
+          "stage": "step_started",
+          "phase": "architect",
+          "message": "Step \"architect\" started"
+        },
+        {
+          "ts": "2026-04-20T06:53:14.811Z",
+          "message": "I have successfully designed the interactive tutorial blueprint for the Binary Search algorithm and saved it to the workspace."
+        },
+        {
+          "ts": "2026-04-20T06:53:37.593Z",
+          "stage": "step_finished",
+          "phase": "architect",
+          "message": "Step \"architect\" completed",
+          "durationMs": 66640
+        },
+        {
+          "ts": "2026-04-20T06:53:37.594Z",
+          "stage": "step_started",
+          "phase": "save-blueprint",
+          "message": "Step \"save-blueprint\" started"
+        },
+        {
+          "ts": "2026-04-20T06:53:37.595Z",
+          "stage": "step_finished",
+          "phase": "save-blueprint",
+          "message": "Step \"save-blueprint\" completed",
+          "durationMs": 1
+        },
+        {
+          "ts": "2026-04-20T06:53:37.595Z",
+          "stage": "step_started",
+          "phase": "components",
+          "message": "Step \"components\" started"
+        },
+        {
+          "ts": "2026-04-20T06:53:37.596Z",
+          "stage": "step_started",
+          "phase": "app-shell",
+          "message": "Step \"app-shell\" started"
+        },
+        {
+          "ts": "2026-04-20T06:55:16.620Z",
+          "stage": "step_finished",
+          "phase": "app-shell",
+          "message": "Step \"app-shell\" completed",
+          "durationMs": 99024
+        },
+        {
+          "ts": "2026-04-20T06:55:16.620Z",
+          "stage": "step_started",
+          "phase": "assemble",
+          "message": "Step \"assemble\" started"
+        },
+        {
+          "ts": "2026-04-20T06:55:16.622Z",
+          "stage": "prepare",
+          "phase": "assemble",
+          "message": "Preparing build environment"
+        },
+        {
+          "ts": "2026-04-20T06:55:16.735Z",
+          "stage": "build",
+          "phase": "assemble",
+          "message": "Building app with 1 files"
+        }
+      ]
+    }
+  ]
+}

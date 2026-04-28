@@ -1,0 +1,33 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+maxIterations: 10
+timeout: 90000
+hideThinkOutput: true
+streamMode: stream
+
+allowedTools:
+  - workspace_read
+  - workspace_write
+
+metadata:
+  domain: scene-dsl-chorus
+
+evolution:
+  enabled: false
+
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [theme, rationale]
+    properties:
+      shell:
+        type: object
+      theme:
+        type: object
+        required: [preset]
+        properties:
+          preset:
+            type: string
+            enum: [edu-light, tech-blue, notion-warm, industrial, kid-vivid, academic, minimal]
+      rationale: { type: string }

@@ -1,0 +1,40 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxIterations: 12
+timeout: 120000
+hideThinkOutput: true
+streamMode: stream
+
+allowedTools:
+  - workspace_read
+  - workspace_write
+
+metadata:
+  domain: scene-dsl-chorus
+
+evolution:
+  enabled: false
+
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [appName, learningGoal, audience, scenePlan]
+    properties:
+      appName: { type: string }
+      appId: { type: string }
+      learningGoal: { type: string }
+      audience: { type: string }
+      tone: { type: string }
+      constraints: { type: string }
+      scenePlan:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          required: [id, title]
+          properties:
+            id: { type: string }
+            title: { type: string }

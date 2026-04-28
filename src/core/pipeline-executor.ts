@@ -198,6 +198,22 @@ export class PipelineExecutor {
         const backoffMs = step.retry?.backoffMs ?? 2000;
         let lastError: string | undefined;
 
+        if (sessionId) {
+          eventBus.emit({
+            type: "progress",
+            sourceAgent: agentDef.name,
+            sessionId,
+            data: {
+              message: `Step "${step.name}" started`,
+              phase: step.name,
+              stage: "step_started",
+              parallel: !!step.parallel,
+              fanOutFrom: step.fanOutFrom,
+            },
+            timestamp: new Date().toISOString(),
+          });
+        }
+
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
           try {
             if (step.parallel && step.fanOutFrom) {
@@ -213,7 +229,18 @@ export class PipelineExecutor {
             };
 
             if (sessionId) {
-              eventBus.emitProgress(agentDef.name, sessionId, `Step "${step.name}" completed`, undefined);
+              eventBus.emit({
+                type: "progress",
+                sourceAgent: agentDef.name,
+                sessionId,
+                data: {
+                  message: `Step "${step.name}" completed`,
+                  phase: step.name,
+                  stage: "step_finished",
+                  durationMs: Date.now() - stepStart,
+                },
+                timestamp: new Date().toISOString(),
+              });
             }
 
             lastError = undefined;
@@ -341,7 +368,23 @@ export class PipelineExecutor {
 
     logger.info(`[Pipeline] Fan-out step "${step.name}": ${items.length} parallel invocations of "${step.agent}"`);
 
+    if (options.sessionId) {
+      eventBus.emit({
+        type: "progress",
+        sourceAgent: step.agent,
+        sessionId: options.sessionId,
+        data: {
+          message: `Fan-out "${step.name}": dispatching ${items.length} parallel agents`,
+          phase: step.name,
+          stage: "fanout_started",
+          count: items.length,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     const fanOutAgent = step.agent;
+    const fanOutStart = Date.now();
     const subResults = await subAgentManager.spawnParallel(
       items.map((item, index) => ({
         parentId,
@@ -355,6 +398,24 @@ export class PipelineExecutor {
         sessionId: options.sessionId,
       })),
     );
+
+    if (options.sessionId) {
+      const successCount = subResults.filter((r) => r.success).length;
+      eventBus.emit({
+        type: "progress",
+        sourceAgent: step.agent,
+        sessionId: options.sessionId,
+        data: {
+          message: `Fan-out "${step.name}": ${successCount}/${items.length} succeeded`,
+          phase: step.name,
+          stage: "fanout_finished",
+          count: items.length,
+          successCount,
+          durationMs: Date.now() - fanOutStart,
+        },
+        timestamp: new Date().toISOString(),
+      });
+    }
 
     const outputs = subResults.map((r) => {
       if (r.success) return extractOutput(r.result);

@@ -1,0 +1,37 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxIterations: 10
+timeout: 120000
+hideThinkOutput: true
+streamMode: stream
+
+allowedTools: []
+
+metadata:
+  domain: interactive-tutorial-v2
+
+# v2 试错期：禁用 skill crystallization
+evolution:
+  enabled: false
+
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [patches, summary]
+    properties:
+      patches:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          required: [op, path]
+          properties:
+            op:
+              type: string
+              enum: [add, replace, remove]
+            path: { type: string }
+            value: {}
+      summary: { type: string }

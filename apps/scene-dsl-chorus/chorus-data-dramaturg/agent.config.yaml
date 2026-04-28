@@ -1,0 +1,32 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+maxIterations: 14
+timeout: 120000
+hideThinkOutput: true
+streamMode: stream
+
+allowedTools:
+  - workspace_read
+  - workspace_write
+
+metadata:
+  domain: scene-dsl-chorus
+
+evolution:
+  enabled: false
+
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [context]
+    properties:
+      context:
+        type: object
+        required: [initial]
+        properties:
+          schema: { type: object }
+          initial: { type: object }
+      tick: { type: object }
+      computed: { type: object }
+      provenance: { type: string }

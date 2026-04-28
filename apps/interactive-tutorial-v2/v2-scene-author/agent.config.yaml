@@ -1,0 +1,51 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxIterations: 12
+timeout: 240000
+hideThinkOutput: true
+streamMode: stream
+
+# 多 scene 时被 fan-out 并行调度；并发上限由 director 的 maxConcurrency 控制
+maxConcurrency: 4
+
+# 可选：读 artifacts/dsl-skeleton.json 与 artifacts/research.json 拿上下文
+# 必要时写 artifacts/scenes/<sceneId>.json 落盘（非必须）
+allowedTools:
+  - workspace_read
+  - workspace_write
+
+metadata:
+  domain: interactive-tutorial-v2
+
+# v2 试错期：禁用 skill crystallization
+evolution:
+  enabled: false
+
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [id, scene]
+    properties:
+      id: { type: string }
+      scene:
+        type: object
+        required: [ui]
+        properties:
+          title: { type: string }
+          intent: { type: string }
+          ui:
+            type: object
+            required: [type]
+            properties:
+              type: { type: string }
+              props: { type: object }
+              children: { type: array }
+              slots: { type: object }
+              events: { type: object }
+              if: { type: object }
+              key: { type: string }
+          on: { type: object }
+      actionsContrib: { type: object }

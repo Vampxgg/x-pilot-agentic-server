@@ -35,14 +35,18 @@
 
 ---
 
-## App.tsx 编写约定
+## App.tsx 编写约定（已升级为应用骨架契约）
 
-- `App.tsx` 是应用入口，由你**完全控制**结构与交互骨架。
-- 可使用 **react-router-dom** 做多页面/多路由切换。
-- 可使用 **zustand** 做跨区块状态（与蓝图需求一致即可，非必须）。
-- Import 范围：`./components/*`、`@/sdk`，以及 `react`、`react-router-dom`、`zustand` 等 SOUL 中允许的依赖。
+> 本附录与 `tutorial-scene-coder/TOOLS.md` 的"App.tsx 应用骨架契约"对齐。详细骨架代码见该文件，本处仅列契约要点，避免漂移。
+
+- `App.tsx` 是教学**应用**入口（不只是网页入口），必须用 `<AppShell>` 作为根骨架，并用 `<AppProvider appId="...">` 包裹。
+- 必须在文件顶层调用 `createAppStore({ appId, initialState })` 创建 store hook，`initialState` 至少含 `progress: {}`，其余从 `blueprint.app_meta.persistent_state` 摊平而来。
+- 按 `blueprint.app_meta.app_chrome` 决定是否挂 `<AppSidebar>` / `<AppStatusBar>` / `<SettingsDrawer>` / `<Onboarding>`。
+- Import 范围：`./components/*`、`@/sdk`（含 `AppShell` / `AppHeader` / `AppSidebar` / `AppStatusBar` / `AppProvider` / `createAppStore` / `Onboarding` / `SettingsDrawer` / `CompletionCelebration` / `ToastProvider` / `useToast` / `useApp` / `useAppState` / `usePersistedState`）、以及 `react`、`react-router-dom`、`zustand` 等 SOUL 中允许的依赖。
+- **应用层 hook 来源唯一**：`useAppState` / `usePersistedState` / `useApp` 只能从 `@/sdk` import，禁止从 `zustand` 直接 import 这些符号。
 - 根组件须为：`export default function App()`（或等价的 default export）。
-- 布局自由：单页长文、仪表盘、分步引导、侧栏导航等均可，与主题和内容匹配即可。
+- 布局自由：layout 可选 `sidebar` / `topbar` / `workspace`；具体配色、Sidebar 排版、Header actions、StatusBar 内容由你按蓝图 `layout_intent` 与主题情绪自由设计——但骨架（AppShell + AppProvider + store）是必须的。
+- 渲染每个业务组件时**必须**包裹 `<ComponentErrorBoundary name="中文名">`（来自 `@/sdk`），编辑时不得移除。
 
 ---
 

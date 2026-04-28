@@ -1,0 +1,35 @@
+model: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxIterations: 10
+timeout: 120000
+hideThinkOutput: true
+streamMode: stream
+
+allowedTools: []
+
+metadata:
+  domain: scene-dsl-chorus
+
+evolution:
+  enabled: false
+
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [patches]
+    properties:
+      patches:
+        type: array
+        maxItems: 24
+        items:
+          type: object
+          required: [op, path]
+          properties:
+            op:
+              type: string
+              enum: [add, replace, remove]
+            path: { type: string }
+            value: {}
+      summary: { type: string }

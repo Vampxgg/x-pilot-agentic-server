@@ -1,10 +1,13 @@
-import { existsSync, cpSync, mkdirSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, cpSync, mkdirSync, rmSync, symlinkSync, statSync, readFileSync, writeFileSync } from "node:fs";
 import { readFile, writeFile, readdir, mkdir } from "node:fs/promises";
 import { join, resolve, relative } from "node:path";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
+import { createHash } from "node:crypto";
+import PQueue from "p-queue";
 import type { PipelineHandlerContext } from "../../../src/core/types.js";
 import { workspaceManager } from "../../../src/core/workspace.js";
+import { eventBus } from "../../../src/core/event-bus.js";
 import { logger } from "../../../src/utils/logger.js";
 import { resolvePublicBaseUrl } from "../../../src/utils/public-url.js";
 import { validateAllComponents, removeDeadImports, parseBuildErrors, typeCheckProject } from "./validators.js";
@@ -16,15 +19,170 @@ const execAsync = promisify(exec);
 
 const TUTORIALS_DIR = resolve(process.cwd(), "data", "tutorials");
 
-const EXCLUDE_DIRS = new Set(["node_modules", ".git", "dist", "components"]);
+/** Concurrency cap for parallel AI repair calls. */
+const REPAIR_CONCURRENCY = Number(process.env.TUTORIAL_REPAIR_CONCURRENCY ?? 6);
+
+/**
+ * Total wall-clock budget for assembleApp (B4). The end-to-end pipeline saw
+ * 20+ minute hangs when buildWithAIRepair entered an editor → ReferenceError
+ * → repair death loop. This bound forces an abort + assemble_failed SSE so the
+ * UI spinner doesn't run forever and the metrics file records `reason=timeout`.
+ *
+ * Override with env `ASSEMBLE_TIMEOUT_MS` (e.g. set to 10000 for B4 verify drill).
+ */
+const ASSEMBLE_TIMEOUT_MS = Number(process.env.ASSEMBLE_TIMEOUT_MS ?? 8 * 60 * 1000);
+
+/** Per-template files that should be junctioned (large, immutable). Junction works on dirs only. */
+// NOTE: template's "script/" dir (sdk-showcase) is intentionally excluded — it's a
+// dev-time SDK component showcase, not part of the generated tutorial bundle.
+// We strip its rollup entry from vite.config.ts in stripScriptEntryFromViteConfig().
+const JUNCTIONED_DIRS = ["public", "src/sdk"] as const;
+
+/** Top-level template files we always copy fresh (small, may be tweaked per tutorial). */
+const ROOT_TEMPLATE_FILES = [
+  "index.html",
+  "package.json",
+  "tsconfig.json",
+  "tsconfig.app.json",
+  "tsconfig.node.json",
+  "vite.config.ts",
+  "postcss.config.js",
+  "tailwind.config.js",
+  "eslint.config.js",
+  ".gitignore",
+] as const;
+
+/** Per-tutorial src files we copy from template (small) before overlaying user code. */
+const SRC_TEMPLATE_FILES = ["main.tsx", "index.css", "App.tsx"] as const;
 
 function tutorialPublicFileUrl(sessionId: string): string {
   return `${resolvePublicBaseUrl()}/api/files/tutorials/${sessionId}/dist/index.html`;
 }
 
-function excludeFilter(src: string): boolean {
-  const parts = src.replace(/\\/g, "/").split("/");
-  return !parts.some((p) => EXCLUDE_DIRS.has(p));
+/**
+ * Remove the template's secondary `script/sdk-showcase.html` rollup entry from
+ * the per-tutorial vite.config.ts. The showcase is a dev-time SDK demo and must
+ * not be built (or even referenced) in generated tutorials, otherwise vite
+ * aborts with "Could not resolve entry module" because we no longer junction
+ * the script/ dir into the per-tutorial source.
+ *
+ * Strategy: drop the entire `build.rollupOptions` block. The default vite
+ * behaviour (single `index.html` entry) is exactly what tutorials need.
+ */
+function stripScriptEntryFromViteConfig(sourceDir: string): void {
+  const cfgPath = join(sourceDir, "vite.config.ts");
+  if (!existsSync(cfgPath)) return;
+  const original = readFileSync(cfgPath, "utf-8");
+
+  // Only rewrite if the script entry is actually referenced.
+  if (!original.includes("script/sdk-showcase")) return;
+
+  // Remove the `build: { rollupOptions: { input: { ... } } }` block. The regex
+  // explicitly matches the three nested braces (build → rollupOptions → input)
+  // so we don't accidentally swallow the outer `defineConfig({ ... })` close.
+  const stripped = original.replace(
+    /,?\s*build:\s*\{\s*rollupOptions:\s*\{\s*input:\s*\{[\s\S]*?\}\s*,?\s*\}\s*,?\s*\}\s*,?/m,
+    "",
+  );
+
+  if (stripped === original) {
+    logger.warn(`[stripScriptEntry] vite.config.ts pattern did not match for ${cfgPath} — leaving file untouched`);
+    return;
+  }
+  writeFileSync(cfgPath, stripped, "utf-8");
+}
+
+/**
+ * Prepare the per-tutorial source dir using junction symlinks for large/immutable
+ * directories (node_modules, src/sdk, public) and selective copies for small
+ * template files. Avoids the multi-second recursive cp of the entire SDK on
+ * every generation.
+ *
+ * Returns elapsed milliseconds for observability.
+ */
+function prepareSourceDir(sourceDir: string): { elapsedMs: number; mode: "junction" | "copy" | "mixed" } {
+  const start = Date.now();
+  const template = getTemplateDir();
+  let mode: "junction" | "copy" | "mixed" = "junction";
+
+  mkdirSync(sourceDir, { recursive: true });
+  mkdirSync(join(sourceDir, "src"), { recursive: true });
+
+  // 1. Copy small root files
+  for (const f of ROOT_TEMPLATE_FILES) {
+    const from = join(template, f);
+    if (existsSync(from)) {
+      cpSync(from, join(sourceDir, f), { force: true });
+    }
+  }
+
+  // 1.5. Drop the template's sdk-showcase rollup entry — the script/ dir is no
+  //      longer junctioned into per-tutorial sources, and including it would
+  //      break vite build with "Could not resolve entry module".
+  stripScriptEntryFromViteConfig(sourceDir);
+
+  // 2. Copy small src/* template files (will be overlaid by syncAppFiles later)
+  for (const f of SRC_TEMPLATE_FILES) {
+    const from = join(template, "src", f);
+    if (existsSync(from)) {
+      cpSync(from, join(sourceDir, "src", f), { force: true });
+    }
+  }
+
+  // 3. Junction big immutable dirs
+  for (const dir of JUNCTIONED_DIRS) {
+    const from = join(template, dir);
+    if (!existsSync(from)) continue;
+    const to = join(sourceDir, dir);
+    if (existsSync(to)) continue;
+    mkdirSync(join(to, ".."), { recursive: true });
+    try {
+      symlinkSync(from, to, "junction");
+    } catch (err) {
+      logger.warn(`[prepareSourceDir] junction failed for ${dir}, falling back to copy: ${err}`);
+      cpSync(from, to, { recursive: true });
+      mode = "mixed";
+    }
+  }
+
+  // 4. node_modules junction (largest by far)
+  const tmplModules = join(template, "node_modules");
+  const tgtModules = join(sourceDir, "node_modules");
+  if (existsSync(tmplModules) && !existsSync(tgtModules)) {
+    try {
+      symlinkSync(tmplModules, tgtModules, "junction");
+    } catch (err) {
+      logger.warn(`[prepareSourceDir] node_modules junction failed, copying (slow): ${err}`);
+      cpSync(tmplModules, tgtModules, { recursive: true });
+      mode = "copy";
+    }
+  }
+
+  // 5. Fresh empty src/components (will be filled by syncAppFiles)
+  const componentsDir = join(sourceDir, "src", "components");
+  if (existsSync(componentsDir)) {
+    const st = statSync(componentsDir);
+    if (st.isDirectory()) {
+      rmSync(componentsDir, { recursive: true, force: true });
+    }
+  }
+  mkdirSync(componentsDir, { recursive: true });
+
+  return { elapsedMs: Date.now() - start, mode };
+}
+
+/** Run an async task with a stable label and return both the result and elapsed ms. */
+async function timed<T>(label: string, fn: () => Promise<T>): Promise<{ result: T; elapsedMs: number }> {
+  const start = Date.now();
+  try {
+    const result = await fn();
+    const elapsedMs = Date.now() - start;
+    logger.info(`[timing] ${label}: ${elapsedMs}ms`);
+    return { result, elapsedMs };
+  } catch (err) {
+    logger.warn(`[timing] ${label} failed after ${Date.now() - start}ms: ${err}`);
+    throw err;
+  }
 }
 
 async function syncAppFiles(
@@ -108,13 +266,24 @@ async function runBuild(
   distDir: string,
   meta?: BuildMeta,
 ): Promise<{ success: boolean; output: string }> {
+  // Build into sourceDir/dist (inside project root) to avoid the
+  // [vite:build-html] "fileName ... must be neither absolute nor relative paths"
+  // error that triggers when outDir lives outside the rollup project root and
+  // multi-entry HTML inputs are absolute paths (see vitejs/vite#9662).
+  // After a successful build, the result is mirrored to the external distDir.
+  const internalDist = join(sourceDir, "dist");
+
   try {
     await injectTutorialMeta(sourceDir, meta);
 
+    if (existsSync(internalDist)) {
+      rmSync(internalDist, { recursive: true, force: true });
+    }
+
     const viteBin = join(getTemplateDir(), "node_modules", ".bin", "vite.cmd");
     const viteCmd = existsSync(viteBin)
-      ? `"${viteBin}" build --outDir "${distDir}" --minify false`
-      : `npx vite build --outDir "${distDir}" --minify false`;
+      ? `"${viteBin}" build --outDir "${internalDist}" --minify false --emptyOutDir`
+      : `npx vite build --outDir "${internalDist}" --minify false --emptyOutDir`;
 
     const { stdout, stderr } = await execAsync(viteCmd, {
       cwd: sourceDir,
@@ -123,6 +292,14 @@ async function runBuild(
     });
 
     const output = (stdout || "") + "\n" + (stderr || "");
+    const built = existsSync(join(internalDist, "index.html"));
+    if (built) {
+      if (existsSync(distDir)) {
+        rmSync(distDir, { recursive: true, force: true });
+      }
+      mkdirSync(join(distDir, ".."), { recursive: true });
+      cpSync(internalDist, distDir, { recursive: true });
+    }
     const success = existsSync(join(distDir, "index.html"));
     return { success, output };
   } catch (err: any) {
@@ -150,10 +327,363 @@ async function collectComponentFiles(componentsDir: string): Promise<string[]> {
   return files;
 }
 
+/**
+ * Strip ANSI color escape sequences and keep the tail of the build output.
+ * Truncating to 500 chars used to cut the rollup error message in half
+ * ("[vite:build-html] The \"fileName\" or \"name\" properties of" ← stops here),
+ * which made the agent guess wildly. We now keep up to ~4KB of the tail and
+ * remove ANSI codes so the LLM sees the whole error.
+ */
+function summarizeBuildOutput(output: string, maxChars: number = 4000): string {
+  const stripped = output.replace(/\u001b\[[0-9;]*m/g, "");
+  if (stripped.length <= maxChars) return stripped.trim();
+  return "…" + stripped.slice(stripped.length - maxChars).trim();
+}
+
 async function cleanDeadImports(appFile: string, componentsDir: string): Promise<number> {
   if (!existsSync(appFile) || !existsSync(componentsDir)) return 0;
   const existing = await collectComponentFiles(componentsDir);
-  return removeDeadImports(appFile, existing);
+  const { removed, total } = await removeDeadImports(appFile, existing);
+  // If every single `./components/X` import was dead, refusing to build avoids
+  // shipping an "empty app" where vite happily compiles an App.tsx whose
+  // component slots are all undefined. This is the silent failure mode of
+  // architect-missing → app-shell-hallucinated-imports → cleanDeadImports
+  // commenting out everything → vite success but blank UI at runtime.
+  if (total >= 1 && removed === total) {
+    throw new Error(
+      `[ASSEMBLE ERROR] All ${total} component import(s) in App.tsx point to missing files — ` +
+        `src/components is effectively empty. Refusing to build an app whose component slots ` +
+        `would all be undefined at runtime.`,
+    );
+  }
+  return removed;
+}
+
+/**
+ * B1 pre-check (assembleApp): verify the synced `src/App.tsx` is the agent's
+ * real output, not the placeholder template `App.tsx` shipped by prepareSourceDir
+ * when app-shell-coder silently failed to call workspace_write. Returns null on
+ * pass, or a short reason string on fail (caller must abort + emit assemble_failed).
+ *
+ * Heuristics (all must pass to count as "real"):
+ *   - file exists
+ *   - >= 200 bytes (the placeholder is ~150 bytes)
+ *   - contains `export default` (it's a valid component module)
+ *   - does NOT contain the placeholder sentinel "教程加载中"
+ */
+async function verifyAppTsxIsRealApp(sourceDir: string): Promise<string | null> {
+  const appTsxPath = join(sourceDir, "src", "App.tsx");
+  if (!existsSync(appTsxPath)) return "App.tsx is missing entirely";
+  const content = await readFile(appTsxPath, "utf-8");
+  if (content.length < 200) return `App.tsx is too small (${content.length} bytes) — looks like a placeholder`;
+  if (!content.includes("export default")) return "App.tsx has no `export default`";
+  if (content.includes("教程加载中")) return "App.tsx is the placeholder template (contains '教程加载中')";
+  return null;
+}
+
+/**
+ * B2 completeness check: compare blueprint.components[].file_name against the
+ * actual files written into `assets/components/` by the component-coder fan-out.
+ * Returns the list of missing file names (without `.tsx` suffix is preserved as-is).
+ * Empty array means complete.
+ */
+async function findMissingBlueprintComponents(
+  blueprint: Record<string, unknown> | null,
+  workspaceComponentsDir: string,
+): Promise<string[]> {
+  const components = blueprint?.components;
+  if (!Array.isArray(components) || components.length === 0) return [];
+
+  const expected = new Set<string>();
+  for (const item of components) {
+    if (item && typeof item === "object") {
+      const fn = (item as Record<string, unknown>).file_name;
+      if (typeof fn === "string" && fn.trim()) expected.add(fn.trim());
+    }
+  }
+  if (expected.size === 0) return [];
+
+  const existing = new Set<string>();
+  if (existsSync(workspaceComponentsDir)) {
+    const files = await collectComponentFiles(workspaceComponentsDir);
+    for (const f of files) existing.add(f.replace(/^.*[\\/]/, ""));
+  }
+
+  const missing: string[] = [];
+  for (const name of expected) {
+    if (!existing.has(name)) missing.push(name);
+  }
+  return missing;
+}
+
+/**
+ * B2 single-shot retry: re-invoke `tutorial-component-coder` for one missing
+ * component and wait for it to write `assets/components/{file_name}` into the
+ * workspace. Returns true if the file shows up after the retry, false otherwise.
+ *
+ * Pattern mirrors `retryArchitectOnce`. Failures are non-fatal — caller decides
+ * whether the still-missing component should fail assemble.
+ */
+async function retryComponentCoderForFile(
+  ctx: PipelineHandlerContext,
+  blueprint: Record<string, unknown>,
+  fileName: string,
+  workspaceComponentsDir: string,
+): Promise<boolean> {
+  const { tenantId, userId, sessionId, context } = ctx;
+  if (!sessionId) return false;
+
+  const components = (blueprint.components as unknown[]) ?? [];
+  const item = components.find((c) => {
+    return c && typeof c === "object" && (c as Record<string, unknown>).file_name === fileName;
+  }) as Record<string, unknown> | undefined;
+  if (!item) {
+    logger.warn(`[B2] Cannot retry ${fileName} — not in blueprint.components`);
+    return false;
+  }
+
+  const { agentRegistry } = await import("../../../src/core/agent-registry.js");
+  const { agentRuntime } = await import("../../../src/core/agent-runtime.js");
+  if (!agentRegistry.has("tutorial-component-coder")) {
+    logger.error("[B2] tutorial-component-coder not registered — cannot retry");
+    return false;
+  }
+
+  const brief =
+    `[RETRY] The component fan-out did not produce assets/components/${fileName}. ` +
+    `You MUST write exactly this one file via workspace_write({name: "assets/components/${fileName}", content: <full TSX>}) ` +
+    `before declaring complete.\n\n` +
+    `Blueprint title: ${String(blueprint.title ?? "")}\n\n` +
+    `Component spec (from blueprint.components):\n${JSON.stringify(item, null, 2)}`;
+
+  try {
+    await agentRuntime.invokeAgent("tutorial-component-coder", brief, {
+      tenantId,
+      userId,
+      sessionId,
+      context,
+    });
+  } catch (err) {
+    logger.error(`[B2] Retry invokeAgent for ${fileName} threw: ${err}`);
+    return false;
+  }
+
+  const newPath = join(workspaceComponentsDir, fileName);
+  return existsSync(newPath);
+}
+
+/**
+ * B3 static scan: detect identifiers used in JSX or function-call position that
+ * are neither imported nor declared inside the file. Returns the list of
+ * undefined identifiers (deduped). Empty array means safe.
+ *
+ * Conservative — we only flag PascalCase identifiers (JSX components) and a
+ * small set of known SDK function names whose imports went missing. This avoids
+ * false positives on built-in JSX intrinsics, keywords, and hook locals.
+ *
+ * Used after AI repair writeback to catch the "import commented out but JSX
+ * still references the component" failure mode that put Tutorial 1d2f9f9e in a
+ * 20+ minute build/repair loop.
+ */
+async function scanUndefinedIdentifiers(filePath: string): Promise<string[]> {
+  let content: string;
+  try { content = await readFile(filePath, "utf-8"); } catch { return []; }
+
+  // Step 1: collect import-declared symbols on the RAW content. Doing this
+  // before the comment/string strip phase avoids the trap where stripping
+  // turns `from '@/sdk'` into `from ''` and breaks the import regex (which
+  // requires a non-empty module path). That regression flagged 18 valid
+  // imports as undefined in the verify drill — caught it before shipping.
+  const declared = new Set<string>();
+
+  // Built-ins that don't need import.
+  for (const k of [
+    "React", "Fragment", "Children", "Component", "Suspense", "memo",
+    "Map", "Set", "Math", "Object", "Array", "JSON", "Promise", "Number", "String", "Boolean",
+    "Date", "RegExp", "Error", "Symbol", "console", "window", "document", "globalThis",
+    "undefined", "null", "NaN", "Infinity",
+  ]) declared.add(k);
+
+  // Drop only line comments before scanning imports (block comments inside an
+  // import clause are exotic enough to ignore). Strings inside an import
+  // clause don't exist except as the module path, which the regex already
+  // anchors via `from '...'`.
+  const importScanText = content.replace(/\/\/.*$/gm, "");
+
+  // Imports: `import X from '...'`, `import { A, B as C } from '...'`, `import * as N from '...'`
+  // Path can be empty in pathological cases — accept either.
+  for (const m of importScanText.matchAll(/import\s+([\s\S]*?)\s+from\s+['"][^'"]*['"]/g)) {
+    const clause = m[1]!.trim();
+    const defaultMatch = clause.match(/^([A-Za-z_$][\w$]*)/);
+    if (defaultMatch && !clause.startsWith("{") && !clause.startsWith("*")) {
+      declared.add(defaultMatch[1]!);
+    }
+    const nsMatch = clause.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
+    if (nsMatch) declared.add(nsMatch[1]!);
+    const namedMatch = clause.match(/\{([\s\S]*?)\}/);
+    if (namedMatch) {
+      for (const raw of namedMatch[1]!.split(",")) {
+        const name = raw.trim().replace(/^type\s+/, "").split(/\s+as\s+/).pop()!.trim();
+        if (name) declared.add(name);
+      }
+    }
+  }
+
+  // Step 2: strip comments + strings for the remaining declaration / usage scan.
+  const stripped = content
+    .replace(/\/\/.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+    .replace(/`(?:[^`\\]|\\.)*`/g, "``");
+
+  // Local declarations: const/let/var/function/class + destructuring.
+  for (const m of stripped.matchAll(/\b(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/g)) {
+    declared.add(m[1]!);
+  }
+  for (const m of stripped.matchAll(/\b(?:const|let|var)\s*\{\s*([\s\S]*?)\s*\}\s*=/g)) {
+    for (const part of m[1]!.split(",")) {
+      const cleaned = part.trim().split(":").pop()!.trim().replace(/[=].*/, "").trim();
+      if (cleaned && /^[A-Za-z_$][\w$]*$/.test(cleaned)) declared.add(cleaned);
+    }
+  }
+  for (const m of stripped.matchAll(/\b(?:const|let|var)\s*\[\s*([\s\S]*?)\s*\]\s*=/g)) {
+    for (const part of m[1]!.split(",")) {
+      const cleaned = part.trim().replace(/[=].*/, "").trim();
+      if (cleaned && /^[A-Za-z_$][\w$]*$/.test(cleaned)) declared.add(cleaned);
+    }
+  }
+
+  // Step 3: find usage sites — JSX opening tags + bare PascalCase calls.
+  const used = new Set<string>();
+  for (const m of stripped.matchAll(/<\s*([A-Z][\w$]*)/g)) used.add(m[1]!);
+  for (const m of stripped.matchAll(/(?<![\w.])([A-Z][\w$]*)\s*\(/g)) used.add(m[1]!);
+
+  // emit_event is a known fake global from the bad tutorials — flag explicitly.
+  // Catch both `emit_event(` and `emit_event?.(` (optional-chained call).
+  if (/(?<![\w.])emit_event\s*\??\.?\s*\(/.test(stripped)) used.add("emit_event");
+
+  const undef: string[] = [];
+  for (const name of used) {
+    if (!declared.has(name)) undef.push(name);
+  }
+  return undef;
+}
+
+/**
+ * Pre-build structural gate: parse src/App.tsx for `./components/X` imports and
+ * verify each one corresponds to an actual file under src/components. Throws
+ * `[ASSEMBLE ERROR]` if any reference is missing — this catches the case where
+ * blueprint.json was missing, app-shell-coder hallucinated component names, and
+ * the components fan-out produced no files. Without this gate cleanDeadImports
+ * would silently comment them all out and ship an empty app.
+ */
+async function assertAppShellReferencesExist(sourceDir: string): Promise<void> {
+  const appFile = join(sourceDir, "src", "App.tsx");
+  const componentsDir = join(sourceDir, "src", "components");
+  if (!existsSync(appFile)) return; // upstream syncedFiles check already errored
+
+  const appSource = await readFile(appFile, "utf-8");
+  const importRegex = /from\s+['"]\.\/components\/([^'"]+)['"]/g;
+  const referenced = new Set<string>();
+  for (const m of appSource.matchAll(importRegex)) {
+    referenced.add(m[1]!.replace(/\.tsx?$/, ""));
+  }
+  if (referenced.size === 0) return;
+
+  const existingFiles = existsSync(componentsDir)
+    ? await collectComponentFiles(componentsDir)
+    : [];
+  const existingSet = new Set(existingFiles.map(f => f.replace(/\.tsx?$/, "")));
+
+  const missing: string[] = [];
+  for (const ref of referenced) {
+    if (!existingSet.has(ref)) missing.push(ref);
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `[ASSEMBLE ERROR] App.tsx references ${missing.length} missing component(s): ${missing.join(", ")}. ` +
+        `This usually means the architect blueprint was missing or empty and app-shell-coder ` +
+        `hallucinated component names. Re-run the generation pipeline.`,
+    );
+  }
+}
+
+/**
+ * Repair a batch of (file, errors) pairs in parallel with a concurrency cap.
+ * Returns the number of files actually repaired plus an updated repairLog.
+ */
+async function repairFilesInParallel(
+  grouped: Map<string, ReturnType<typeof parseBuildErrors>>,
+  round: number,
+  warnings: string[],
+  repairLog: RepairRecord[],
+  options: { fallbackRemove?: boolean; tag: string },
+): Promise<number> {
+  const queue = new PQueue({ concurrency: REPAIR_CONCURRENCY });
+  let repaired = 0;
+
+  await Promise.all(
+    Array.from(grouped.entries()).map(([file, errors]) =>
+      queue.add(async () => {
+        if (!existsSync(file)) return;
+        const errText = formatBuildErrors(errors);
+        try {
+          const sourceCode = await readFile(file, "utf-8");
+          const result = await repairFile({ filePath: file, sourceCode, errors: errText });
+          if (result.fixed && result.fixedCode) {
+            await writeFile(file, result.fixedCode, "utf-8");
+            // B3 safety net: detect "import deleted but JSX/call still references it"
+            // — the failure mode that put Tutorial 1d2f9f9e into a 20-min build/
+            // repair death loop. If the repair leaves any PascalCase identifier or
+            // emit_event used-but-undeclared, mark this round as failed without
+            // attempting another build. We revert the file so the loop has the
+            // pre-repair source to work with on the next pass (otherwise we'd
+            // accumulate broken edits across rounds).
+            const undef = await scanUndefinedIdentifiers(file);
+            if (undef.length > 0) {
+              await writeFile(file, sourceCode, "utf-8");
+              repairLog.push({ round, filePath: file, fixed: false, originalErrors: errText });
+              warnings.push(
+                `[${options.tag}] AI repair rejected: ${file} introduced undefined identifier(s) ` +
+                `[${undef.join(", ")}] — likely deleted import but kept JSX/call. Reverted.`,
+              );
+              logger.warn(
+                `[buildWithAIRepair] Repair rejected for ${file}: undefined identifiers ${undef.join(",")}`,
+              );
+              return; // queue task ends without counting this as repaired
+            }
+            repairLog.push({ round, filePath: file, fixed: true, originalErrors: errText });
+            warnings.push(`[${options.tag}] AI repaired: ${file}`);
+            repaired++;
+          } else if (options.fallbackRemove && file.includes("components")) {
+            rmSync(file, { force: true });
+            repairLog.push({ round, filePath: file, fixed: false, originalErrors: errText });
+            warnings.push(`[${options.tag}] AI repair failed, removed: ${file}`);
+          } else {
+            repairLog.push({ round, filePath: file, fixed: false, originalErrors: errText });
+            warnings.push(`[${options.tag}] AI repair failed for ${file} (kept)`);
+          }
+        } catch (err) {
+          logger.error(`[buildWithAIRepair] Error during repair of ${file}: ${err}`);
+          if (options.fallbackRemove && file.includes("components")) {
+            rmSync(file, { force: true });
+            warnings.push(`[${options.tag}] Repair error, removed: ${file}`);
+          }
+        }
+      }),
+    ),
+  );
+
+  return repaired;
+}
+
+export interface BuildHooks {
+  /** Called once when the first successful build completes; arg is the elapsed ms of the build round that succeeded. */
+  onFirstSuccess?: (info: { round: number; elapsedMs: number }) => void;
+  /** Called when each build round finishes (success or failure). */
+  onRound?: (info: { round: number; success: boolean; errorCount: number; elapsedMs: number }) => void;
 }
 
 async function buildWithAIRepair(
@@ -161,165 +691,218 @@ async function buildWithAIRepair(
   distDir: string,
   maxRounds: number = 3,
   meta?: BuildMeta,
+  hooks?: BuildHooks,
 ): Promise<{ success: boolean; warnings: string[]; repairLog: RepairRecord[] }> {
   const warnings: string[] = [];
   const repairLog: RepairRecord[] = [];
   const componentsDir = join(sourceDir, "src", "components");
   const appFile = join(sourceDir, "src", "App.tsx");
 
-  // Stage 1: Static validation — attempt AI repair before falling back to deletion
+  // Stage 1: Static validation — parallel AI repair before falling back to deletion
   const validationErrors = await validateAllComponents(componentsDir);
   if (validationErrors.length > 0) {
-    for (const ve of validationErrors) {
-      const errSummary = ve.errors.join("; ");
-      logger.info(`[buildWithAIRepair] Validation error in ${ve.file}, attempting AI repair`);
-
-      let repaired = false;
-      if (existsSync(ve.file)) {
-        try {
-          const sourceCode = await readFile(ve.file, "utf-8");
-          const result = await repairFile({
-            filePath: ve.file,
-            sourceCode,
-            errors: errSummary,
-          });
-          if (result.fixed && result.fixedCode) {
-            await writeFile(ve.file, result.fixedCode, "utf-8");
-            repairLog.push({ round: 0, filePath: ve.file, fixed: true, originalErrors: errSummary });
-            warnings.push(`AI repaired validation error: ${ve.file}`);
-            repaired = true;
+    logger.info(`[buildWithAIRepair] Static validation: ${validationErrors.length} component(s) need attention`);
+    const queue = new PQueue({ concurrency: REPAIR_CONCURRENCY });
+    await Promise.all(
+      validationErrors.map((ve) =>
+        queue.add(async () => {
+          const errSummary = ve.errors.join("; ");
+          let repaired = false;
+          if (existsSync(ve.file)) {
+            try {
+              const sourceCode = await readFile(ve.file, "utf-8");
+              const result = await repairFile({ filePath: ve.file, sourceCode, errors: errSummary });
+              if (result.fixed && result.fixedCode) {
+                await writeFile(ve.file, result.fixedCode, "utf-8");
+                // B3 safety net: same check as Stage 2 — refuse repairs that leave
+                // dangling identifier references after deleting an import.
+                const undef = await scanUndefinedIdentifiers(ve.file);
+                if (undef.length > 0) {
+                  await writeFile(ve.file, sourceCode, "utf-8");
+                  repairLog.push({ round: 0, filePath: ve.file, fixed: false, originalErrors: errSummary });
+                  warnings.push(
+                    `AI repair rejected (validation stage): ${ve.file} introduced undefined identifier(s) ` +
+                    `[${undef.join(", ")}]. Reverted.`,
+                  );
+                } else {
+                  repairLog.push({ round: 0, filePath: ve.file, fixed: true, originalErrors: errSummary });
+                  warnings.push(`AI repaired validation error: ${ve.file}`);
+                  repaired = true;
+                }
+              }
+            } catch (err) {
+              logger.warn(`[buildWithAIRepair] AI repair threw for ${ve.file}: ${err}`);
+            }
           }
-        } catch (err) {
-          logger.warn(`[buildWithAIRepair] AI repair threw for ${ve.file}: ${err}`);
-        }
-      }
-
-      if (!repaired) {
-        if (existsSync(ve.file)) rmSync(ve.file, { force: true });
-        repairLog.push({ round: 0, filePath: ve.file, fixed: false, originalErrors: errSummary });
-        warnings.push(`AI repair failed, removed: ${ve.file} — ${errSummary}`);
-        logger.warn(`[buildWithAIRepair] Removed invalid component: ${ve.file}`);
-      }
-    }
+          if (!repaired) {
+            if (existsSync(ve.file)) rmSync(ve.file, { force: true });
+            repairLog.push({ round: 0, filePath: ve.file, fixed: false, originalErrors: errSummary });
+            warnings.push(`AI repair failed, removed: ${ve.file} — ${errSummary}`);
+            logger.warn(`[buildWithAIRepair] Removed invalid component: ${ve.file}`);
+          }
+        }),
+      ),
+    );
   }
 
-  // Stage 1.5: TypeScript type-check before build
-  try {
-    const tscErrors = await typeCheckProject(sourceDir);
-    if (tscErrors.length > 0) {
-      logger.info(`[buildWithAIRepair] TypeScript pre-check found ${tscErrors.length} error(s)`);
-      const grouped = groupErrorsByFile(tscErrors);
-
-      for (const [file, errors] of grouped) {
-        if (!existsSync(file)) continue;
-
-        const errText = formatBuildErrors(errors);
-        try {
-          const sourceCode = await readFile(file, "utf-8");
-          const result = await repairFile({ filePath: file, sourceCode, errors: errText });
-          if (result.fixed && result.fixedCode) {
-            await writeFile(file, result.fixedCode, "utf-8");
-            repairLog.push({ round: 0, filePath: file, fixed: true, originalErrors: errText });
-            warnings.push(`AI repaired tsc error: ${file}`);
-          } else {
-            repairLog.push({ round: 0, filePath: file, fixed: false, originalErrors: errText });
-            warnings.push(`AI could not repair tsc error in ${file}`);
-          }
-        } catch (err) {
-          logger.warn(`[buildWithAIRepair] tsc repair threw for ${file}: ${err}`);
-        }
-      }
-    }
-  } catch (err) {
-    logger.warn(`[buildWithAIRepair] TypeScript pre-check skipped: ${err}`);
-  }
-
-  // Stage 1.8: Clean dead imports from App.tsx
+  // Stage 1.5: Clean dead imports from App.tsx
   const deadRemoved = await cleanDeadImports(appFile, componentsDir);
   if (deadRemoved > 0) {
     warnings.push(`Removed ${deadRemoved} dead import(s) from App.tsx`);
   }
 
-  // Stage 2: Build with AI repair loop
+  // Stage 2: Build with AI repair loop. Note: we no longer run tsc as a pre-check
+  // (saves 10–30s per build) — vite/esbuild catches the same issues. tsc is now a
+  // fallback only triggered after vite repair rounds fail to converge.
+  let firstSuccessReported = false;
   for (let round = 1; round <= maxRounds; round++) {
+    const buildStart = Date.now();
     const result = await runBuild(sourceDir, distDir, meta);
+    const buildElapsed = Date.now() - buildStart;
+    hooks?.onRound?.({ round, success: result.success, errorCount: 0, elapsedMs: buildElapsed });
     if (result.success) {
-      logger.info(`[buildWithAIRepair] Build succeeded on round ${round}`);
+      logger.info(`[buildWithAIRepair] Build succeeded on round ${round} (${buildElapsed}ms)`);
+      if (!firstSuccessReported) {
+        firstSuccessReported = true;
+        hooks?.onFirstSuccess?.({ round, elapsedMs: buildElapsed });
+      }
       return { success: true, warnings, repairLog };
     }
 
     const buildErrors = parseBuildErrors(result.output);
-    logger.warn(`[buildWithAIRepair] Build failed (round ${round}/${maxRounds}): ${buildErrors.length} error(s)`);
+    logger.warn(`[buildWithAIRepair] Build failed round ${round}/${maxRounds}: ${buildErrors.length} parsed error(s) in ${buildElapsed}ms`);
 
     if (buildErrors.length === 0) {
-      warnings.push(`Build failed with unparseable errors (round ${round}): ${result.output.slice(0, 500)}`);
+      warnings.push(`Build failed with unparseable errors (round ${round}):\n${summarizeBuildOutput(result.output)}`);
+      break;
+    }
+
+    // Detect "configuration-class" failures: vite plugin errors (file = "<vite>")
+    // or rollup link errors against files that don't exist on disk (e.g. errors
+    // pointing at template/build internals). These cannot be fixed by editing
+    // user components, so let editor sub-agents avoid wasted spawns and let
+    // assembleApp surface a clear "[CONFIG ERROR]" upstream.
+    const repairable = buildErrors.filter(e => e.file !== '<vite>' && existsSync(e.file));
+    if (repairable.length === 0) {
+      warnings.push(
+        `[CONFIG ERROR] Build failure looks like a vite/rollup configuration issue, ` +
+        `not user-component code (round ${round}). Manual intervention required.\n` +
+        summarizeBuildOutput(result.output),
+      );
       break;
     }
 
     if (round > maxRounds) break;
 
-    const grouped = groupErrorsByFile(buildErrors);
-    let anyRepaired = false;
+    const grouped = groupErrorsByFile(repairable);
+    const anyRepaired = await repairFilesInParallel(grouped, round, warnings, repairLog, {
+      fallbackRemove: true,
+      tag: `Round ${round}`,
+    });
 
-    for (const [file, errors] of grouped) {
-      if (!existsSync(file)) continue;
-
-      const errText = formatBuildErrors(errors);
-      try {
-        const sourceCode = await readFile(file, "utf-8");
-        const repairResult = await repairFile({
-          filePath: file,
-          sourceCode,
-          errors: errText,
-        });
-
-        if (repairResult.fixed && repairResult.fixedCode) {
-          await writeFile(file, repairResult.fixedCode, "utf-8");
-          repairLog.push({ round, filePath: file, fixed: true, originalErrors: errText });
-          warnings.push(`[Round ${round}] AI repaired: ${file}`);
-          anyRepaired = true;
-        } else {
-          // Fallback: remove component files that can't be repaired (never remove App.tsx)
-          if (file.includes("components")) {
-            rmSync(file, { force: true });
-            repairLog.push({ round, filePath: file, fixed: false, originalErrors: errText });
-            warnings.push(`[Round ${round}] AI repair failed, removed: ${file}`);
-          } else {
-            repairLog.push({ round, filePath: file, fixed: false, originalErrors: errText });
-            warnings.push(`[Round ${round}] AI repair failed for ${file} (kept)`);
-          }
-        }
-      } catch (err) {
-        logger.error(`[buildWithAIRepair] Error during repair of ${file}: ${err}`);
-        if (file.includes("components")) {
-          rmSync(file, { force: true });
-          warnings.push(`[Round ${round}] Repair error, removed: ${file}`);
-        }
-      }
-    }
-
-    // Re-clean dead imports after changes
     await cleanDeadImports(appFile, componentsDir);
 
-    if (!anyRepaired) {
+    if (anyRepaired === 0) {
       warnings.push(`No files repaired in round ${round}, stopping`);
       break;
     }
   }
 
-  // Final build attempt
+  // Stage 3: tsc fallback — only run if vite repair rounds did not converge.
+  // tsc is slow (10–30s) so we skip it on the happy path, but use it as a last
+  // resort to surface type errors that escaped esbuild's checks.
+  try {
+    logger.info("[buildWithAIRepair] Vite repair rounds exhausted, trying tsc fallback");
+    const tscErrors = await typeCheckProject(sourceDir);
+    if (tscErrors.length > 0) {
+      const grouped = groupErrorsByFile(tscErrors);
+      logger.info(`[buildWithAIRepair] tsc fallback: ${tscErrors.length} error(s) across ${grouped.size} file(s)`);
+      const repaired = await repairFilesInParallel(grouped, maxRounds + 1, warnings, repairLog, {
+        fallbackRemove: false,
+        tag: "tsc-fallback",
+      });
+      if (repaired > 0) {
+        await cleanDeadImports(appFile, componentsDir);
+      }
+    }
+  } catch (err) {
+    logger.warn(`[buildWithAIRepair] tsc fallback skipped: ${err}`);
+  }
+
+  // Final build attempt after tsc fallback
+  const finalStart = Date.now();
   const finalResult = await runBuild(sourceDir, distDir, meta);
+  const finalElapsed = Date.now() - finalStart;
+  hooks?.onRound?.({ round: maxRounds + 1, success: finalResult.success, errorCount: 0, elapsedMs: finalElapsed });
   if (finalResult.success) {
-    logger.info("[buildWithAIRepair] Final build succeeded after repair rounds");
+    logger.info(`[buildWithAIRepair] Final build succeeded after tsc fallback (${finalElapsed}ms)`);
+    if (!firstSuccessReported) {
+      firstSuccessReported = true;
+      hooks?.onFirstSuccess?.({ round: maxRounds + 1, elapsedMs: finalElapsed });
+    }
     return { success: true, warnings, repairLog };
   }
 
-  warnings.push(`Build failed after all repair rounds: ${finalResult.output.slice(0, 500)}`);
+  warnings.push(`Build failed after all repair rounds:\n${summarizeBuildOutput(finalResult.output)}`);
   return { success: false, warnings, repairLog };
+}
+
+const FILE_NAME_RE = /^[A-Z][A-Za-z0-9]+\.tsx$/;
+
+/**
+ * Normalize blueprint.components in-place:
+ *  - drop entries with invalid/missing file_name
+ *  - dedupe file_name (keep first, suffix duplicates with index)
+ *  - ensure PascalCase, .tsx suffix
+ *
+ * Returns the (possibly mutated) blueprint and a list of fix-up notes.
+ */
+function normalizeBlueprint(blueprint: Record<string, unknown>): { blueprint: Record<string, unknown>; notes: string[] } {
+  const notes: string[] = [];
+  const components = blueprint.components;
+  if (!Array.isArray(components)) return { blueprint, notes };
+
+  const seen = new Set<string>();
+  const cleaned: unknown[] = [];
+
+  for (let i = 0; i < components.length; i++) {
+    const item = components[i] as Record<string, unknown> | undefined;
+    if (!item || typeof item !== "object") continue;
+    let fileName = typeof item.file_name === "string" ? item.file_name.trim() : "";
+    if (!fileName) {
+      notes.push(`components[${i}] dropped: missing file_name`);
+      continue;
+    }
+    if (!fileName.endsWith(".tsx")) fileName = fileName.replace(/\.tsx?$/i, "") + ".tsx";
+    fileName = fileName.replace(/^[a-z]/, (c) => c.toUpperCase());
+    if (!FILE_NAME_RE.test(fileName)) {
+      notes.push(`components[${i}] dropped: invalid file_name "${item.file_name}"`);
+      continue;
+    }
+    let unique = fileName;
+    let suffix = 2;
+    while (seen.has(unique)) {
+      unique = fileName.replace(/\.tsx$/, `${suffix}.tsx`);
+      suffix++;
+    }
+    if (unique !== fileName) {
+      notes.push(`components[${i}] renamed: ${fileName} -> ${unique} (duplicate)`);
+    }
+    seen.add(unique);
+    cleaned.push({ ...item, file_name: unique });
+  }
+
+  if (cleaned.length !== components.length) {
+    notes.push(`components: ${components.length} -> ${cleaned.length} after normalization`);
+  }
+  blueprint.components = cleaned;
+  return { blueprint, notes };
 }
 
 /**
  * Pipeline handler: ensure blueprint.json is valid JSON in workspace.
+ * Also normalizes components[].file_name to be unique PascalCase .tsx so that the
+ * downstream component fan-out does not collide on file paths.
  */
 export async function saveBlueprint(ctx: PipelineHandlerContext): Promise<unknown> {
   const { tenantId, userId, sessionId } = ctx;
@@ -329,29 +912,114 @@ export async function saveBlueprint(ctx: PipelineHandlerContext): Promise<unknow
   if (existingRaw) {
     const existing = safeParseJSON(existingRaw);
     if (existing) {
-      logger.info(`[saveBlueprint] Using blueprint already in workspace (${existingRaw.length} chars)`);
-      return existing;
+      const { blueprint, notes } = normalizeBlueprint(existing);
+      if (notes.length > 0) {
+        logger.warn(`[saveBlueprint] Normalized existing blueprint: ${notes.join("; ")}`);
+        await workspaceManager.writeArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json", JSON.stringify(blueprint, null, 2));
+      } else {
+        logger.info(`[saveBlueprint] Using blueprint already in workspace (${existingRaw.length} chars)`);
+      }
+      return blueprint;
     }
   }
 
   const architectRaw = ctx.previousResults.get("architect");
-  const blueprint = safeParseJSON(architectRaw);
+  const parsed = safeParseJSON(architectRaw);
 
-  if (blueprint) {
+  if (parsed) {
+    const { blueprint, notes } = normalizeBlueprint(parsed);
+    if (notes.length > 0) logger.warn(`[saveBlueprint] Blueprint normalized: ${notes.join("; ")}`);
     const content = JSON.stringify(blueprint, null, 2);
     await workspaceManager.writeArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json", content);
     logger.info(`[saveBlueprint] Blueprint parsed from architect output and saved (${content.length} chars)`);
     return blueprint;
   }
 
-  if (architectRaw) {
-    const raw = typeof architectRaw === "string" ? architectRaw : JSON.stringify(architectRaw);
-    await workspaceManager.writeArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json", raw);
-    logger.warn(`[saveBlueprint] Could not parse as JSON, saved raw architect output (${raw.length} chars)`);
-    return architectRaw;
+  // Architect produced nothing parseable AND nothing was written to workspace.
+  // The most common cause is the architect's ReACT reflection loop falsely
+  // declaring `done=true` after only reading research.json, never calling
+  // `workspace_write({name: "artifacts/blueprint.json"})`. Returning null here
+  // would silently degrade `components` fan-out to zero instances and let
+  // app-shell-coder hallucinate component imports → empty app at runtime.
+  // Instead, re-invoke the architect once with an explicit research-context
+  // brief; if it still fails, throw [ARCHITECT FAILED] so the director can
+  // surface the failure instead of producing a broken tutorial.
+  const retried = await retryArchitectOnce(ctx, architectRaw);
+  if (retried) return retried;
+
+  throw new Error(
+    "[ARCHITECT FAILED] Blueprint generation failed after retry. " +
+      "Architect produced no parseable blueprint and did not write artifacts/blueprint.json. " +
+      "Manual intervention required.",
+  );
+}
+
+/**
+ * Re-run tutorial-scene-architect once when saveBlueprint cannot find a usable
+ * blueprint. Reads research.json from workspace to seed the brief, invokes the
+ * agent synchronously, then re-checks workspace + pipeline output for a parseable
+ * blueprint. Returns the normalized blueprint on success, null otherwise.
+ */
+async function retryArchitectOnce(
+  ctx: PipelineHandlerContext,
+  originalArchitectRaw: unknown,
+): Promise<Record<string, unknown> | null> {
+  const { tenantId, userId, sessionId, context, initialInput } = ctx;
+  if (!sessionId) return null;
+
+  logger.warn(
+    `[saveBlueprint] No usable blueprint after architect step (raw=${
+      typeof originalArchitectRaw === "string" ? `${originalArchitectRaw.length}chars` : typeof originalArchitectRaw
+    }) — attempting one inline architect re-invocation`,
+  );
+
+  const { agentRegistry } = await import("../../../src/core/agent-registry.js");
+  const { agentRuntime } = await import("../../../src/core/agent-runtime.js");
+
+  if (!agentRegistry.has("tutorial-scene-architect")) {
+    logger.error("[saveBlueprint] tutorial-scene-architect not registered — cannot retry");
+    return null;
   }
 
-  logger.error("[saveBlueprint] No architect output found in pipeline results");
+  const researchRaw = await workspaceManager.readArtifact(tenantId, userId, sessionId, "artifacts/research.json");
+  const researchExcerpt = researchRaw
+    ? `\n\n【Research Report (artifacts/research.json)】\n${researchRaw.slice(0, 4000)}`
+    : "";
+
+  const retryBrief =
+    `${initialInput}\n\n` +
+    `【RETRY】Previous architect run did not produce a parseable blueprint nor write artifacts/blueprint.json. ` +
+    `You MUST call workspace_write({name: "artifacts/blueprint.json", content: <stringified blueprint JSON>}) ` +
+    `before declaring the task complete. The blueprint MUST follow the schema in your MISSION (title, components[], teaching_guide).` +
+    researchExcerpt;
+
+  try {
+    await agentRuntime.invokeAgent("tutorial-scene-architect", retryBrief, {
+      tenantId,
+      userId,
+      sessionId,
+      context,
+    });
+  } catch (err) {
+    logger.error(`[saveBlueprint] Architect retry threw: ${err}`);
+    return null;
+  }
+
+  const recheckRaw = await workspaceManager.readArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json");
+  if (recheckRaw) {
+    const recheckParsed = safeParseJSON(recheckRaw);
+    if (recheckParsed) {
+      const { blueprint, notes } = normalizeBlueprint(recheckParsed);
+      if (notes.length > 0) {
+        logger.warn(`[saveBlueprint] Retry blueprint normalized: ${notes.join("; ")}`);
+        await workspaceManager.writeArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json", JSON.stringify(blueprint, null, 2));
+      }
+      logger.info(`[saveBlueprint] Architect retry succeeded — blueprint recovered (${recheckRaw.length} chars)`);
+      return blueprint;
+    }
+  }
+
+  logger.error("[saveBlueprint] Architect retry produced no parseable blueprint either");
   return null;
 }
 
@@ -442,6 +1110,93 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
   const { tenantId, userId, sessionId } = ctx;
   if (!sessionId) throw new Error("assembleApp requires a sessionId");
 
+  // B4: total wall-clock budget. assembleAppInner runs the actual logic; we race
+  // it against a deadline timer. On timeout we emit assemble_failed + write a
+  // metrics row with reason=timeout, so the SSE consumer doesn't sit forever.
+  let timedOut = false;
+  let timeoutHandle: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      timedOut = true;
+      reject(new Error(`[ASSEMBLE TIMEOUT] assembleApp exceeded ${ASSEMBLE_TIMEOUT_MS}ms budget`));
+    }, ASSEMBLE_TIMEOUT_MS);
+    if (typeof timeoutHandle.unref === "function") timeoutHandle.unref();
+  });
+
+  try {
+    return await Promise.race([assembleAppInner(ctx), timeoutPromise]);
+  } catch (err) {
+    if (timedOut) {
+      const reason = "timeout";
+      eventBus.emit({
+        type: "progress",
+        sourceAgent: "interactive-tutorial-director",
+        sessionId,
+        data: {
+          message: `Assemble timed out after ${ASSEMBLE_TIMEOUT_MS}ms`,
+          phase: "assemble",
+          stage: "assemble_failed",
+          reason,
+          timeoutMs: ASSEMBLE_TIMEOUT_MS,
+        },
+        timestamp: new Date().toISOString(),
+      });
+      try {
+        await workspaceManager.writeArtifact(
+          tenantId,
+          userId,
+          sessionId,
+          "logs/assemble-metrics.json",
+          JSON.stringify(
+            { sessionId, success: false, reason, timeoutMs: ASSEMBLE_TIMEOUT_MS },
+            null,
+            2,
+          ),
+        );
+      } catch (writeErr) {
+        logger.warn(`[assembleApp] Failed to write timeout metrics: ${writeErr}`);
+      }
+    }
+    throw err;
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
+}
+
+/**
+ * Inner assembleApp body. Separated so the outer wrapper can race it against
+ * the B4 timeout without duplicating control flow.
+ */
+async function assembleAppInner(ctx: PipelineHandlerContext): Promise<object> {
+  const { tenantId, userId, sessionId } = ctx;
+  if (!sessionId) throw new Error("assembleAppInner requires a sessionId");
+
+  const assembleStart = Date.now();
+  const timings: Record<string, number> = {};
+  const emitProgress = (message: string, extra?: Record<string, unknown>) => {
+    eventBus.emit({
+      type: "progress",
+      sourceAgent: "interactive-tutorial-director",
+      sessionId,
+      data: { message, ...extra },
+      timestamp: new Date().toISOString(),
+    });
+  };
+  const emitAssembleFailed = async (reason: string, message: string) => {
+    emitProgress(message, { phase: "assemble", stage: "assemble_failed", reason });
+    try {
+      await workspaceManager.writeArtifact(
+        tenantId,
+        userId,
+        sessionId,
+        "logs/assemble-metrics.json",
+        JSON.stringify({ sessionId, timings, success: false, reason, message }, null, 2),
+      );
+    } catch (err) {
+      logger.warn(`[assembleApp] Failed to write failure metrics (${reason}): ${err}`);
+    }
+  };
+
   const wsBlueprint = await workspaceManager.readArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json");
   let blueprint = safeParseJSON(wsBlueprint);
   if (!blueprint) {
@@ -454,49 +1209,49 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
   const sourceDir = join(TUTORIALS_DIR, sessionId, "source");
   const distDir = join(TUTORIALS_DIR, sessionId, "dist");
 
-  logger.info(`[assembleApp] Starting: session=${sessionId}`);
+  logger.info(`[assembleApp] Starting: session=${sessionId} timeoutMs=${ASSEMBLE_TIMEOUT_MS}`);
+  emitProgress("Preparing build environment", { phase: "assemble", stage: "prepare" });
 
-  // 1. Copy template (exclude node_modules, .git, dist, components)
-  mkdirSync(sourceDir, { recursive: true });
-  cpSync(getTemplateDir(), sourceDir, { recursive: true, filter: excludeFilter });
+  // Mirror reassembleForSession: clear any stale dist before the first build so
+  // vite never warns "outDir ... is not inside project root and will not be
+  // emptied" and we never serve mixed assets from a previous failed attempt.
+  if (existsSync(distDir)) rmSync(distDir, { recursive: true, force: true });
 
-  // Prepare fresh components dir
-  const componentsDir = join(sourceDir, "src", "components");
-  if (existsSync(componentsDir)) rmSync(componentsDir, { recursive: true, force: true });
-  mkdirSync(componentsDir, { recursive: true });
+  // 1. Prepare source dir using junction-based template overlay
+  const prep = prepareSourceDir(sourceDir);
+  timings["prepare-source"] = prep.elapsedMs;
+  logger.info(`[assembleApp] prepareSourceDir mode=${prep.mode} elapsed=${prep.elapsedMs}ms`);
 
-  // 2. Symlink node_modules from template
-  const templateModules = join(getTemplateDir(), "node_modules");
-  const targetModules = join(sourceDir, "node_modules");
-  if (existsSync(templateModules) && !existsSync(targetModules)) {
-    try {
-      symlinkSync(templateModules, targetModules, "junction");
-    } catch {
-      logger.warn("[assembleApp] Symlink failed, copying node_modules (slow path)");
-      cpSync(templateModules, targetModules, { recursive: true });
-    }
-  }
-
-  // 3. Sync AI-generated files from workspace (App.tsx + components/)
+  // 2. Sync AI-generated files from workspace (App.tsx + components/)
+  const syncStart = Date.now();
   let syncedFiles = await syncAppFiles(tenantId, userId, sessionId, sourceDir);
-  logger.info(`[assembleApp] Synced ${syncedFiles.length} files from workspace`);
+  timings["sync-workspace"] = Date.now() - syncStart;
+  logger.info(`[assembleApp] Synced ${syncedFiles.length} files from workspace in ${timings["sync-workspace"]}ms`);
+  const componentsDir = join(sourceDir, "src", "components");
 
-  // 3b. Fallback: extract code blocks from coder's raw LLM output or pipeline result
+  // 3. Fallback: extract code blocks from coder's raw LLM output or pipeline result.
+  //    With the new pipeline (component fan-out + app-shell-coder), workspace files are
+  //    written directly via workspace_write — but we keep this fallback for the legacy
+  //    coder agent and for resilience when fan-out partially fails.
   if (syncedFiles.length === 0) {
     logger.warn("[assembleApp] No files in workspace — attempting to extract from coder output");
 
     const candidateTexts: string[] = [];
 
-    const rawCoderOutput = await workspaceManager.readArtifact(tenantId, userId, sessionId, "logs/tutorial-scene-coder-raw-output.txt");
-    if (rawCoderOutput) {
-      logger.info(`[assembleApp] Found raw coder output in workspace (${rawCoderOutput.length} chars)`);
-      candidateTexts.push(rawCoderOutput);
+    for (const logFile of [
+      "logs/tutorial-scene-coder-raw-output.txt",
+      "logs/tutorial-app-shell-coder-raw-output.txt",
+      "logs/tutorial-component-coder-raw-output.txt",
+    ]) {
+      const raw = await workspaceManager.readArtifact(tenantId, userId, sessionId, logFile);
+      if (raw) candidateTexts.push(raw);
     }
 
-    const coderRaw = ctx.previousResults.get("coder");
-    if (coderRaw) {
-      const coderText = typeof coderRaw === "string" ? coderRaw : JSON.stringify(coderRaw, null, 2);
-      candidateTexts.push(coderText);
+    for (const stepName of ["coder", "components", "app-shell"]) {
+      const stepRaw = ctx.previousResults.get(stepName);
+      if (stepRaw) {
+        candidateTexts.push(typeof stepRaw === "string" ? stepRaw : JSON.stringify(stepRaw, null, 2));
+      }
     }
 
     for (const text of candidateTexts) {
@@ -522,26 +1277,109 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
   }
 
   if (syncedFiles.length === 0) {
-    const coderRaw = ctx.previousResults.get("coder");
+    const coderRaw = ctx.previousResults.get("coder") ?? ctx.previousResults.get("components") ?? ctx.previousResults.get("app-shell");
     const snippet = coderRaw
       ? (typeof coderRaw === "string" ? coderRaw : JSON.stringify(coderRaw)).slice(0, 300)
       : "(no coder output)";
+    await emitAssembleFailed(
+      "no_files",
+      `No files found — neither in workspace nor extractable from coder output. Coder result preview: ${snippet}`,
+    );
     throw new Error(
       `No files found — neither in workspace nor extractable from coder output. ` +
       `Coder result preview: ${snippet}`,
     );
   }
 
-  // 4. Build with AI-powered validation and repair
-  const buildResult = await buildWithAIRepair(sourceDir, distDir, 3, { sessionId });
+  // ── B1: pre-check that App.tsx is the agent's real output, not the placeholder
+  //        template "教程加载中…" — caught Tutorial 4a8b22e1's silent app-shell-coder
+  //        failure (the agent emitted descriptive text but never called workspace_write).
+  const appPlaceholderReason = await verifyAppTsxIsRealApp(sourceDir);
+  if (appPlaceholderReason) {
+    const reason = "app_shell_coder_silent_failure";
+    const message = `[B1] ${appPlaceholderReason} — refusing to build a placeholder app`;
+    logger.error(`[assembleApp] ${message}`);
+    await emitAssembleFailed(reason, message);
+    throw new Error(`${message}. Likely cause: app-shell-coder returned descriptive text without calling workspace_write({name: 'assets/App.tsx', ...}).`);
+  }
+
+  // ── B2: completeness check on the component fan-out vs blueprint.components.
+  //        Tutorial 1d2f9f9e lost RadarDynamicCalibration.tsx entirely; the
+  //        downstream repair loop then chased a ReferenceError for 20+ minutes.
+  //        Single-shot retry via component-coder; still missing → fail assemble.
+  if (blueprint) {
+    const wsComponentsDir = join(workspaceManager.getPath(tenantId, userId, sessionId), "assets", "components");
+    let missing = await findMissingBlueprintComponents(blueprint, wsComponentsDir);
+    if (missing.length > 0) {
+      logger.warn(`[B2] Missing components after fan-out: ${missing.join(", ")} — attempting single retry`);
+      emitProgress(`Retrying ${missing.length} missing component(s)`, {
+        phase: "assemble",
+        stage: "component_retry",
+        missing,
+      });
+      const stillMissing: string[] = [];
+      for (const fileName of missing) {
+        const ok = await retryComponentCoderForFile(ctx, blueprint, fileName, wsComponentsDir);
+        if (!ok) stillMissing.push(fileName);
+      }
+      // Re-sync after retry so any newly written files appear under sourceDir.
+      if (stillMissing.length < missing.length) {
+        syncedFiles = await syncAppFiles(tenantId, userId, sessionId, sourceDir);
+      }
+      // Re-check from disk in case retryComponentCoderForFile's existsSync
+      // probe missed a delayed write.
+      missing = await findMissingBlueprintComponents(blueprint, wsComponentsDir);
+      if (missing.length > 0) {
+        const reason = "missing_components";
+        const message = `[B2] Component fan-out incomplete after retry: still missing [${missing.join(", ")}]`;
+        logger.error(`[assembleApp] ${message}`);
+        await emitAssembleFailed(reason, message);
+        throw new Error(`${message}. Re-run the generation pipeline.`);
+      }
+      logger.info(`[B2] Retry succeeded — all blueprint components now present`);
+    }
+  }
+
+  emitProgress(`Building app with ${syncedFiles.length} files`, { phase: "assemble", stage: "build" });
+
+  // 3.5. Structural gate: refuse to build if App.tsx imports any components that
+  //      don't exist on disk. Catches the blueprint-missing → hallucinated-imports
+  //      failure mode before vite + cleanDeadImports silently produce an empty app.
+  await assertAppShellReferencesExist(sourceDir);
+
+  // 4. Build with AI-powered validation and parallel repair. Emit preview_ready
+  //    as soon as the first build round succeeds so the user sees the URL while
+  //    any remaining tsc/lint passes finish in the foreground.
+  const url = tutorialPublicFileUrl(sessionId);
+  let previewEmitted = false;
+  const buildStart = Date.now();
+  const buildResult = await buildWithAIRepair(sourceDir, distDir, 3, { sessionId }, {
+    onFirstSuccess: ({ round, elapsedMs }) => {
+      previewEmitted = true;
+      timings["first-success-round"] = round;
+      timings["first-success-build-ms"] = elapsedMs;
+      logger.info(`[assembleApp] preview_ready url=${url} round=${round} build=${elapsedMs}ms`);
+      emitProgress("Preview is ready", {
+        phase: "assemble",
+        stage: "preview_ready",
+        url,
+        round,
+        elapsedMs,
+      });
+    },
+    onRound: ({ round, success, elapsedMs }) => {
+      logger.info(`[assembleApp] build round ${round} success=${success} elapsed=${elapsedMs}ms`);
+    },
+  });
+  timings["build-total"] = Date.now() - buildStart;
 
   if (!buildResult.success) {
+    await emitAssembleFailed("build_failed", `Build failed: ${buildResult.warnings.join("; ")}`);
     throw new Error(`Build failed: ${buildResult.warnings.join("; ")}`);
   }
 
   // 5. Save metadata (optional record — no downstream code depends on this)
   const title = blueprint?.title as string || "互动教材";
-  const url = tutorialPublicFileUrl(sessionId);
   const meta: TutorialMeta = {
     tutorialId: sessionId,
     title,
@@ -554,12 +1392,42 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
     await workspaceManager.writeArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json", JSON.stringify(blueprint, null, 2));
   }
 
+  const totalElapsed = Date.now() - assembleStart;
+  timings["assemble-total"] = totalElapsed;
+
+  // Persist per-step timing metrics for offline analysis (Task 12 — observability)
+  try {
+    await workspaceManager.writeArtifact(
+      tenantId,
+      userId,
+      sessionId,
+      "logs/assemble-metrics.json",
+      JSON.stringify({ sessionId, timings, fileCount: syncedFiles.length, success: true }, null, 2),
+    );
+  } catch (err) {
+    logger.warn(`[assembleApp] Failed to write metrics: ${err}`);
+  }
+
+  emitProgress("Final build complete", {
+    phase: "assemble",
+    stage: "final_ready",
+    url,
+    elapsedMs: totalElapsed,
+  });
+
+  // Belt-and-suspenders: if for some reason onFirstSuccess never fired (e.g. hooks rebound),
+  // emit preview_ready here so the consumer always sees one.
+  if (!previewEmitted) {
+    emitProgress("Preview is ready", { phase: "assemble", stage: "preview_ready", url });
+  }
+
   const teachingGuide = blueprint?.teaching_guide;
 
   return {
     ...meta,
     teachingGuide,
     fileCount: syncedFiles.length,
+    timings,
     warnings: buildResult.warnings.length > 0 ? buildResult.warnings : undefined,
     repairLog: buildResult.repairLog.length > 0 ? buildResult.repairLog : undefined,
   };
@@ -578,25 +1446,12 @@ async function firstAssembly(
   const sourceDir = join(TUTORIALS_DIR, sessionId, "source");
   const distDir = join(TUTORIALS_DIR, sessionId, "dist");
 
+  if (existsSync(distDir)) rmSync(distDir, { recursive: true, force: true });
+
   logger.info(`[firstAssembly] Building from scratch: session=${sessionId}`);
 
-  mkdirSync(sourceDir, { recursive: true });
-  cpSync(getTemplateDir(), sourceDir, { recursive: true, filter: excludeFilter });
-
-  const componentsDir = join(sourceDir, "src", "components");
-  if (existsSync(componentsDir)) rmSync(componentsDir, { recursive: true, force: true });
-  mkdirSync(componentsDir, { recursive: true });
-
-  const templateModules = join(getTemplateDir(), "node_modules");
-  const targetModules = join(sourceDir, "node_modules");
-  if (existsSync(templateModules) && !existsSync(targetModules)) {
-    try {
-      symlinkSync(templateModules, targetModules, "junction");
-    } catch {
-      logger.warn("[firstAssembly] Symlink failed, copying node_modules (slow path)");
-      cpSync(templateModules, targetModules, { recursive: true });
-    }
-  }
+  const prep = prepareSourceDir(sourceDir);
+  logger.info(`[firstAssembly] prepareSourceDir mode=${prep.mode} elapsed=${prep.elapsedMs}ms`);
 
   const syncedFiles = await syncAppFiles(tenantId, userId, sessionId, sourceDir);
   if (syncedFiles.length === 0) {
@@ -605,9 +1460,11 @@ async function firstAssembly(
 
   logger.info(`[firstAssembly] Synced ${syncedFiles.length} files from workspace`);
 
+  await assertAppShellReferencesExist(sourceDir);
+
   const buildResult = await buildWithAIRepair(sourceDir, distDir, 3, { sessionId });
   if (!buildResult.success) {
-    throw new Error(`Build failed: ${buildResult.warnings.join("; ")}`);
+    throw new Error(`${buildHasConfigError(buildResult.warnings) ? "[CONFIG ERROR] " : ""}Build failed: ${buildResult.warnings.join("; ")}`);
   }
 
   const blueprintRaw = await workspaceManager.readArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json");
@@ -623,6 +1480,11 @@ async function firstAssembly(
     fileCount: syncedFiles.length,
     warnings: buildResult.warnings.length > 0 ? buildResult.warnings : undefined,
   };
+}
+
+/** True if any warning carries the [CONFIG ERROR] sentinel. */
+function buildHasConfigError(warnings: string[]): boolean {
+  return warnings.some(w => w.includes("[CONFIG ERROR]"));
 }
 
 /**
@@ -654,9 +1516,11 @@ export async function reassembleForSession(
 
   if (existsSync(distDir)) rmSync(distDir, { recursive: true, force: true });
 
+  await assertAppShellReferencesExist(sourceDir);
+
   const buildResult = await buildWithAIRepair(sourceDir, distDir, 3, { sessionId });
   if (!buildResult.success) {
-    throw new Error(`Rebuild failed: ${buildResult.warnings.join("; ")}`);
+    throw new Error(`${buildHasConfigError(buildResult.warnings) ? "[CONFIG ERROR] " : ""}Rebuild failed: ${buildResult.warnings.join("; ")}`);
   }
 
   const url = tutorialPublicFileUrl(sessionId);
@@ -679,4 +1543,134 @@ export async function reassembleApp(ctx: PipelineHandlerContext): Promise<object
   const { tenantId, userId, sessionId } = ctx;
   if (!sessionId) throw new Error("reassembleApp requires a sessionId");
   return reassembleForSession(tenantId, userId, sessionId) as Promise<object>;
+}
+
+// ---------------------------------------------------------------------------
+// Task 11: research result caching by (topic + databaseId) hash
+// ---------------------------------------------------------------------------
+
+const RESEARCH_CACHE_DIR = resolve(process.cwd(), "data", "cache", "research");
+const RESEARCH_CACHE_TTL_MS = Number(process.env.TUTORIAL_RESEARCH_CACHE_TTL_MS ?? 7 * 24 * 60 * 60 * 1000); // 7 days
+
+interface ResearchCacheEntry {
+  key: string;
+  topic: string;
+  databaseId?: string;
+  result: unknown;
+  storedAt: string;
+  hitCount: number;
+}
+
+function normalizeTopic(topic: string): string {
+  return topic
+    .toLowerCase()
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .replace(/[，。！？；：、""''「」『』（）()【】《》<>!?,.;:'"`]/g, "")
+    .trim();
+}
+
+function researchCacheKey(topic: string, databaseId?: string): string {
+  const seed = `${normalizeTopic(topic)}::${databaseId ?? "none"}`;
+  return createHash("sha256").update(seed).digest("hex").slice(0, 24);
+}
+
+async function readResearchCache(key: string): Promise<ResearchCacheEntry | null> {
+  const file = join(RESEARCH_CACHE_DIR, `${key}.json`);
+  if (!existsSync(file)) return null;
+  try {
+    const raw = await readFile(file, "utf-8");
+    const entry = JSON.parse(raw) as ResearchCacheEntry;
+    const ageMs = Date.now() - new Date(entry.storedAt).getTime();
+    if (ageMs > RESEARCH_CACHE_TTL_MS) {
+      logger.info(`[research-cache] entry ${key} expired (${Math.round(ageMs / 86_400_000)}d old)`);
+      return null;
+    }
+    return entry;
+  } catch (err) {
+    logger.warn(`[research-cache] failed to read ${key}: ${err}`);
+    return null;
+  }
+}
+
+async function writeResearchCache(entry: ResearchCacheEntry): Promise<void> {
+  try {
+    mkdirSync(RESEARCH_CACHE_DIR, { recursive: true });
+    await writeFile(join(RESEARCH_CACHE_DIR, `${entry.key}.json`), JSON.stringify(entry, null, 2), "utf-8");
+  } catch (err) {
+    logger.warn(`[research-cache] failed to write ${entry.key}: ${err}`);
+  }
+}
+
+/**
+ * Pipeline handler that wraps tutorial-content-researcher with a (topic + databaseId)
+ * keyed disk cache. On cache hit, the cached research JSON is restored to the workspace
+ * and returned immediately, skipping the 30-90s researcher invocation.
+ */
+export async function researchWithCache(ctx: PipelineHandlerContext): Promise<unknown> {
+  const { tenantId, userId, sessionId, context, initialInput } = ctx;
+  const topic = (context?.topic as string | undefined) ?? (context?.generationBrief as string | undefined) ?? initialInput.slice(0, 200);
+  const databaseId = context?.databaseId as string | undefined;
+  const key = researchCacheKey(topic, databaseId);
+
+  const cached = await readResearchCache(key);
+  if (cached) {
+    logger.info(`[research-cache] HIT key=${key} topic="${topic.slice(0, 40)}" age=${Math.round((Date.now() - new Date(cached.storedAt).getTime()) / 1000)}s`);
+    cached.hitCount = (cached.hitCount ?? 0) + 1;
+    await writeResearchCache(cached);
+    if (sessionId) {
+      const payload = typeof cached.result === "string" ? cached.result : JSON.stringify(cached.result, null, 2);
+      try {
+        await workspaceManager.writeArtifact(tenantId, userId, sessionId, "artifacts/research.json", payload);
+      } catch (err) {
+        logger.warn(`[research-cache] failed to seed workspace: ${err}`);
+      }
+      eventBus.emit({
+        type: "progress",
+        sourceAgent: "tutorial-content-researcher",
+        sessionId,
+        data: { message: "Research cache hit", phase: "research", stage: "cache_hit", key },
+        timestamp: new Date().toISOString(),
+      });
+    }
+    return cached.result;
+  }
+
+  logger.info(`[research-cache] MISS key=${key} topic="${topic.slice(0, 40)}" — invoking researcher`);
+
+  const { agentRegistry } = await import("../../../src/core/agent-registry.js");
+  const { agentRuntime } = await import("../../../src/core/agent-runtime.js");
+
+  if (!agentRegistry.has("tutorial-content-researcher")) {
+    logger.warn("[research-cache] researcher agent not registered, skipping (optional step)");
+    return null;
+  }
+
+  const briefHeader = ctx.previousResults.size > 0
+    ? `${initialInput}\n\n【Context from Previous Steps】\n${Array.from(ctx.previousResults.entries())
+        .map(([k, v]) => `- ${k}: ${typeof v === "string" ? v.slice(0, 200) : JSON.stringify(v).slice(0, 200)}`)
+        .join("\n")}`
+    : initialInput;
+
+  const result = await agentRuntime.invokeAgent("tutorial-content-researcher", briefHeader, {
+    tenantId,
+    userId,
+    sessionId,
+    context,
+  });
+
+  const extracted = (result as { taskResult?: { output?: unknown }; output?: unknown })?.taskResult?.output
+    ?? (result as { output?: unknown })?.output
+    ?? result;
+
+  await writeResearchCache({
+    key,
+    topic,
+    databaseId,
+    result: extracted,
+    storedAt: new Date().toISOString(),
+    hitCount: 0,
+  });
+
+  return extracted;
 }

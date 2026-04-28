@@ -1,0 +1,42 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+# LangGraph recursionLimit = maxIterations；think→act→observe 每轮占多步，12 极易触顶
+maxIterations: 32
+timeout: 180000
+hideThinkOutput: true
+streamMode: stream
+
+allowedTools:
+  - workspace_read
+  - workspace_write
+
+metadata:
+  domain: interactive-tutorial-v2
+
+evolution:
+  enabled: false
+
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [version, modules]
+    properties:
+      version:
+        type: string
+        enum: ["1.0"]
+      modules:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          required: [id, title, learningEvidence, interactionClass]
+          properties:
+            id: { type: string }
+            title: { type: string }
+            learningEvidence: { type: string }
+            interactionClass:
+              type: string
+              enum: [required_interactive, read_then_check, narrative_only]

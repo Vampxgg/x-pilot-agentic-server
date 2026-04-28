@@ -1,0 +1,39 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxIterations: 28
+timeout: 120000
+hideThinkOutput: true
+streamMode: stream
+
+allowedTools:
+  - workspace_read
+  - workspace_write
+
+metadata:
+  domain: interactive-tutorial-v2
+
+evolution:
+  enabled: false
+
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [version, shell, theme, layoutRationale]
+    properties:
+      version:
+        type: string
+        enum: ["1.0"]
+      shell:
+        type: object
+      theme:
+        type: object
+        required: [preset]
+        properties:
+          preset:
+            type: string
+            enum: [edu-light, tech-blue, notion-warm, industrial, kid-vivid, academic, minimal]
+          tokens: { type: object }
+      layoutRationale: { type: string }

@@ -1,0 +1,3 @@
+- `layoutRationale` 必须解释 **为何选该 preset**（至少一句可审计理由）。
+- **要么** 提供至少 **2** 个 `theme.tokens` 键值（CSS 变量名 → 值），**要么**在 `layoutRationale` 中显式写「不设 tokens、使用 preset 默认」。
+- shell 的 `maxWidth` / `header` 选择必须与题材一致（仪表盘类 → wide + 可关 header；文档类 → narrow）。
