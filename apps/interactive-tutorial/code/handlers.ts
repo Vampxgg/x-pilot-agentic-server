@@ -1019,6 +1019,57 @@ function safeParseJSON(raw: unknown): Record<string, unknown> | null {
   return null;
 }
 
+function extractStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+/**
+ * Guard reassemble from "false success" after scene-editor non-convergence.
+ * We read the latest scene-editor raw output and require a converged result
+ * before spending build time.
+ */
+async function assertEditorConvergenceBeforeReassemble(
+  tenantId: string,
+  userId: string,
+  sessionId: string,
+): Promise<void> {
+  const editorRaw = await workspaceManager.readArtifact(
+    tenantId,
+    userId,
+    sessionId,
+    "logs/tutorial-scene-editor-raw-output.txt",
+  );
+  if (!editorRaw || typeof editorRaw !== "string") return;
+
+  // Hard stop for known non-converged termination.
+  if (/GRAPH_RECURSION_LIMIT|Recursion limit .*stop condition/i.test(editorRaw)) {
+    throw new Error("[EDIT NOT CONVERGED] tutorial-scene-editor hit GRAPH_RECURSION_LIMIT (failureType=recursion_limit)");
+  }
+
+  const parsed = safeParseJSON(editorRaw);
+  if (!parsed) return;
+
+  const status = typeof parsed.status === "string" ? parsed.status : "";
+  if (status === "failed") {
+    const failureType = typeof parsed.failureType === "string" ? parsed.failureType : "other";
+    const err = typeof parsed.error === "string" ? parsed.error : "scene-editor returned failed";
+    throw new Error(`[EDIT NOT CONVERGED] ${err} (failureType=${failureType})`);
+  }
+
+  if (status === "completed") {
+    const editedFiles = Array.isArray(parsed.editedFiles) ? parsed.editedFiles : [];
+    if (editedFiles.length === 0) {
+      throw new Error("[EDIT NOT CONVERGED] scene-editor completed with empty editedFiles (failureType=empty_diff)");
+    }
+
+    const instructionCoverage = extractStringArray(parsed.instructionCoverage);
+    if (instructionCoverage.length === 0) {
+      throw new Error("[EDIT NOT CONVERGED] scene-editor completed without instructionCoverage (failureType=schema_invalid)");
+    }
+  }
+}
+
 export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> {
   const { tenantId, userId, sessionId } = ctx;
   if (!sessionId) throw new Error("assembleApp requires a sessionId");
@@ -1293,6 +1344,8 @@ export async function reassembleForSession(
     logger.info(`[reassembleApp] No source dir for session=${sessionId}, falling back to full assembly`);
     return firstAssembly(tenantId, userId, sessionId);
   }
+
+  await assertEditorConvergenceBeforeReassemble(tenantId, userId, sessionId);
 
   logger.info(`[reassembleApp] Re-syncing: session=${sessionId}`);
 

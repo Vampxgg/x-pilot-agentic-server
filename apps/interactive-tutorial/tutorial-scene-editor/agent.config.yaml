@@ -3,7 +3,7 @@ workerModel: z-ai/glm-5
 fallbackModels:
   - moonshotai/kimi-k2.5
 maxConcurrency: 3
-maxIterations: 50
+maxIterations: 24
 timeout: 300000
 allowedTools:
   - workspace_read
@@ -15,21 +15,59 @@ outputFormat:
   type: json
   schema:
     type: object
-    required: [editedFiles, summary]
+    required: [status, editedFiles, summary]
+    additionalProperties: false
     properties:
+      status:
+        type: string
+        enum: [completed, failed]
       editedFiles:
         type: array
+        minItems: 0
         items:
           type: object
           required: [filePath, action]
+          additionalProperties: false
           properties:
             filePath:
               type: string
+              minLength: 1
             action:
               type: string
               enum: [modified, created, deleted]
       summary:
         type: string
+        minLength: 1
+      instructionCoverage:
+        type: array
+        items:
+          type: string
+          minLength: 1
+      error:
+        type: string
+      failureType:
+        type: string
+        enum: [recursion_limit, empty_diff, schema_invalid, tool_loop, other]
+    allOf:
+      - if:
+          properties:
+            status:
+              const: completed
+          required: [status]
+        then:
+          required: [instructionCoverage]
+          properties:
+            editedFiles:
+              minItems: 1
+            instructionCoverage:
+              minItems: 1
+      - if:
+          properties:
+            status:
+              const: failed
+          required: [status]
+        then:
+          required: [error, failureType]
 evolution:
-  enabled: true
+  enabled: false
   requireApproval: true

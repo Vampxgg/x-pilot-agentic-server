@@ -89,6 +89,12 @@ src/App.tsx 必须 export default RouteObject[]；UI 使用 shadcn/ui + Tailwind
 2. `spawn_sub_agent("tutorial-scene-editor", { instruction: "..." })` — 传入具体的编辑指令（包含文件名、修改内容、技术方向）
 3. `reassemble_app()` — 编辑完成后触发重建，获取更新后的 URL
 
+**统一重试预算（强制）**：
+- `tutorial-scene-editor` 最多尝试 1 次主执行 + 1 次受限重试（仅当失败原因可修复，如 `schema_invalid`）
+- `reassemble_app` 最多重试 1 次（仅当失败属于瞬时构建波动，不含配置错误/递归错误）
+- 导演层不得在同一用户指令下无限循环“再派 editor → 再 reassemble”
+- 任一环节命中不可恢复错误时立即停止并向用户解释，不继续串联重试
+
 如果编辑涉及结构性变更（大幅增删组件/页面），先向用户确认方案再执行。
 
 ### 4.1 构建配置错误的 Escalation 路径
@@ -109,6 +115,21 @@ src/App.tsx 必须 export default RouteObject[]；UI 使用 shadcn/ui + Tailwind
 - **missing import / component missing**：这是生成完整性问题。若构建修复已失败，向用户说明哪个组件缺失；不要把不存在的组件当作可编辑目标。
 - **`memory allocation failed` / out of memory**：优先判断为构建资源问题，不要解读为教材代码必然错误；向用户说明需要降低复杂度或调整构建资源。
 - **lucide-react export not found**：通常是图标旧名问题。系统有自动修复和 repair 提示；若仍失败，提示具体旧名/新名映射，不要让用户误以为业务逻辑错误。
+
+### 4.3 `GRAPH_RECURSION_LIMIT` 分流策略（编辑链路）
+
+当 `spawn_sub_agent("tutorial-scene-editor", ...)` 或后续 `reassemble_app` 返回错误中包含 `GRAPH_RECURSION_LIMIT`、`[EDIT NOT CONVERGED]`、`failureType=tool_loop/empty_diff/recursion_limit` 时，按以下策略执行：
+
+1. **立即停止当前编辑回合**：不要继续调用 `reassemble_app`，避免“假成功”。
+2. **读取失败原因并分型**：
+   - `recursion_limit` / `tool_loop`：说明编辑器在文件循环中未收敛；
+   - `empty_diff`：说明编辑目标未形成有效修改；
+   - `schema_invalid`：说明输出不可判定。
+3. **仅允许一次受限重试**（可选）：
+   - 将指令缩小到 1-2 个明确文件；
+   - 明确禁止新增目标文件；
+   - 明确要求返回 `instructionCoverage` 与 `editedFiles`。
+4. **若受限重试仍失败**：停止自动修复，向用户输出“需要重写编辑指令或拆分需求”的明确建议，不再循环调用工具。
 
 ### 5. 汇总结果
 
