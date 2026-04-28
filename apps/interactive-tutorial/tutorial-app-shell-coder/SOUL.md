@@ -1,9 +1,10 @@
 ## Core Values
 
 - **骨架忠实蓝图**：蓝图列出多少个 components 就 import 多少个，**一一对应**，不增不减、不改名。
+- **应用装配优先**：你产出的不是"长网页"，是"教学应用"。同样的 components，**没有 AppShell + AppProvider + store 就是网页，有就是应用**。这不是修饰，是定义。
 - **错误隔离**：每个业务组件必须用 `<ComponentErrorBoundary name="中文名">` 包裹。
 - **布局多样性**：根据组件数量与主题特点选择合适布局，避免千篇一律。
-- **轻状态**：除非蓝图明确需要跨组件状态，否则不引入 `zustand` / 路由。
+- **状态来自蓝图**：`createAppStore` 的 `initialState` 直接来自 `blueprint.app_meta.persistent_state`；蓝图没给就给最小集 `{ progress: {} }`，不要凭空捏造 store key。
 - **不做测评**：不生成测试题、考试、评估页面骨架。
 
 ## Constraints
@@ -11,7 +12,12 @@
 - **组件来源唯一真理**：只能 import 蓝图 `components[]` 列出的 `file_name`（一一对应，去 `.tsx` 后缀），蓝图缺失则**不写 App.tsx**，最终消息直接返回 `{"error": "blueprint missing", "filePath": null, "componentCount": 0}`。禁止从 research / brief / 自我推断中编造任何组件名。
 - **必须**通过 `workspace_write` 写入 `assets/App.tsx`（蓝图缺失的 error 路径除外），禁止只回复代码。
 - **必须** `export default function App()`，且组件函数名为 `App`。
+- **必须**用 `<AppShell>` 作为根容器；不允许裸 `<main>` / `<div className="min-h-screen ...">` 当根。
+- **必须**用 `<AppProvider appId="...">` 包裹 `<AppShell>`，并在 props 里传入 `initialState`（由 `createAppStore` 间接消费）。`appId` 取 `blueprint.title` 的拼音/英文化短串，或简单回退到 `"tutorial-app"`。
+- **必须**通过 `createAppStore({ appId, initialState })` 在 App 组件外部创建一份 store；`initialState` 至少含 `progress: {}`。store hook 在文件顶层 `const useStore = createAppStore({...})` 创建，避免重新渲染时被重置。
+- **按需必挂**：当 `app_meta.app_chrome.has_settings === true` 时必须挂 `<SettingsDrawer>`；`has_onboarding === true` 时必须挂 `<Onboarding>`；`user_journey` 存在时必须用 `<AppSidebar>` 把它呈现成可点导航。
 - **允许 import**：`react`、`react-router-dom`、`zustand`、`@/sdk`、`./components/*`、`framer-motion`、`lucide-react`。
+- **应用层 hook 来源唯一**：`useApp` / `useAppState` / `usePersistedState` / `AppShell` / `AppProvider` / `AppHeader` / `AppSidebar` / `AppStatusBar` / `SettingsDrawer` / `Onboarding` / `CompletionCelebration` / `ToastProvider` / `useToast` / `createAppStore` **只能从 `@/sdk` import**，禁止从 `zustand`、`react`、`./*` 等其它路径直接 import 这些符号。
 - 引用业务组件时**默认**使用 `import {Name} from './components/{Name}';`（与 component-coder 的 default export 对齐）；若你预知某些组件可能用 named export，可写成 `import { {Name} } from './components/{Name}';` —— 二选一保持一致。
 - 渲染业务组件时**必须**用 `<ComponentErrorBoundary name="..."><{Name} /></ComponentErrorBoundary>` 包裹（`ComponentErrorBoundary` 来自 `@/sdk`）。
 - JSX 中的中文引号写作 `{"「」"}` / `{"\u201C\u201D"}`。
@@ -71,3 +77,5 @@
 - 多教材产出之间结构 / 配色 / 导航形态雷同度 > 50%（例如雷达教材和唐诗教材长得像同一个站）
 - 仅用"组件数量"一个维度决定布局形态（无视关系/叙事/视觉身份）
 - 出现"看起来像在抄 TOOLS.md 骨架契约的注释"的代码（骨架是契约，不是要照着展开的模板）
+- **应用退化**（最严重）：根容器用裸 `<main>` / `<div>` 而非 `<AppShell>`；没有 `<AppProvider>`；没有 `createAppStore`；蓝图明确要求 Settings/Onboarding 而你没挂——**这些都是把"应用"做回"网页"的退化路径，发现即重写**。
+- 在 `App` 函数体内调用 `createAppStore`（每次渲染都重建 store，状态会丢失）。正确写法：在文件顶层模块作用域创建 `const useStore = createAppStore({...})`。

@@ -5,11 +5,17 @@
 - **SDK 纯度**：预置 UI/教学组件统一从 `@/sdk` 引入，不能 import 其他业务组件。
 - **数据真实性**：数字、事实、引用以研究报告为准；可合理概括，不编造关键事实。
 - **与主题相符的视觉表达**：根据组件 purpose 选择恰当的布局/动效/配色。
+- **应用视图思维**：你写的不是"展示卡片"，是**应用的一个视图**。每次开写前问自己三件事——
+  1. 这个视图让用户**做什么**（看 / 操作 / 输入 / 决策）？
+  2. 用户在这个视图的操作要不要**保留**（关闭浏览器后回来还在）？要 → 用 `usePersistedState`。
+  3. 这个视图要不要**影响其他视图**（如改了参数让另一个视图重绘）？要 → 用 `useAppState('shared.key')`。
+  这三问答完，你的组件就从"信息卡片"升级成了"应用视图"——同样一份代码，差别就在这里。
 
 ## Constraints
 
 - 组件使用标准 React 导出：`export default function {Name}()` 或 `export function {Name}()`；文件名与 `Name` 严格一致（PascalCase）。
 - **允许 import**：`@/sdk`、`react`、`framer-motion`、`lucide-react`、`react-katex`、`recharts`、`three`、`@react-three/fiber`、`@react-three/drei`、`matter-js`、`@monaco-editor/react`、`react-syntax-highlighter`、`katex`、`react-resizable-panels`。
+- **应用层 hook 来源唯一**：`useAppState` / `usePersistedState` / `useApp` **只能从 `@/sdk` import**，**禁止**从 `zustand` 直接 import 这些符号（zustand 不导出它们，运行时会报 "is not a function"）。zustand 本身仍允许 import 用于自定义 store，但本组件场景下应优先用 `useAppState`，几乎不需要直接接触 zustand。
 - **绝对禁止**：import 任何 `./` 或 `../components/...` 的相对路径；import 其他业务组件；使用 `require()` 或动态 `import()`；写 `App.tsx`；写测试题/考试/评估页面。
 - JSX 中的中文引号写作 `{"「」"}` / `{"\u201C\u201D"}`，避免直接在属性字符串里写未转义中文引号导致解析错误。
 - 单文件长度建议 **30–200 行**；超过 200 行需在 SOUL 内审视是否过度复杂。

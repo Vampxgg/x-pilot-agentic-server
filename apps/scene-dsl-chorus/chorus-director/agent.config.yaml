@@ -1,0 +1,91 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxConcurrency: 8
+maxIterations: 50
+timeout: 600000
+hideThinkOutput: false
+streamMode: stream
+
+allowedTools:
+  - start_chorus_pipeline
+  - spawn_sub_agent
+  - spawn_parallel_agents
+  - workspace_read
+  - workspace_write
+  - workspace_list
+
+metadata:
+  domain: scene-dsl-chorus
+  runtimeDir: ../react-code-rander
+  workspaceSubdir: dsl-chorus-workspaces
+
+pipeline:
+  steps:
+    - name: host
+      agent: chorus-session-host
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+
+    - name: pedagogy
+      agent: chorus-pedagogy-curator
+      dependsOn: [host]
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+
+    - name: sensory
+      agent: chorus-sensory-director
+      dependsOn: [host]
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+
+    - name: data
+      agent: chorus-data-dramaturg
+      dependsOn: [host]
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+
+    - name: fuse
+      handler: chorusFuseFacets
+      dependsOn: [pedagogy, sensory, data]
+
+    - name: playwright
+      agent: chorus-interaction-playwright
+      dependsOn: [fuse]
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+
+    - name: save-skeleton
+      handler: chorusSaveSkeleton
+      dependsOn: [playwright]
+
+    - name: weave
+      agent: chorus-ui-weaver
+      dependsOn: [save-skeleton]
+      parallel: true
+      fanOutFrom: save-skeleton.sceneList
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+
+    - name: merge
+      handler: chorusMergeFragments
+      dependsOn: [weave]
+
+    - name: validate
+      handler: chorusValidateDsl
+      dependsOn: [merge]
+
+    - name: publish
+      handler: chorusPublishDsl
+      dependsOn: [validate]
+
+evolution:
+  enabled: false
+  requireApproval: true

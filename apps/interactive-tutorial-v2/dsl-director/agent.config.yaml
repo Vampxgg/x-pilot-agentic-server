@@ -1,0 +1,111 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxConcurrency: 8
+maxIterations: 50
+timeout: 600000
+hideThinkOutput: false
+streamMode: stream
+
+allowedTools:
+  - start_dsl_pipeline
+  - apply_dsl_patch
+  - hot_reload_runtime
+  - spawn_sub_agent
+  - spawn_parallel_agents
+  - workspace_read
+  - workspace_write
+  - workspace_list
+
+metadata:
+  domain: interactive-tutorial-v2
+  runtimeDir: ../react-code-rander
+  workspaceSubdir: dsl-tutorials
+
+# v2 流水线（独立于 v1，由本 director 驱动）
+# 步骤说明（与 code/handlers.ts 中 registerPipelineHandler 名一一对应）：
+#   1) clarify       —— 可选；v2-intent-clarifier
+#   2) research      —— v2-content-researcher → artifacts/research.json
+#   3) pedagogy      —— v2-pedagogy-planner → artifacts/pedagogy-plan.json
+#   4) data-pack     —— v2-data-steward → artifacts/data-pack.json
+#   5) visual        —— v2-visual-designer → artifacts/visual-system.json
+#   6) blueprint     —— v2-blueprint-architect（合并 visual → app，消费 pedagogy/data）
+#   7) save-skeleton —— handler；fan-out 上下文附带各 artifact digest
+#   8) scenes        —— fan-out v2-scene-author
+#   9) merge / validate / publish
+pipeline:
+  steps:
+    - name: clarify
+      agent: v2-intent-clarifier
+      optional: true
+
+    - name: research
+      agent: v2-content-researcher
+      dependsOn: [clarify]
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+
+    - name: pedagogy
+      agent: v2-pedagogy-planner
+      dependsOn: [research]
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+
+    - name: data-pack
+      agent: v2-data-steward
+      dependsOn: [pedagogy]
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+
+    - name: visual
+      agent: v2-visual-designer
+      dependsOn: [data-pack]
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+
+    - name: blueprint
+      agent: v2-blueprint-architect
+      dependsOn: [visual]
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+
+    - name: save-skeleton
+      handler: saveDslSkeleton
+      dependsOn: [blueprint]
+
+    - name: scenes
+      agent: v2-scene-author
+      dependsOn: [save-skeleton]
+      parallel: true
+      # 注意：fanOutFrom 必须是数组路径。skeleton.scenes 是 Record<sceneId, Scene> 对象，
+      # saveDslSkeleton handler 会同时输出 sceneList: [{id,title?,intent?}] 数组供 fan-out 使用。
+      fanOutFrom: save-skeleton.sceneList
+      retry:
+        maxAttempts: 2
+        backoffMs: 3000
+
+    - name: merge
+      handler: mergeDslFragments
+      dependsOn: [scenes]
+
+    - name: validate
+      handler: validateDsl
+      dependsOn: [merge]
+
+    # 注意：fix 是可选 step。未来可基于 validate 输出做条件触发；
+    # 当前 pipeline-executor 不支持运行时条件，留给后续完善。
+    - name: publish
+      handler: publishDsl
+      dependsOn: [validate]
+
+# v2 试错期：禁用自我进化 / skill crystallization
+# 待 prompt 稳定后再开（避免在不稳定模式上沉淀不良经验）
+evolution:
+  enabled: false
+  requireApproval: true

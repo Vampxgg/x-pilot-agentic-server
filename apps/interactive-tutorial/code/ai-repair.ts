@@ -89,6 +89,11 @@ function buildRepairPrompt(
 - ${isAppFile ? "这是主入口文件 App.tsx，必须有 export default" : "这是子组件文件，必须有 export default 或 export function/const"}
 - 必须保持组件原有功能，仅修复错误
 
+## ⚠️ import 删除安全规则（违反即陷入 build → repair 死循环）
+- 如果你需要删除某个 import 符号（例如对应的源文件缺失、或符号已不存在），**必须同时删除该符号在文件中的所有 JSX 节点和函数引用**。
+- 绝不允许只把 import 行注释成 \`// [removed: missing file] ...\` 而让下文继续 \`<XXX />\` 或 \`XXX(...)\` —— 那会让下一轮 build 立刻报 \`ReferenceError: XXX is not defined\`，反复死循环。
+- 如果删除某个组件 import 后导致页面信息缺失，请在原位置用一个简单的占位节点（如 \`<div className="text-slate-500 text-sm">该模块暂不可用</div>\`）替代被删的 \`<XXX />\`，**不要**留半截引用。
+
 ## 文件: ${fileName}
 
 ## 构建错误:

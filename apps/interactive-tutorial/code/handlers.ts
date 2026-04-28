@@ -22,6 +22,16 @@ const TUTORIALS_DIR = resolve(process.cwd(), "data", "tutorials");
 /** Concurrency cap for parallel AI repair calls. */
 const REPAIR_CONCURRENCY = Number(process.env.TUTORIAL_REPAIR_CONCURRENCY ?? 6);
 
+/**
+ * Total wall-clock budget for assembleApp (B4). The end-to-end pipeline saw
+ * 20+ minute hangs when buildWithAIRepair entered an editor → ReferenceError
+ * → repair death loop. This bound forces an abort + assemble_failed SSE so the
+ * UI spinner doesn't run forever and the metrics file records `reason=timeout`.
+ *
+ * Override with env `ASSEMBLE_TIMEOUT_MS` (e.g. set to 10000 for B4 verify drill).
+ */
+const ASSEMBLE_TIMEOUT_MS = Number(process.env.ASSEMBLE_TIMEOUT_MS ?? 8 * 60 * 1000);
+
 /** Per-template files that should be junctioned (large, immutable). Junction works on dirs only. */
 // NOTE: template's "script/" dir (sdk-showcase) is intentionally excluded — it's a
 // dev-time SDK component showcase, not part of the generated tutorial bundle.
@@ -350,6 +360,217 @@ async function cleanDeadImports(appFile: string, componentsDir: string): Promise
 }
 
 /**
+ * B1 pre-check (assembleApp): verify the synced `src/App.tsx` is the agent's
+ * real output, not the placeholder template `App.tsx` shipped by prepareSourceDir
+ * when app-shell-coder silently failed to call workspace_write. Returns null on
+ * pass, or a short reason string on fail (caller must abort + emit assemble_failed).
+ *
+ * Heuristics (all must pass to count as "real"):
+ *   - file exists
+ *   - >= 200 bytes (the placeholder is ~150 bytes)
+ *   - contains `export default` (it's a valid component module)
+ *   - does NOT contain the placeholder sentinel "教程加载中"
+ */
+async function verifyAppTsxIsRealApp(sourceDir: string): Promise<string | null> {
+  const appTsxPath = join(sourceDir, "src", "App.tsx");
+  if (!existsSync(appTsxPath)) return "App.tsx is missing entirely";
+  const content = await readFile(appTsxPath, "utf-8");
+  if (content.length < 200) return `App.tsx is too small (${content.length} bytes) — looks like a placeholder`;
+  if (!content.includes("export default")) return "App.tsx has no `export default`";
+  if (content.includes("教程加载中")) return "App.tsx is the placeholder template (contains '教程加载中')";
+  return null;
+}
+
+/**
+ * B2 completeness check: compare blueprint.components[].file_name against the
+ * actual files written into `assets/components/` by the component-coder fan-out.
+ * Returns the list of missing file names (without `.tsx` suffix is preserved as-is).
+ * Empty array means complete.
+ */
+async function findMissingBlueprintComponents(
+  blueprint: Record<string, unknown> | null,
+  workspaceComponentsDir: string,
+): Promise<string[]> {
+  const components = blueprint?.components;
+  if (!Array.isArray(components) || components.length === 0) return [];
+
+  const expected = new Set<string>();
+  for (const item of components) {
+    if (item && typeof item === "object") {
+      const fn = (item as Record<string, unknown>).file_name;
+      if (typeof fn === "string" && fn.trim()) expected.add(fn.trim());
+    }
+  }
+  if (expected.size === 0) return [];
+
+  const existing = new Set<string>();
+  if (existsSync(workspaceComponentsDir)) {
+    const files = await collectComponentFiles(workspaceComponentsDir);
+    for (const f of files) existing.add(f.replace(/^.*[\\/]/, ""));
+  }
+
+  const missing: string[] = [];
+  for (const name of expected) {
+    if (!existing.has(name)) missing.push(name);
+  }
+  return missing;
+}
+
+/**
+ * B2 single-shot retry: re-invoke `tutorial-component-coder` for one missing
+ * component and wait for it to write `assets/components/{file_name}` into the
+ * workspace. Returns true if the file shows up after the retry, false otherwise.
+ *
+ * Pattern mirrors `retryArchitectOnce`. Failures are non-fatal — caller decides
+ * whether the still-missing component should fail assemble.
+ */
+async function retryComponentCoderForFile(
+  ctx: PipelineHandlerContext,
+  blueprint: Record<string, unknown>,
+  fileName: string,
+  workspaceComponentsDir: string,
+): Promise<boolean> {
+  const { tenantId, userId, sessionId, context } = ctx;
+  if (!sessionId) return false;
+
+  const components = (blueprint.components as unknown[]) ?? [];
+  const item = components.find((c) => {
+    return c && typeof c === "object" && (c as Record<string, unknown>).file_name === fileName;
+  }) as Record<string, unknown> | undefined;
+  if (!item) {
+    logger.warn(`[B2] Cannot retry ${fileName} — not in blueprint.components`);
+    return false;
+  }
+
+  const { agentRegistry } = await import("../../../src/core/agent-registry.js");
+  const { agentRuntime } = await import("../../../src/core/agent-runtime.js");
+  if (!agentRegistry.has("tutorial-component-coder")) {
+    logger.error("[B2] tutorial-component-coder not registered — cannot retry");
+    return false;
+  }
+
+  const brief =
+    `[RETRY] The component fan-out did not produce assets/components/${fileName}. ` +
+    `You MUST write exactly this one file via workspace_write({name: "assets/components/${fileName}", content: <full TSX>}) ` +
+    `before declaring complete.\n\n` +
+    `Blueprint title: ${String(blueprint.title ?? "")}\n\n` +
+    `Component spec (from blueprint.components):\n${JSON.stringify(item, null, 2)}`;
+
+  try {
+    await agentRuntime.invokeAgent("tutorial-component-coder", brief, {
+      tenantId,
+      userId,
+      sessionId,
+      context,
+    });
+  } catch (err) {
+    logger.error(`[B2] Retry invokeAgent for ${fileName} threw: ${err}`);
+    return false;
+  }
+
+  const newPath = join(workspaceComponentsDir, fileName);
+  return existsSync(newPath);
+}
+
+/**
+ * B3 static scan: detect identifiers used in JSX or function-call position that
+ * are neither imported nor declared inside the file. Returns the list of
+ * undefined identifiers (deduped). Empty array means safe.
+ *
+ * Conservative — we only flag PascalCase identifiers (JSX components) and a
+ * small set of known SDK function names whose imports went missing. This avoids
+ * false positives on built-in JSX intrinsics, keywords, and hook locals.
+ *
+ * Used after AI repair writeback to catch the "import commented out but JSX
+ * still references the component" failure mode that put Tutorial 1d2f9f9e in a
+ * 20+ minute build/repair loop.
+ */
+async function scanUndefinedIdentifiers(filePath: string): Promise<string[]> {
+  let content: string;
+  try { content = await readFile(filePath, "utf-8"); } catch { return []; }
+
+  // Step 1: collect import-declared symbols on the RAW content. Doing this
+  // before the comment/string strip phase avoids the trap where stripping
+  // turns `from '@/sdk'` into `from ''` and breaks the import regex (which
+  // requires a non-empty module path). That regression flagged 18 valid
+  // imports as undefined in the verify drill — caught it before shipping.
+  const declared = new Set<string>();
+
+  // Built-ins that don't need import.
+  for (const k of [
+    "React", "Fragment", "Children", "Component", "Suspense", "memo",
+    "Map", "Set", "Math", "Object", "Array", "JSON", "Promise", "Number", "String", "Boolean",
+    "Date", "RegExp", "Error", "Symbol", "console", "window", "document", "globalThis",
+    "undefined", "null", "NaN", "Infinity",
+  ]) declared.add(k);
+
+  // Drop only line comments before scanning imports (block comments inside an
+  // import clause are exotic enough to ignore). Strings inside an import
+  // clause don't exist except as the module path, which the regex already
+  // anchors via `from '...'`.
+  const importScanText = content.replace(/\/\/.*$/gm, "");
+
+  // Imports: `import X from '...'`, `import { A, B as C } from '...'`, `import * as N from '...'`
+  // Path can be empty in pathological cases — accept either.
+  for (const m of importScanText.matchAll(/import\s+([\s\S]*?)\s+from\s+['"][^'"]*['"]/g)) {
+    const clause = m[1]!.trim();
+    const defaultMatch = clause.match(/^([A-Za-z_$][\w$]*)/);
+    if (defaultMatch && !clause.startsWith("{") && !clause.startsWith("*")) {
+      declared.add(defaultMatch[1]!);
+    }
+    const nsMatch = clause.match(/\*\s+as\s+([A-Za-z_$][\w$]*)/);
+    if (nsMatch) declared.add(nsMatch[1]!);
+    const namedMatch = clause.match(/\{([\s\S]*?)\}/);
+    if (namedMatch) {
+      for (const raw of namedMatch[1]!.split(",")) {
+        const name = raw.trim().replace(/^type\s+/, "").split(/\s+as\s+/).pop()!.trim();
+        if (name) declared.add(name);
+      }
+    }
+  }
+
+  // Step 2: strip comments + strings for the remaining declaration / usage scan.
+  const stripped = content
+    .replace(/\/\/.*$/gm, "")
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""')
+    .replace(/`(?:[^`\\]|\\.)*`/g, "``");
+
+  // Local declarations: const/let/var/function/class + destructuring.
+  for (const m of stripped.matchAll(/\b(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)/g)) {
+    declared.add(m[1]!);
+  }
+  for (const m of stripped.matchAll(/\b(?:const|let|var)\s*\{\s*([\s\S]*?)\s*\}\s*=/g)) {
+    for (const part of m[1]!.split(",")) {
+      const cleaned = part.trim().split(":").pop()!.trim().replace(/[=].*/, "").trim();
+      if (cleaned && /^[A-Za-z_$][\w$]*$/.test(cleaned)) declared.add(cleaned);
+    }
+  }
+  for (const m of stripped.matchAll(/\b(?:const|let|var)\s*\[\s*([\s\S]*?)\s*\]\s*=/g)) {
+    for (const part of m[1]!.split(",")) {
+      const cleaned = part.trim().replace(/[=].*/, "").trim();
+      if (cleaned && /^[A-Za-z_$][\w$]*$/.test(cleaned)) declared.add(cleaned);
+    }
+  }
+
+  // Step 3: find usage sites — JSX opening tags + bare PascalCase calls.
+  const used = new Set<string>();
+  for (const m of stripped.matchAll(/<\s*([A-Z][\w$]*)/g)) used.add(m[1]!);
+  for (const m of stripped.matchAll(/(?<![\w.])([A-Z][\w$]*)\s*\(/g)) used.add(m[1]!);
+
+  // emit_event is a known fake global from the bad tutorials — flag explicitly.
+  // Catch both `emit_event(` and `emit_event?.(` (optional-chained call).
+  if (/(?<![\w.])emit_event\s*\??\.?\s*\(/.test(stripped)) used.add("emit_event");
+
+  const undef: string[] = [];
+  for (const name of used) {
+    if (!declared.has(name)) undef.push(name);
+  }
+  return undef;
+}
+
+/**
  * Pre-build structural gate: parse src/App.tsx for `./components/X` imports and
  * verify each one corresponds to an actual file under src/components. Throws
  * `[ASSEMBLE ERROR]` if any reference is missing — this catches the case where
@@ -413,6 +634,26 @@ async function repairFilesInParallel(
           const result = await repairFile({ filePath: file, sourceCode, errors: errText });
           if (result.fixed && result.fixedCode) {
             await writeFile(file, result.fixedCode, "utf-8");
+            // B3 safety net: detect "import deleted but JSX/call still references it"
+            // — the failure mode that put Tutorial 1d2f9f9e into a 20-min build/
+            // repair death loop. If the repair leaves any PascalCase identifier or
+            // emit_event used-but-undeclared, mark this round as failed without
+            // attempting another build. We revert the file so the loop has the
+            // pre-repair source to work with on the next pass (otherwise we'd
+            // accumulate broken edits across rounds).
+            const undef = await scanUndefinedIdentifiers(file);
+            if (undef.length > 0) {
+              await writeFile(file, sourceCode, "utf-8");
+              repairLog.push({ round, filePath: file, fixed: false, originalErrors: errText });
+              warnings.push(
+                `[${options.tag}] AI repair rejected: ${file} introduced undefined identifier(s) ` +
+                `[${undef.join(", ")}] — likely deleted import but kept JSX/call. Reverted.`,
+              );
+              logger.warn(
+                `[buildWithAIRepair] Repair rejected for ${file}: undefined identifiers ${undef.join(",")}`,
+              );
+              return; // queue task ends without counting this as repaired
+            }
             repairLog.push({ round, filePath: file, fixed: true, originalErrors: errText });
             warnings.push(`[${options.tag}] AI repaired: ${file}`);
             repaired++;
@@ -473,9 +714,21 @@ async function buildWithAIRepair(
               const result = await repairFile({ filePath: ve.file, sourceCode, errors: errSummary });
               if (result.fixed && result.fixedCode) {
                 await writeFile(ve.file, result.fixedCode, "utf-8");
-                repairLog.push({ round: 0, filePath: ve.file, fixed: true, originalErrors: errSummary });
-                warnings.push(`AI repaired validation error: ${ve.file}`);
-                repaired = true;
+                // B3 safety net: same check as Stage 2 — refuse repairs that leave
+                // dangling identifier references after deleting an import.
+                const undef = await scanUndefinedIdentifiers(ve.file);
+                if (undef.length > 0) {
+                  await writeFile(ve.file, sourceCode, "utf-8");
+                  repairLog.push({ round: 0, filePath: ve.file, fixed: false, originalErrors: errSummary });
+                  warnings.push(
+                    `AI repair rejected (validation stage): ${ve.file} introduced undefined identifier(s) ` +
+                    `[${undef.join(", ")}]. Reverted.`,
+                  );
+                } else {
+                  repairLog.push({ round: 0, filePath: ve.file, fixed: true, originalErrors: errSummary });
+                  warnings.push(`AI repaired validation error: ${ve.file}`);
+                  repaired = true;
+                }
               }
             } catch (err) {
               logger.warn(`[buildWithAIRepair] AI repair threw for ${ve.file}: ${err}`);
@@ -857,6 +1110,67 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
   const { tenantId, userId, sessionId } = ctx;
   if (!sessionId) throw new Error("assembleApp requires a sessionId");
 
+  // B4: total wall-clock budget. assembleAppInner runs the actual logic; we race
+  // it against a deadline timer. On timeout we emit assemble_failed + write a
+  // metrics row with reason=timeout, so the SSE consumer doesn't sit forever.
+  let timedOut = false;
+  let timeoutHandle: NodeJS.Timeout | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeoutHandle = setTimeout(() => {
+      timedOut = true;
+      reject(new Error(`[ASSEMBLE TIMEOUT] assembleApp exceeded ${ASSEMBLE_TIMEOUT_MS}ms budget`));
+    }, ASSEMBLE_TIMEOUT_MS);
+    if (typeof timeoutHandle.unref === "function") timeoutHandle.unref();
+  });
+
+  try {
+    return await Promise.race([assembleAppInner(ctx), timeoutPromise]);
+  } catch (err) {
+    if (timedOut) {
+      const reason = "timeout";
+      eventBus.emit({
+        type: "progress",
+        sourceAgent: "interactive-tutorial-director",
+        sessionId,
+        data: {
+          message: `Assemble timed out after ${ASSEMBLE_TIMEOUT_MS}ms`,
+          phase: "assemble",
+          stage: "assemble_failed",
+          reason,
+          timeoutMs: ASSEMBLE_TIMEOUT_MS,
+        },
+        timestamp: new Date().toISOString(),
+      });
+      try {
+        await workspaceManager.writeArtifact(
+          tenantId,
+          userId,
+          sessionId,
+          "logs/assemble-metrics.json",
+          JSON.stringify(
+            { sessionId, success: false, reason, timeoutMs: ASSEMBLE_TIMEOUT_MS },
+            null,
+            2,
+          ),
+        );
+      } catch (writeErr) {
+        logger.warn(`[assembleApp] Failed to write timeout metrics: ${writeErr}`);
+      }
+    }
+    throw err;
+  } finally {
+    if (timeoutHandle) clearTimeout(timeoutHandle);
+  }
+}
+
+/**
+ * Inner assembleApp body. Separated so the outer wrapper can race it against
+ * the B4 timeout without duplicating control flow.
+ */
+async function assembleAppInner(ctx: PipelineHandlerContext): Promise<object> {
+  const { tenantId, userId, sessionId } = ctx;
+  if (!sessionId) throw new Error("assembleAppInner requires a sessionId");
+
   const assembleStart = Date.now();
   const timings: Record<string, number> = {};
   const emitProgress = (message: string, extra?: Record<string, unknown>) => {
@@ -867,6 +1181,20 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
       data: { message, ...extra },
       timestamp: new Date().toISOString(),
     });
+  };
+  const emitAssembleFailed = async (reason: string, message: string) => {
+    emitProgress(message, { phase: "assemble", stage: "assemble_failed", reason });
+    try {
+      await workspaceManager.writeArtifact(
+        tenantId,
+        userId,
+        sessionId,
+        "logs/assemble-metrics.json",
+        JSON.stringify({ sessionId, timings, success: false, reason, message }, null, 2),
+      );
+    } catch (err) {
+      logger.warn(`[assembleApp] Failed to write failure metrics (${reason}): ${err}`);
+    }
   };
 
   const wsBlueprint = await workspaceManager.readArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json");
@@ -881,7 +1209,7 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
   const sourceDir = join(TUTORIALS_DIR, sessionId, "source");
   const distDir = join(TUTORIALS_DIR, sessionId, "dist");
 
-  logger.info(`[assembleApp] Starting: session=${sessionId}`);
+  logger.info(`[assembleApp] Starting: session=${sessionId} timeoutMs=${ASSEMBLE_TIMEOUT_MS}`);
   emitProgress("Preparing build environment", { phase: "assemble", stage: "prepare" });
 
   // Mirror reassembleForSession: clear any stale dist before the first build so
@@ -953,10 +1281,63 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
     const snippet = coderRaw
       ? (typeof coderRaw === "string" ? coderRaw : JSON.stringify(coderRaw)).slice(0, 300)
       : "(no coder output)";
+    await emitAssembleFailed(
+      "no_files",
+      `No files found — neither in workspace nor extractable from coder output. Coder result preview: ${snippet}`,
+    );
     throw new Error(
       `No files found — neither in workspace nor extractable from coder output. ` +
       `Coder result preview: ${snippet}`,
     );
+  }
+
+  // ── B1: pre-check that App.tsx is the agent's real output, not the placeholder
+  //        template "教程加载中…" — caught Tutorial 4a8b22e1's silent app-shell-coder
+  //        failure (the agent emitted descriptive text but never called workspace_write).
+  const appPlaceholderReason = await verifyAppTsxIsRealApp(sourceDir);
+  if (appPlaceholderReason) {
+    const reason = "app_shell_coder_silent_failure";
+    const message = `[B1] ${appPlaceholderReason} — refusing to build a placeholder app`;
+    logger.error(`[assembleApp] ${message}`);
+    await emitAssembleFailed(reason, message);
+    throw new Error(`${message}. Likely cause: app-shell-coder returned descriptive text without calling workspace_write({name: 'assets/App.tsx', ...}).`);
+  }
+
+  // ── B2: completeness check on the component fan-out vs blueprint.components.
+  //        Tutorial 1d2f9f9e lost RadarDynamicCalibration.tsx entirely; the
+  //        downstream repair loop then chased a ReferenceError for 20+ minutes.
+  //        Single-shot retry via component-coder; still missing → fail assemble.
+  if (blueprint) {
+    const wsComponentsDir = join(workspaceManager.getPath(tenantId, userId, sessionId), "assets", "components");
+    let missing = await findMissingBlueprintComponents(blueprint, wsComponentsDir);
+    if (missing.length > 0) {
+      logger.warn(`[B2] Missing components after fan-out: ${missing.join(", ")} — attempting single retry`);
+      emitProgress(`Retrying ${missing.length} missing component(s)`, {
+        phase: "assemble",
+        stage: "component_retry",
+        missing,
+      });
+      const stillMissing: string[] = [];
+      for (const fileName of missing) {
+        const ok = await retryComponentCoderForFile(ctx, blueprint, fileName, wsComponentsDir);
+        if (!ok) stillMissing.push(fileName);
+      }
+      // Re-sync after retry so any newly written files appear under sourceDir.
+      if (stillMissing.length < missing.length) {
+        syncedFiles = await syncAppFiles(tenantId, userId, sessionId, sourceDir);
+      }
+      // Re-check from disk in case retryComponentCoderForFile's existsSync
+      // probe missed a delayed write.
+      missing = await findMissingBlueprintComponents(blueprint, wsComponentsDir);
+      if (missing.length > 0) {
+        const reason = "missing_components";
+        const message = `[B2] Component fan-out incomplete after retry: still missing [${missing.join(", ")}]`;
+        logger.error(`[assembleApp] ${message}`);
+        await emitAssembleFailed(reason, message);
+        throw new Error(`${message}. Re-run the generation pipeline.`);
+      }
+      logger.info(`[B2] Retry succeeded — all blueprint components now present`);
+    }
   }
 
   emitProgress(`Building app with ${syncedFiles.length} files`, { phase: "assemble", stage: "build" });
@@ -993,6 +1374,7 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
   timings["build-total"] = Date.now() - buildStart;
 
   if (!buildResult.success) {
+    await emitAssembleFailed("build_failed", `Build failed: ${buildResult.warnings.join("; ")}`);
     throw new Error(`Build failed: ${buildResult.warnings.join("; ")}`);
   }
 

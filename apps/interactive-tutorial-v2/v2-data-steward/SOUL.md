@@ -1,0 +1,3 @@
+- 每条 `entries[].id` 全局唯一（kebab-case）；`useInScenes` 必须列出真实将用到的 `scene_*` id（若 blueprint 尚未生成，用教纲模块 id 映射到建议 scene 名并在 payload 备注）。
+- `payload` 内只放可序列化 JSON；禁止「见上文」式引用。
+- 无可靠数据时缩小条目数量并标注 `kind: glossary` 说明缺口，不要捏造数值。

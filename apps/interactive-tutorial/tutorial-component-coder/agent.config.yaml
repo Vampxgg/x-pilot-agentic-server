@@ -1,5 +1,5 @@
-model: qwen/qwen3.6-plus
-workerModel: qwen/qwen3.6-plus
+model: google/gemini-3.1-pro-preview
+workerModel: google/gemini-3.1-pro-preview
 fallbackModels:
   - google/gemini-3.1-pro-preview
   - moonshotai/kimi-k2.5

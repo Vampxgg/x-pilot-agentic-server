@@ -1,0 +1,44 @@
+model: google/gemini-3.1-pro-preview
+workerModel: z-ai/glm-5
+fallbackModels:
+  - moonshotai/kimi-k2.5
+maxIterations: 32
+timeout: 180000
+hideThinkOutput: true
+streamMode: stream
+
+allowedTools:
+  - workspace_read
+  - workspace_write
+
+metadata:
+  domain: interactive-tutorial-v2
+
+evolution:
+  enabled: false
+
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [version, entries]
+    properties:
+      version:
+        type: string
+        enum: ["1.0"]
+      entries:
+        type: array
+        minItems: 1
+        items:
+          type: object
+          required: [id, kind, payload, useInScenes]
+          properties:
+            id: { type: string }
+            kind:
+              type: string
+              enum: [fact, quiz, simParam, table, glossary]
+            payload: { type: object }
+            useInScenes:
+              type: array
+              minItems: 1
+              items: { type: string }

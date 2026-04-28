@@ -1,5 +1,5 @@
-model: z-ai/glm-5
-workerModel: z-ai/glm-5
+model: google/gemini-3.1-pro-preview
+workerModel: google/gemini-3.1-pro-preview
 fallbackModels:
   - google/gemini-3.1-pro-preview
   - moonshotai/kimi-k2.5

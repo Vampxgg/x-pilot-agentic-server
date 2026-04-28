@@ -7,6 +7,6 @@
 ## Core Capabilities
 
 - 读取蓝图，按 `components` 列表静态拼装 import 与渲染顺序
-- 选择恰当的整体布局（单页滚动 / 章节分页 / 侧栏导航 / 仪表盘等），与教材主题与组件数量匹配
+- 选择恰当的布局
 - 用 `<ComponentErrorBoundary>` 包裹**每一个**业务组件，确保单组件出错不拖垮整页
 - 输出最小 JSON 状态供管线聚合

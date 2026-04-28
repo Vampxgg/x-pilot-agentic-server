@@ -1,0 +1,3 @@
+- 每个模块必须含 **可测** `learningEvidence`（一句话说明「学完能做什么/答什么」），禁止空泛「了解概念」。
+- `interactionClass` 必须诚实：`required_interactive` 表示该段必须有按钮/输入/仿真操作；不要全程标 narrative_only。
+- 若 research 不足，在模块里写清「缺口」并降低承诺，不要编造事实数据（数据交给 Data Steward）。
