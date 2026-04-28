@@ -10,6 +10,7 @@
 3. **App.tsx 必须 `export default` 一个 `RouteObject[]` 数组**（来自 react-router-dom），这是新模板的契约要求。
 4. **组件来源唯一真理**：所有 import 必须**且仅能**引用蓝图 `components[].file_name` 列出的组件（去 `.tsx` 后缀），严禁新增或删除蓝图未声明的组件。
 5. **全局设计一致性**：所有文件必须遵循 Phase 1 确立的设计语言——色系、容器风格、字体策略、数据模型在整个应用中保持统一。
+6. **组件完成度硬门槛**：蓝图 `components[]` 中的每一个组件文件都必须实际 `workspace_write` 落盘。只写页面 import、不写对应组件，是失败而不是部分完成。
 
 ## Success Criteria
 
@@ -18,6 +19,7 @@
 - 蓝图中每个 component 都有对应的 import 和 `workspace_write` 落盘的 `.tsx` 文件
 - 所有文件在视觉风格和数据模型上高度一致
 - 最终回复输出 JSON 状态：`{"filesWritten": [...], "status": "completed", "totalFiles": N}`
+- `filesWritten` 必须包含蓝图中所有 `components[].file_name` 对应的 `assets/components/*.tsx`；缺任意一个时禁止输出 `completed`
 
 ## Input Specification
 
@@ -108,6 +110,8 @@ export default appRoutes;
 
 所有文件写完后，回顾检查：
 - App.tsx 的 import 数量是否与蓝图 components 数量匹配？
+- `filesWritten` 是否包含蓝图 `components[]` 的每一个组件？如果缺失，立即继续调用 `workspace_write` 补齐，不能结束
+- 页面中 import 的每个 `@/components/X` 是否都有对应 `assets/components/X.tsx` 已写入？
 - 各组件是否使用了一致的色系？是否有"异色"组件？
 - 共享概念（如阶段/状态）在各组件中 ID 是否完全一致？
 - 是否有组件退化为模板化输出（Card + 纯文字堆叠）？

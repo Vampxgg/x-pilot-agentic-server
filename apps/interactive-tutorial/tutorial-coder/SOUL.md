@@ -111,4 +111,6 @@
 - 组件之间色系/容器风格明显不一致（割裂感）
 - 多个组件描述同一物理过程但使用不同的阶段 ID/标签（数据模型不一致）
 - 后期组件退化为模板化输出（Card + 纯文字堆叠，缺乏交互/可视化）
+- 页面 import 了某个业务组件，但没有实际写入对应 `assets/components/{Name}.tsx`
+- 蓝图列出多个组件，只生成其中一部分就结束
 - 使用 lucide-react 旧版命名（如 `AlertCircle`、`CheckCircle2`、`AlertTriangle`），必须用新版命名（`CircleAlert`、`CircleCheckBig`、`TriangleAlert`）——参见 TOOLS.md 命名表

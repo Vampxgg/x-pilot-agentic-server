@@ -296,7 +296,11 @@ async function runBuild(
     const { stdout, stderr } = await execAsync(viteCmd, {
       cwd: sourceDir,
       timeout: 120_000,
-      env: { ...process.env, NODE_ENV: "production" },
+      env: {
+        ...process.env,
+        NODE_ENV: "production",
+        NODE_OPTIONS: process.env.NODE_OPTIONS ?? "--max-old-space-size=4096",
+      },
     });
 
     const output = (stdout || "") + "\n" + (stderr || "");
@@ -404,7 +408,7 @@ async function cleanDeadImports(appFile: string, sourceDir: string): Promise<num
  * case where blueprint.json was missing, the coder hallucinated component
  * names, or the code step produced no files.
  */
-async function assertAppShellReferencesExist(sourceDir: string): Promise<void> {
+async function assertAppShellReferencesExist(sourceDir: string, blueprint?: Record<string, unknown> | null): Promise<void> {
   const componentsDir = join(sourceDir, "src", "components");
   const pagesDir = join(sourceDir, "src", "pages");
 
@@ -462,11 +466,40 @@ async function assertAppShellReferencesExist(sourceDir: string): Promise<void> {
     if (!pageSet.has(ref)) missing.push(`pages/${ref}`);
   }
 
+  if (existsSync(pagesDir)) {
+    try {
+      const entries = await readdir(pagesDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile() || RESERVED_PAGES.has(entry.name.replace(/\.tsx?$/, ""))) continue;
+        if (!entry.name.endsWith(".tsx") && !entry.name.endsWith(".ts")) continue;
+        const pageRefs = await collectRefsFromFile(join(pagesDir, entry.name));
+        for (const ref of pageRefs.components) {
+          if (!componentSet.has(ref)) missing.push(`${entry.name} -> components/${ref}`);
+        }
+      }
+    } catch {
+      // Ignore directory read errors; the App.tsx-level check above still catches missing pages.
+    }
+  }
+
+  const blueprintComponents = Array.isArray(blueprint?.components)
+    ? blueprint.components
+        .map(item => {
+          if (!item || typeof item !== "object") return null;
+          const fileName = (item as Record<string, unknown>).file_name;
+          return typeof fileName === "string" ? fileName.replace(/\.tsx?$/, "") : null;
+        })
+        .filter((name): name is string => Boolean(name))
+    : [];
+  for (const ref of blueprintComponents) {
+    if (!componentSet.has(ref)) missing.push(`blueprint component missing: components/${ref}`);
+  }
+
   if (missing.length > 0) {
     throw new Error(
-      `[ASSEMBLE ERROR] App.tsx references ${missing.length} missing file(s): ${missing.join(", ")}. ` +
-        `This usually means the architect blueprint was missing or empty and the coder ` +
-        `hallucinated names. Re-run the generation pipeline.`,
+      `[ASSEMBLE ERROR] Generated app references or requires ${missing.length} missing file(s): ${missing.join(", ")}. ` +
+        `This usually means the coder did not write every component declared by the blueprint. ` +
+        `Refusing to stub missing components and produce a partial app.`,
     );
   }
 }
@@ -1101,7 +1134,7 @@ export async function assembleApp(ctx: PipelineHandlerContext): Promise<object> 
   // 3.5. Structural gate: refuse to build if App.tsx imports any components that
   //      don't exist on disk. Catches the blueprint-missing → hallucinated-imports
   //      failure mode before vite + cleanDeadImports silently produce an empty app.
-  await assertAppShellReferencesExist(sourceDir);
+  await assertAppShellReferencesExist(sourceDir, blueprint);
 
   // 4. Build with AI-powered validation and parallel repair. Emit preview_ready
   //    as soon as the first build round succeeds so the user sees the URL while
@@ -1215,15 +1248,16 @@ async function firstAssembly(
 
   logger.info(`[firstAssembly] Synced ${syncedFiles.length} files from workspace`);
 
-  await assertAppShellReferencesExist(sourceDir);
+  const blueprintRaw = await workspaceManager.readArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json");
+  const blueprint = safeParseJSON(blueprintRaw);
+
+  await assertAppShellReferencesExist(sourceDir, blueprint);
 
   const buildResult = await buildWithAIRepair(sourceDir, distDir, 3, { sessionId });
   if (!buildResult.success) {
     throw new Error(`${buildHasConfigError(buildResult.warnings) ? "[CONFIG ERROR] " : ""}Build failed: ${buildResult.warnings.join("; ")}`);
   }
 
-  const blueprintRaw = await workspaceManager.readArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json");
-  const blueprint = safeParseJSON(blueprintRaw);
   const title = (blueprint?.title as string) || "互动教材";
   const url = tutorialPublicFileUrl(sessionId);
 
@@ -1271,7 +1305,10 @@ export async function reassembleForSession(
 
   if (existsSync(distDir)) rmSync(distDir, { recursive: true, force: true });
 
-  await assertAppShellReferencesExist(sourceDir);
+  const blueprintRaw = await workspaceManager.readArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json");
+  const blueprint = safeParseJSON(blueprintRaw);
+
+  await assertAppShellReferencesExist(sourceDir, blueprint);
 
   const buildResult = await buildWithAIRepair(sourceDir, distDir, 3, { sessionId });
   if (!buildResult.success) {
@@ -1279,8 +1316,6 @@ export async function reassembleForSession(
   }
 
   const url = tutorialPublicFileUrl(sessionId);
-  const blueprintRaw = await workspaceManager.readArtifact(tenantId, userId, sessionId, "artifacts/blueprint.json");
-  const blueprint = safeParseJSON(blueprintRaw);
   const title = (blueprint?.title as string) || "互动教材";
 
   const meta: TutorialMeta = { tutorialId: sessionId, title, url, createdAt: new Date().toISOString() };

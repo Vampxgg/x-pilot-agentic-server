@@ -107,6 +107,13 @@ export async function validateComponentFile(filePath: string): Promise<string[]>
     logger.info(`[validateComponentFile] Auto-fixed ${lucideFix.fixes} renamed lucide icon(s) in ${filePath.replace(/.*[/\\]/, '')}`);
   }
 
+  const cnFix = ensureCnImport(content);
+  if (cnFix.fixed) {
+    content = cnFix.content;
+    await writeFile(filePath, content, 'utf-8');
+    logger.info(`[validateComponentFile] Auto-added cn import in ${filePath.replace(/.*[/\\]/, '')}`);
+  }
+
   if (!(/export\s+default\s/.test(content)) && !(/export\s+(function|const)\s/.test(content))) {
     errors.push('Missing React component export (need export default or export function/const)');
   }
@@ -144,6 +151,30 @@ export async function validateComponentFile(filePath: string): Promise<string[]>
   if (brackets) errors.push(brackets);
 
   return errors;
+}
+
+function ensureCnImport(content: string): { content: string; fixed: boolean } {
+  if (!/(^|[^\w$])cn\s*\(/.test(content)) {
+    return { content, fixed: false };
+  }
+  if (/import\s*\{[^}]*\bcn\b[^}]*\}\s*from\s*['"]@\/lib\/utils['"]/.test(content)) {
+    return { content, fixed: false };
+  }
+  if (/\b(function|const|let|var)\s+cn\b/.test(content)) {
+    return { content, fixed: false };
+  }
+
+  const lines = content.split(/\r?\n/);
+  let lastImportIdx = -1;
+  for (let i = 0; i < lines.length; i++) {
+    if (/^import\b/.test(lines[i]!)) lastImportIdx = i;
+  }
+  const importLine = 'import { cn } from "@/lib/utils";';
+  if (lastImportIdx >= 0) {
+    lines.splice(lastImportIdx + 1, 0, importLine);
+    return { content: lines.join('\n'), fixed: true };
+  }
+  return { content: `${importLine}\n${content}`, fixed: true };
 }
 
 /**
