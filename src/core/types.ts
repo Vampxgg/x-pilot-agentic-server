@@ -359,6 +359,8 @@ export interface ModelRouterConfig {
   providers: Record<string, {
     apiKey: string;
     baseUrl?: string;
+    project?: string;
+    location?: string;
   }>;
 }
 

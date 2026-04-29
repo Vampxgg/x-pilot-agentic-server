@@ -45,6 +45,11 @@ const DEFAULT_CONFIG: AppConfig = {
         apiKey: process.env.ZHIPU_API_KEY ?? "",
         baseUrl: "https://open.bigmodel.cn/api/paas/v4",
       },
+      vertex: {
+        apiKey: process.env.VERTEX_API_KEY ?? process.env.API_KEY ?? "",
+        project: process.env.GOOGLE_CLOUD_PROJECT ?? "",
+        location: process.env.VERTEX_LOCATION ?? "us-central1",
+      },
     },
   },
 };
