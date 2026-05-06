@@ -121,6 +121,7 @@ export async function validateComponentFile(filePath: string): Promise<string[]>
   const ALLOWED_ALIAS_PREFIXES = [
     '@/components/ui',
     '@/lib',
+    '@/utils',
     '@/pages',
     '@/components/',
   ];

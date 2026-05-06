@@ -1,9 +1,12 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import { reassembleForSession } from "./handlers.js";
 import { logger } from "../../../src/utils/logger.js";
-import { eventBus, type AgentEvent } from "../../../src/core/event-bus.js";
+import { runGenerationPipeline } from "./generation-facade.js";
+import { getTutorialPaths, tutorialPublicFileUrl } from "./build/paths.js";
 
 export function createReassembleAppTool(
   tenantId: string,
@@ -23,10 +26,17 @@ export function createReassembleAppTool(
           warnings: result.warnings,
         });
       } catch (err) {
+        const { distDir } = getTutorialPaths(sessionId);
+        const stableUrl = existsSync(join(distDir, "index.html"))
+          ? tutorialPublicFileUrl(sessionId)
+          : undefined;
         return JSON.stringify({
           success: false,
           error: err instanceof Error ? err.message : String(err),
-          action_hint: "如果从未生成过教材，请调用 start_generation_pipeline；如果已生成但构建失败，请检查组件代码后重试。",
+          stableUrl,
+          action_hint: stableUrl
+            ? "本次重建失败，但上一次成功版本仍可访问；请检查组件代码后重试。"
+            : "如果从未生成过教材，请调用 start_generation_pipeline；如果已生成但构建失败，请检查组件代码后重试。",
         });
       }
     },
@@ -49,111 +59,8 @@ export function createStartGenerationPipelineTool(
   return tool(
     async (params) => {
       try {
-        const [{ agentRegistry }, { agentRuntime }] = await Promise.all([
-          import("../../../src/core/agent-registry.js"),
-          import("../../../src/core/agent-runtime.js"),
-        ]);
-
-        const directorDef = agentRegistry.get("interactive-tutorial-director");
-        if (!directorDef?.config.pipeline) {
-          return JSON.stringify({ success: false, error: "Pipeline config not found on director agent" });
-        }
-
-        const { PipelineExecutor } = await import("../../../src/core/pipeline-executor.js");
-        const executor = new PipelineExecutor(agentRuntime);
-
-        const briefHeader = `【Generation Brief — 由总导演整理】\n${params.brief}`;
-        const initialInput = briefHeader;
-
-        const context: Record<string, unknown> = {
-          businessType: "interactive-tutorial",
-          generationBrief: params.brief,
-          topic: params.topic,
-        };
-
-        if (params.capabilities?.databaseId) {
-          context.databaseId = params.capabilities.databaseId;
-        }
-        if (params.capabilities?.smartSearch) {
-          context.smartSearch = params.capabilities.smartSearch;
-        }
-
-        logger.info(`[start_generation_pipeline] topic="${params.topic}" session=${sessionId}`);
-
-        // Task 8 — collect pipeline progress events as a lightweight timeline so the
-        // director's response can describe what happened to the user. The same events
-        // also stream live through /api/sessions/:sessionId/events for the frontend.
-        type TimelineEntry = {
-          ts: string;
-          stage?: string;
-          phase?: string;
-          message?: string;
-          url?: string;
-          durationMs?: number;
-          count?: number;
-          successCount?: number;
-        };
-        const timeline: TimelineEntry[] = [];
-        let previewUrl: string | null = null;
-        let firstPreviewAt: number | null = null;
-        const pipelineStart = Date.now();
-
-        const handler = (event: AgentEvent) => {
-          if (event.type !== "progress") return;
-          const data = (event.data ?? {}) as Record<string, unknown>;
-          const entry: TimelineEntry = {
-            ts: event.timestamp,
-            stage: typeof data.stage === "string" ? data.stage : undefined,
-            phase: typeof data.phase === "string" ? data.phase : undefined,
-            message: typeof data.message === "string" ? data.message : undefined,
-            url: typeof data.url === "string" ? data.url : undefined,
-            durationMs: typeof data.durationMs === "number" ? data.durationMs : undefined,
-            count: typeof data.count === "number" ? data.count : undefined,
-            successCount: typeof data.successCount === "number" ? data.successCount : undefined,
-          };
-          timeline.push(entry);
-          if (entry.stage === "preview_ready" && entry.url && !previewUrl) {
-            previewUrl = entry.url;
-            firstPreviewAt = Date.now() - pipelineStart;
-            logger.info(`[start_generation_pipeline] preview_ready captured (+${firstPreviewAt}ms): ${previewUrl}`);
-          }
-          // Cap timeline length defensively
-          if (timeline.length > 200) timeline.splice(0, timeline.length - 200);
-        };
-        eventBus.onSession(sessionId, handler);
-
-        let result;
-        try {
-          result = await executor.execute(directorDef, initialInput, {
-            tenantId,
-            userId,
-            sessionId,
-            context,
-          });
-        } finally {
-          eventBus.offSession(sessionId, handler);
-        }
-
-        const assembleOutput = result.steps.assemble;
-        const meta = assembleOutput?.result as Record<string, unknown> | undefined;
-        const finalUrl = (meta?.url as string | undefined) ?? previewUrl ?? null;
-
-        return JSON.stringify({
-          success: result.taskResult.success,
-          url: finalUrl,
-          title: meta?.title ?? params.topic,
-          fileCount: meta?.fileCount ?? 0,
-          summary: finalUrl
-            ? `教材「${meta?.title ?? params.topic}」已生成，包含 ${meta?.fileCount ?? "若干"} 个互动组件。\n预览地址: @@TUTORIAL_URL@@`
-            : "教材生成流程已完成，但未获取到预览地址。",
-          warnings: meta?.warnings,
-          teachingGuide: meta?.teachingGuide,
-          timeline,
-          metrics: {
-            totalMs: Date.now() - pipelineStart,
-            firstPreviewMs: firstPreviewAt,
-          },
-        });
+        const result = await runGenerationPipeline(tenantId, userId, sessionId, params);
+        return JSON.stringify(result);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         logger.error(`[start_generation_pipeline] Failed: ${msg}`);

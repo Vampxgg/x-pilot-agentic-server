@@ -35,6 +35,8 @@ export interface TutorialMeta {
   title: string;
   url: string;
   createdAt: string;
+  lastBuildStatus: "success" | "failed";
+  lastSuccessfulBuildAt?: string;
 }
 
 export interface TutorialResponse {

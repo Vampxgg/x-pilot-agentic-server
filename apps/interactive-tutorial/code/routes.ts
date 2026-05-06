@@ -2,12 +2,13 @@ import type { FastifyInstance } from "fastify";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { readFile, writeFile, readdir } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import { getTenantId, getUserId } from "../../../src/api/middleware/auth.js";
-import { resolvePublicBaseUrl } from "../../../src/utils/public-url.js";
 import { createStreamWriter, type StreamWriterOptions } from "../../../src/core/stream-writer-factory.js";
 import type { ChatRequest, GenerateRequest, EditRequest, RuntimeErrorReport } from "./types.js";
-import { getTemplateDir } from "./template-dir.js";
+import { agentEventToStreamEvent, subscribeSessionProgress } from "./session-events.js";
+import { getTutorialPaths, tutorialPublicFileUrl } from "./build/paths.js";
+import { runBuild } from "./build/compile-service.js";
 
 const DIRECTOR_AGENT = "interactive-tutorial-director";
 
@@ -47,6 +48,10 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
     };
 
     const writer = createStreamWriter(reply.raw, writerOpts);
+    const unsubscribeProgress = subscribeSessionProgress(sessionId, (agentEvent) => {
+      const progressEvent = agentEventToStreamEvent(writer.streamContext, agentEvent);
+      if (progressEvent && writer.isOpen) writer.write(progressEvent);
+    });
 
     try {
       const TUTORIAL_TOOL_NAMES = new Set(["start_generation_pipeline", "reassemble_app"]);
@@ -73,9 +78,10 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
           if (TUTORIAL_TOOL_NAMES.has(data.tool_name as string)) {
             try {
               const output = typeof data.output === "string" ? JSON.parse(data.output) : data.output;
-              if (output?.url) {
-                capturedTutorialUrl = output.url;
-                capturedTutorialTitle = output.title ?? null;
+              const tutorialUrl = output?.url ?? output?.stableUrl;
+              if (tutorialUrl) {
+                capturedTutorialUrl = tutorialUrl;
+                capturedTutorialTitle = output.title ?? output.stableTitle ?? null;
               }
             } catch { /* ignore parse errors */ }
           }
@@ -103,6 +109,7 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
       }));
       writer.write(sp.createDone(writer.streamContext));
     } finally {
+      unsubscribeProgress();
       writer.end();
     }
   });
@@ -147,6 +154,10 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
     };
 
     const writer = createStreamWriter(reply.raw, writerOpts);
+    const unsubscribeProgress = subscribeSessionProgress(sessionId, (agentEvent) => {
+      const progressEvent = agentEventToStreamEvent(writer.streamContext, agentEvent);
+      if (progressEvent && writer.isOpen) writer.write(progressEvent);
+    });
 
     try {
       for await (const event of agentRuntime.streamAgentV2(DIRECTOR_AGENT, message, {
@@ -176,6 +187,7 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
       }));
       writer.write(sp.createDone(writer.streamContext));
     } finally {
+      unsubscribeProgress();
       writer.end();
     }
   });
@@ -213,6 +225,10 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
     };
 
     const writer = createStreamWriter(reply.raw, writerOpts);
+    const unsubscribeProgress = subscribeSessionProgress(body.sessionId, (agentEvent) => {
+      const progressEvent = agentEventToStreamEvent(writer.streamContext, agentEvent);
+      if (progressEvent && writer.isOpen) writer.write(progressEvent);
+    });
 
     try {
       for await (const event of agentRuntime.streamAgentV2(DIRECTOR_AGENT, body.editPrompt, {
@@ -240,6 +256,7 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
       }));
       writer.write(sp.createDone(writer.streamContext));
     } finally {
+      unsubscribeProgress();
       writer.end();
     }
   });
@@ -255,10 +272,7 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
     logger.info(`[runtime-error] Received error report for session=${body.sessionId}: ${body.error.message}`);
 
     try {
-      const TUTORIALS_DIR = resolve(process.cwd(), "data", "tutorials");
-      const tutorialDir = body.sessionId;
-      const sourceDir = join(TUTORIALS_DIR, tutorialDir, "source");
-      const distDir = join(TUTORIALS_DIR, tutorialDir, "dist");
+      const { sourceDir, distDir } = getTutorialPaths(body.sessionId);
 
       if (!existsSync(sourceDir)) {
         return reply.send({ fixed: false, reason: "source directory not found" });
@@ -301,7 +315,6 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
       }
 
       const { repairFile } = await import("./ai-repair.js");
-      const { rmSync } = await import("node:fs");
 
       let anyFixed = false;
       const errorContext = [
@@ -324,25 +337,9 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
         return reply.send({ fixed: false, reason: "AI could not produce a fix" });
       }
 
-      // Rebuild after repair
-      const { exec: execCb } = await import("node:child_process");
-      const { promisify } = await import("node:util");
-      const execAsync = promisify(execCb);
-      if (existsSync(distDir)) rmSync(distDir, { recursive: true, force: true });
-
-      const viteBin = join(getTemplateDir(), "node_modules", ".bin", "vite.cmd");
-      const viteCmd = existsSync(viteBin)
-        ? `"${viteBin}" build --outDir "${distDir}" --minify false`
-        : `npx vite build --outDir "${distDir}" --minify false`;
-
-      try {
-        await execAsync(viteCmd, {
-          cwd: sourceDir,
-          timeout: 120_000,
-          env: { ...process.env, NODE_ENV: "production" },
-        });
-      } catch (buildErr: any) {
-        logger.warn(`[runtime-error] Rebuild failed: ${buildErr.message}`);
+      const buildResult = await runBuild(sourceDir, distDir, { sessionId: body.sessionId });
+      if (!buildResult.success) {
+        logger.warn(`[runtime-error] Rebuild failed: ${buildResult.output}`);
         return reply.send({ fixed: false, reason: "rebuild failed after repair" });
       }
 
@@ -350,7 +347,7 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
         return reply.send({ fixed: false, reason: "rebuild did not produce output" });
       }
 
-      const url = `${resolvePublicBaseUrl(request)}/api/files/tutorials/${tutorialDir}/dist/index.html`;
+      const url = tutorialPublicFileUrl(body.sessionId);
       logger.info(`[runtime-error] Fix applied and rebuilt: ${url}`);
       return reply.send({ fixed: true, url });
     } catch (err) {
