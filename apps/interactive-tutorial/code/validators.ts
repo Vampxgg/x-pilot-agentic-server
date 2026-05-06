@@ -1,6 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { readdir } from "node:fs/promises";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { exec } from "node:child_process";
 import { promisify } from "node:util";
@@ -19,6 +19,23 @@ const execAsync = promisify(exec);
  * truncated `"Road" is not exported by ...` error that the parser then
  * silently dropped.
  */
+let _shadcnComponentsCache: string[] | null = null;
+
+function loadAvailableShadcnComponents(): string[] {
+  if (_shadcnComponentsCache) return _shadcnComponentsCache;
+  const uiDir = join(getTemplateDir(), "src", "components", "ui");
+  if (!existsSync(uiDir)) return [];
+  try {
+    _shadcnComponentsCache = readdirSync(uiDir)
+      .filter(f => f.endsWith(".tsx"))
+      .map(f => f.replace(/\.tsx$/, ""))
+      .sort();
+  } catch {
+    _shadcnComponentsCache = [];
+  }
+  return _shadcnComponentsCache;
+}
+
 let _lucideIconCache: Set<string> | null = null;
 
 function loadLucideIcons(): Set<string> {
@@ -135,12 +152,34 @@ export async function validateComponentFile(filePath: string): Promise<string[]>
       if (!aliasOk) {
         errors.push(`Disallowed import path: "${importPath}" — allowed alias prefixes: ${ALLOWED_ALIAS_PREFIXES.join(', ')}`);
       }
+      if (importPath.startsWith('@/components/ui/')) {
+        const uiName = importPath.replace('@/components/ui/', '');
+        const uiFile = join(getTemplateDir(), 'src', 'components', 'ui', `${uiName}.tsx`);
+        if (!existsSync(uiFile)) {
+          const available = loadAvailableShadcnComponents();
+          errors.push(
+            `shadcn/ui component "${uiName}" does not exist in template. ` +
+            `Available: ${available.join(', ')}`
+          );
+        }
+      }
     } else {
       const isAllowed = COMPONENT_ALLOWED_IMPORTS.some(allowed =>
         importPath === allowed || importPath.startsWith(allowed + '/')
       );
       if (!isAllowed) {
         errors.push(`Disallowed import: "${importPath}" — not in allowed dependencies`);
+      }
+      if (isAllowed) {
+        const pkgName = importPath.startsWith('@')
+          ? importPath.split('/').slice(0, 2).join('/')
+          : importPath.split('/')[0]!;
+        const pkgDir = join(getTemplateDir(), 'node_modules', pkgName);
+        if (!existsSync(pkgDir)) {
+          errors.push(
+            `Package "${pkgName}" is in the allow-list but not installed in template node_modules`
+          );
+        }
       }
     }
   }

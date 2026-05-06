@@ -9,7 +9,7 @@
 
 ### Constraints
 - 组件文件允许从以下位置导入：
-  - shadcn/ui: `@/components/ui/{name}`
+  - shadcn/ui: `@/components/ui/{name}` — 可用组件：accordion, alert, aspect-ratio, avatar, badge, button, calendar, card, checkbox, collapsible, command, context-menu, dialog, drawer, dropdown-menu, hover-card, input, label, menubar, navigation-menu, popover, progress, radio-group, resizable, scroll-area, select, separator, sheet, skeleton, slider, switch, table, tabs, textarea, toggle, toggle-group, tooltip（不在列表中的不可使用）
   - 工具函数: `@/lib/utils`
   - 第三方库: react, react-dom, react-router-dom, framer-motion, lucide-react, recharts, d3, three, @react-three/fiber, @react-three/drei, @react-spring/web, @tanstack/react-query, @xyflow/react, katex, react-katex, date-fns, zod, papaparse, react-resizable-panels, react-hook-form, @hookform/resolvers, sonner, cmdk, embla-carousel-react, leva, zustand, matter-js, @monaco-editor/react, react-syntax-highlighter
 - App.tsx 可以额外从 `@/pages/*` 和 `@/components/*` 导入

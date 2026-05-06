@@ -57,10 +57,27 @@ export interface PipelineConfig {
   steps: PipelineStep[];
 }
 
+/**
+ * Fallback 模型条目。
+ * - 字符串形态：模型名经 `resolveProvider` 自动识别 provider（向后兼容）。
+ * - 对象形态：可显式指定 `provider`（与 `AgentConfig.provider` 同义），
+ *   适用于裸名模型（如 Vertex 上的 `gemini-2.5-flash`）等无法被自动识别的场景。
+ *   `maxTokens` 可单独覆写，未指定时继承所属 agent 的 `maxTokens`。
+ */
+export interface FallbackModelEntry {
+  model: string;
+  provider?: string;
+  maxTokens?: number;
+}
+
 export interface AgentConfig {
   model: string;
+  /** 可选的显式 provider 名（如 "vertex" / "openai" / "anthropic"）。
+   *  未指定时由 `resolveProvider(model)` 按模型名前缀/斜杠自动识别。 */
+  provider?: string;
   workerModel?: string;
-  fallbackModels?: string[];
+  /** 字符串与对象形态可任意混用，运行时会被归一化处理。 */
+  fallbackModels?: Array<string | FallbackModelEntry>;
   maxTokens?: number;
   maxIterations?: number;
   maxConcurrency: number;
@@ -357,8 +374,12 @@ export interface LLMProviderConfig {
 
 export interface ModelRouterConfig {
   providers: Record<string, {
-    apiKey: string;
+    apiKey?: string;
     baseUrl?: string;
+    /** Vertex AI 专用：GCP project id，未指定时由 service account JSON 自动推导 */
+    project?: string;
+    /** Vertex AI 专用：region，默认 us-central1 */
+    location?: string;
   }>;
 }
 

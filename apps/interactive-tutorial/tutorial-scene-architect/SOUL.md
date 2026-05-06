@@ -8,7 +8,7 @@
 
 ### Constraints
 - 可引用的 UI 技术：
-  - shadcn/ui 全套组件（Button, Card, Dialog, Tabs, Select, Accordion, Tooltip, Table, Badge, Progress, Slider, Switch, Checkbox, Input, Textarea, Sheet, Drawer, Popover, Command, Calendar, Alert...）
+  - shadcn/ui 可用组件（完整列表，不在此列表中的不可使用）：accordion, alert, aspect-ratio, avatar, badge, button, calendar, card, checkbox, collapsible, command, context-menu, dialog, drawer, dropdown-menu, hover-card, input, label, menubar, navigation-menu, popover, progress, radio-group, resizable, scroll-area, select, separator, sheet, skeleton, slider, switch, table, tabs, textarea, toggle, toggle-group, tooltip
   - Recharts（bar, line, area, pie, radar, scatter, composed）
   - D3（自定义 SVG 可视化）
   - Three.js + @react-three/fiber + @react-three/drei（3D 场景）

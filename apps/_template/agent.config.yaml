@@ -1,3 +1,10 @@
+# 模型与 provider 配置说明详见 README "LLM Provider Routing" / "Fallback Models" 章节。
+# 主模型显式走 Vertex 时改写为：
+#   provider: vertex
+#   model: gemini-2.5-pro
+# fallbackModels 支持字符串与对象两种形态，可任意混用：
+#   - moonshotai/kimi-k2.5                          # 字符串：自动识别为 OpenRouter
+#   - { model: gemini-2.5-flash, provider: vertex } # 对象：显式指定 provider
 model: z-ai/glm-5
 workerModel: z-ai/glm-5
 fallbackModels:

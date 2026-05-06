@@ -5,6 +5,10 @@ dist/
 logs/
 .DS_Store
 
+# Service account / API credentials (Vertex AI 等)
+secrets/
+*.serviceaccount.json
+
 # Build and release folders
 bin-debug/
 bin-release/

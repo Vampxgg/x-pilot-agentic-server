@@ -279,6 +279,70 @@ See `src/core/types.ts` for full TypeScript type definitions, `src/core/stream-p
 
 See `config/default.yaml` for all options. Environment variables in `.env` override config values.
 
+### LLM Provider Routing
+
+The base framework supports multiple LLM providers via [src/llm/provider.ts](src/llm/provider.ts). When `agent.config.yaml` does not declare an explicit `provider`, the model name is auto-classified by `resolveProvider()`:
+
+| Model name pattern | Resolved provider |
+|---|---|
+| contains `/` (e.g. `moonshotai/kimi-k2.5`, `google/gemini-3.1-pro-preview`) | `openrouter` |
+| starts with `claude` | `anthropic` |
+| starts with `glm` / `chatglm` | `zhipu` |
+| starts with `qwen` | `qwen` |
+| starts with `deepseek` | `deepseek` |
+| anything else (e.g. `gpt-4o`) | `openai` |
+
+To bypass auto-classification, write `provider: <name>` alongside `model:` in the agent config. This is **required** for Vertex AI (bare names like `gemini-2.5-pro` would otherwise fall through to OpenAI).
+
+### Google Vertex AI Setup
+
+To use Google's official Vertex AI (instead of OpenRouter passthrough):
+
+1. **Create a Service Account** in [GCP IAM](https://console.cloud.google.com/iam-admin/serviceaccounts), grant the `Vertex AI User` role.
+2. **Generate and download a JSON key**, save it as `secrets/vertex-sa.json` (or any path you prefer; the directory is gitignored).
+3. **Configure `.env`**:
+   ```bash
+   GOOGLE_APPLICATION_CREDENTIALS=./secrets/vertex-sa.json
+   GOOGLE_CLOUD_PROJECT=your-gcp-project-id
+   GOOGLE_CLOUD_LOCATION=us-central1
+   ```
+4. **Use it in `agent.config.yaml`** by setting `provider: vertex` + the bare Vertex model name:
+   ```yaml
+   provider: vertex
+   model: gemini-2.5-pro          # or gemini-2.5-flash / gemini-2.5-pro-002, etc.
+   ```
+
+> Known schema limitation: Vertex Gemini does not accept `z.union()` / `z.discriminatedUnion()` for tool input schemas. Use flat objects with optional fields instead. See [@langchain/google-vertexai docs](https://www.npmjs.com/package/@langchain/google-vertexai) for details.
+
+### Fallback Models (multi-provider failover)
+
+Each agent can declare a fallback chain via `fallbackModels`. Two forms are supported and may be **mixed freely**:
+
+```yaml
+# Most common: cross-provider failover via auto-detection
+provider: vertex
+model: gemini-2.5-pro
+fallbackModels:
+  - moonshotai/kimi-k2.5                          # string -> auto: openrouter
+
+# Mixed: same-provider downgrade first, then cross-provider fallback
+provider: vertex
+model: gemini-2.5-pro
+fallbackModels:
+  - { model: gemini-2.5-flash, provider: vertex } # explicit provider for bare names
+  - moonshotai/kimi-k2.5
+
+# High-availability: multiple direct providers
+provider: vertex
+model: gemini-2.5-pro
+fallbackModels:
+  - { model: gemini-2.5-flash, provider: vertex }
+  - { model: claude-sonnet-4-6, provider: anthropic }
+  - { model: gpt-4o, provider: openai }
+```
+
+When the primary model errors (HTTP 4xx/5xx, timeout, network), LangChain's `withFallbacks` tries the chain in order. Each model has its own per-instance HTTP retry (`maxRetries: 3` by default) before the chain advances to the next entry.
+
 ### Knowledge Retrieval Configuration
 
 | Env Variable | Description | Default |
