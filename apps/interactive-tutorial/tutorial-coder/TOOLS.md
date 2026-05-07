@@ -70,33 +70,19 @@ export default appRoutes;
 
 ### UI 基础（shadcn/ui — 从 `@/components/ui/{name}` 导入）
 
-以下是**全部**可用的 shadcn/ui 组件（共 37 个）。**不在此列表中的组件不可使用**：
-
-`accordion`, `alert`, `aspect-ratio`, `avatar`, `badge`, `button`, `calendar`, `card`, `checkbox`, `collapsible`, `command`, `context-menu`, `dialog`, `drawer`, `dropdown-menu`, `hover-card`, `input`, `label`, `menubar`, `navigation-menu`, `popover`, `progress`, `radio-group`, `resizable`, `scroll-area`, `select`, `separator`, `sheet`, `skeleton`, `slider`, `switch`, `table`, `tabs`, `textarea`, `toggle`, `toggle-group`, `tooltip`
-
-常用导入示例：
-
-- `import { Button } from '@/components/ui/button'`
-- `import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'`
-- `import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'`
-- `import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'`
-- `import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select'`
-- `import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion'`
-- `import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'`
-- `import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable'`
-- `import { Badge } from '@/components/ui/badge'`
-- `import { Progress } from '@/components/ui/progress'`
-- `import { Slider } from '@/components/ui/slider'`
-- `import { Switch } from '@/components/ui/switch'`
-- `import { Checkbox } from '@/components/ui/checkbox'`
-- `import { Input } from '@/components/ui/input'`
-- `import { Textarea } from '@/components/ui/textarea'`
-- `import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'`
-- `import { Sheet, SheetTrigger, SheetContent } from '@/components/ui/sheet'`
-- `import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'`
-- `import { Separator } from '@/components/ui/separator'`
-- `import { Label } from '@/components/ui/label'`
-- `import { ScrollArea } from '@/components/ui/scroll-area'`
+- `Button` — `import { Button } from '@/components/ui/button'`
+- `Card, CardHeader, CardTitle, CardContent, CardFooter` — `import { Card, ... } from '@/components/ui/card'`
+- `Tabs, TabsList, TabsTrigger, TabsContent` — `import { Tabs, ... } from '@/components/ui/tabs'`
+- `Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle`
+- `Select, SelectTrigger, SelectValue, SelectContent, SelectItem`
+- `Accordion, AccordionItem, AccordionTrigger, AccordionContent`
+- `Table, TableHeader, TableBody, TableRow, TableHead, TableCell`
+- `Badge`, `Progress`, `Slider`, `Switch`, `Checkbox`, `Input`, `Textarea`
+- `Tooltip, TooltipTrigger, TooltipContent, TooltipProvider`
+- `Sheet, SheetTrigger, SheetContent`
+- `Alert, AlertTitle, AlertDescription`
+- `Separator`, `Label`, `ScrollArea`
+- 以及其他所有 shadcn/ui 组件...
 
 ### 工具函数
 
@@ -150,7 +136,7 @@ export default appRoutes;
 
 ### 其他
 
-- `react-resizable-panels` — 可调面板（也可通过 shadcn `@/components/ui/resizable` 使用封装版）
+- `react-resizable-panels` — 可调面板
 - `react-hook-form` + `@hookform/resolvers` + `zod` — 表单
 - `sonner` — toast 通知
 - `date-fns` — 日期工具
@@ -158,11 +144,6 @@ export default appRoutes;
 - `embla-carousel-react` — 轮播
 - `leva` — 调试 GUI 面板
 - `zustand` — 跨组件状态管理（只在必要时使用）
-- `matter-js` — 2D 物理引擎
-- `@monaco-editor/react` — 代码编辑器
-- `react-syntax-highlighter` — 代码高亮
-
-**以上是全部可用的第三方依赖。不在此列表中的包不可使用。**
 
 ## Import 规范
 

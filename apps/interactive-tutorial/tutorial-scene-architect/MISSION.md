@@ -118,14 +118,14 @@ workspace_write({
 
 组件不再使用 SDK，而是直接组合以下技术：
 
-- **UI 基座**: shadcn/ui — 可用组件完整列表：accordion, alert, aspect-ratio, avatar, badge, button, calendar, card, checkbox, collapsible, command, context-menu, dialog, drawer, dropdown-menu, hover-card, input, label, menubar, navigation-menu, popover, progress, radio-group, resizable, scroll-area, select, separator, sheet, skeleton, slider, switch, table, tabs, textarea, toggle, toggle-group, tooltip。**不在列表中的组件不可使用**
+- **UI 基座**: shadcn/ui (Button, Card, Dialog, Tabs, Select, Accordion, Tooltip, Table, Badge, Progress... 全套 Radix primitives)
 - **可视化**: Recharts（柱状图/折线图/面积图/饼图/雷达图/散点图）, D3（自定义高级可视化）
 - **3D**: Three.js + @react-three/fiber + @react-three/drei
 - **动画**: Framer Motion, @react-spring/web
 - **数学公式**: Katex / react-katex
 - **图标**: lucide-react
-- **布局**: resizable（shadcn 封装）/ react-resizable-panels, Tailwind CSS Grid/Flex
+- **布局**: react-resizable-panels（可调面板）, Tailwind CSS Grid/Flex
 - **流程图**: @xyflow/react
 - **数据**: @tanstack/react-query, Zod, date-fns, PapaParse
 - **表单**: react-hook-form + @hookform/resolvers
-- **其他**: sonner (toast), cmdk (命令面板), embla-carousel-react (轮播), Leva (调试 GUI), zustand (状态管理), matter-js (2D 物理), @monaco-editor/react (代码编辑器), react-syntax-highlighter (代码高亮)
+- **其他**: sonner (toast), cmdk (命令面板), embla-carousel-react (轮播), Leva (调试 GUI)

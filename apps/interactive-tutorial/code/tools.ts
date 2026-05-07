@@ -1,50 +1,9 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { readdirSync, existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import { reassembleForSession } from "./handlers.js";
-import { getTemplateDir } from "./template-dir.js";
 import { logger } from "../../../src/utils/logger.js";
 import { eventBus, type AgentEvent } from "../../../src/core/event-bus.js";
-
-interface TemplateCapabilities {
-  shadcnComponents: string[];
-  installedPackages: string[];
-}
-
-let _cachedCapabilities: TemplateCapabilities | null = null;
-
-function scanTemplateCapabilities(): TemplateCapabilities {
-  if (_cachedCapabilities) return _cachedCapabilities;
-
-  const templateDir = getTemplateDir();
-  const uiDir = join(templateDir, "src", "components", "ui");
-  let shadcnComponents: string[] = [];
-  if (existsSync(uiDir)) {
-    try {
-      shadcnComponents = readdirSync(uiDir)
-        .filter(f => f.endsWith(".tsx"))
-        .map(f => f.replace(/\.tsx$/, ""))
-        .sort();
-    } catch { /* best effort */ }
-  }
-
-  let installedPackages: string[] = [];
-  const pkgPath = join(templateDir, "package.json");
-  if (existsSync(pkgPath)) {
-    try {
-      const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
-      installedPackages = Object.keys(pkg.dependencies ?? {}).sort();
-    } catch { /* best effort */ }
-  }
-
-  _cachedCapabilities = { shadcnComponents, installedPackages };
-  logger.info(
-    `[template-scan] ${shadcnComponents.length} shadcn components, ${installedPackages.length} npm packages`,
-  );
-  return _cachedCapabilities;
-}
 
 export function createReassembleAppTool(
   tenantId: string,
@@ -106,13 +65,10 @@ export function createStartGenerationPipelineTool(
         const briefHeader = `【Generation Brief — 由总导演整理】\n${params.brief}`;
         const initialInput = briefHeader;
 
-        const templateCaps = scanTemplateCapabilities();
         const context: Record<string, unknown> = {
           businessType: "interactive-tutorial",
           generationBrief: params.brief,
           topic: params.topic,
-          availableShadcnComponents: templateCaps.shadcnComponents,
-          availableNpmPackages: templateCaps.installedPackages,
         };
 
         if (params.capabilities?.databaseId) {

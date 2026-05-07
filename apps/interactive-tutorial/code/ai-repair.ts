@@ -46,7 +46,6 @@ const COMPONENT_ALLOWED_IMPORTS = [
   "@monaco-editor/react",
   "react-syntax-highlighter",
   "react-day-picker",
-  "tailwindcss-animate",
 ];
 
 export interface RepairRequest {
@@ -91,22 +90,7 @@ async function loadShadcnComponents(): Promise<string> {
 function getRepairModel() {
   const config = getConfig();
   const workerModel = config.agents.defaults.workerModel ?? config.agents.defaults.model;
-
-  try {
-    const primary = getModelByName(workerModel);
-    const fallbackEntries = config.agents.defaults.fallbackModels ?? [];
-    if (fallbackEntries.length === 0) return primary;
-
-    const fallbacks = fallbackEntries.map((raw: string | { model: string; provider?: string }) => {
-      const entry = typeof raw === "string" ? { model: raw } : raw;
-      return getModelByName(entry.model, entry.provider as any);
-    });
-
-    return primary.withFallbacks({ fallbacks }) as unknown as ReturnType<typeof getModelByName>;
-  } catch (err) {
-    logger.warn(`[ai-repair] Failed to create primary repair model (${workerModel}), falling back to vertex flash`);
-    return getModelByName("gemini-2.5-flash", "vertex" as any);
-  }
+  return getModelByName(workerModel);
 }
 
 function buildRepairPrompt(
