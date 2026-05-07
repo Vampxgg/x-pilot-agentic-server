@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import { reassembleForSession } from "./handlers.js";
 import { logger } from "../../../src/utils/logger.js";
+import { eventBus, type AgentEvent } from "../../../src/core/event-bus.js";
 
 export function createReassembleAppTool(
   tenantId: string,
@@ -32,7 +33,7 @@ export function createReassembleAppTool(
     {
       name: "reassemble_app",
       description:
-        "编辑完成后重建教材应用。同步 workspace 中的 App.tsx 和 components/ 到构建目录，" +
+        "编辑完成后重建教材应用。同步 workspace 中的 App.tsx、components/ 和 pages/ 到构建目录，" +
         "运行 Vite 生产构建，更新 tutorial-meta.json。" +
         "返回更新后的教材预览 URL。在所有文件编辑完成后调用。",
       schema: z.object({}),
@@ -79,26 +80,79 @@ export function createStartGenerationPipelineTool(
 
         logger.info(`[start_generation_pipeline] topic="${params.topic}" session=${sessionId}`);
 
-        const result = await executor.execute(directorDef, initialInput, {
-          tenantId,
-          userId,
-          sessionId,
-          context,
-        });
+        // Task 8 — collect pipeline progress events as a lightweight timeline so the
+        // director's response can describe what happened to the user. The same events
+        // also stream live through /api/sessions/:sessionId/events for the frontend.
+        type TimelineEntry = {
+          ts: string;
+          stage?: string;
+          phase?: string;
+          message?: string;
+          url?: string;
+          durationMs?: number;
+          count?: number;
+          successCount?: number;
+        };
+        const timeline: TimelineEntry[] = [];
+        let previewUrl: string | null = null;
+        let firstPreviewAt: number | null = null;
+        const pipelineStart = Date.now();
+
+        const handler = (event: AgentEvent) => {
+          if (event.type !== "progress") return;
+          const data = (event.data ?? {}) as Record<string, unknown>;
+          const entry: TimelineEntry = {
+            ts: event.timestamp,
+            stage: typeof data.stage === "string" ? data.stage : undefined,
+            phase: typeof data.phase === "string" ? data.phase : undefined,
+            message: typeof data.message === "string" ? data.message : undefined,
+            url: typeof data.url === "string" ? data.url : undefined,
+            durationMs: typeof data.durationMs === "number" ? data.durationMs : undefined,
+            count: typeof data.count === "number" ? data.count : undefined,
+            successCount: typeof data.successCount === "number" ? data.successCount : undefined,
+          };
+          timeline.push(entry);
+          if (entry.stage === "preview_ready" && entry.url && !previewUrl) {
+            previewUrl = entry.url;
+            firstPreviewAt = Date.now() - pipelineStart;
+            logger.info(`[start_generation_pipeline] preview_ready captured (+${firstPreviewAt}ms): ${previewUrl}`);
+          }
+          // Cap timeline length defensively
+          if (timeline.length > 200) timeline.splice(0, timeline.length - 200);
+        };
+        eventBus.onSession(sessionId, handler);
+
+        let result;
+        try {
+          result = await executor.execute(directorDef, initialInput, {
+            tenantId,
+            userId,
+            sessionId,
+            context,
+          });
+        } finally {
+          eventBus.offSession(sessionId, handler);
+        }
 
         const assembleOutput = result.steps.assemble;
         const meta = assembleOutput?.result as Record<string, unknown> | undefined;
+        const finalUrl = (meta?.url as string | undefined) ?? previewUrl ?? null;
 
         return JSON.stringify({
           success: result.taskResult.success,
-          url: meta?.url ?? null,
+          url: finalUrl,
           title: meta?.title ?? params.topic,
           fileCount: meta?.fileCount ?? 0,
-          summary: meta?.url
-            ? `教材「${meta.title ?? params.topic}」已生成，包含 ${meta.fileCount ?? "若干"} 个互动组件。\n预览地址: @@TUTORIAL_URL@@`
+          summary: finalUrl
+            ? `教材「${meta?.title ?? params.topic}」已生成，包含 ${meta?.fileCount ?? "若干"} 个互动组件。\n预览地址: @@TUTORIAL_URL@@`
             : "教材生成流程已完成，但未获取到预览地址。",
           warnings: meta?.warnings,
           teachingGuide: meta?.teachingGuide,
+          timeline,
+          metrics: {
+            totalMs: Date.now() - pipelineStart,
+            firstPreviewMs: firstPreviewAt,
+          },
         });
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);

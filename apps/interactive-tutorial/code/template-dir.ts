@@ -3,7 +3,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { parse as parseYaml } from "yaml";
 import { logger } from "../../../src/utils/logger.js";
 
-const DEFAULT_TEMPLATE_REL = resolve(process.cwd(), "..", "react-code-rander");
+const DEFAULT_TEMPLATE_REL = resolve(process.cwd(), "..", "template_rander");
 
 let _resolved: string | null = null;
 

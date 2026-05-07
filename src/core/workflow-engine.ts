@@ -20,6 +20,7 @@ import {
   createReflectNode,
   routeAfterThink,
   routeAfterObserve,
+  createNudgeNode,
 } from "./agent-graph.js";
 import { logger } from "../utils/logger.js";
 
@@ -39,6 +40,7 @@ const PHASE_FACTORIES: Record<string, NodeFactory> = {
   think: (_agentDef, model, tools) => createThinkNode(model, tools),
   act: (_agentDef, _model, tools, toolEventCb) => createActNode(tools, toolEventCb),
   observe: () => createObserveNode(),
+  nudge: () => createNudgeNode(),
   reflect: (_agentDef, model) => createReflectNode(model),
 };
 
@@ -61,8 +63,13 @@ function buildConditionalRouter(
         case "has_tool_calls":
           if (routeAfterThink(state) === "act") return target;
           break;
-        case "no_tool_calls":
-          if (routeAfterThink(state) === "reflect") return target;
+        case "no_tool_calls": {
+          const thinkRoute = routeAfterThink(state);
+          if (thinkRoute === "reflect" || thinkRoute === "nudge") return target;
+          break;
+        }
+        case "needs_nudge":
+          if (routeAfterThink(state) === "nudge") return target;
           break;
         case "continue_iteration":
           if (routeAfterObserve(state) === "think") return target;
@@ -84,13 +91,16 @@ function buildConditionalRouter(
 // Graph builder for ReAct strategy
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyStateGraph = any;
+
 function buildReactGraph(
   agentDef: AgentDefinition,
   graph: WorkflowGraph,
   model: BaseChatModel,
   tools: StructuredToolInterface[],
   toolEventCb?: ToolEventCallback,
-): StateGraph<typeof AgentState.State, Partial<typeof AgentState.State>, typeof AgentState.Update> {
+): AnyStateGraph {
   const sg = new StateGraph(AgentState);
 
   const nodeNameMap = new Map<string, string>();
@@ -155,7 +165,7 @@ export class WorkflowEngine {
     tools: StructuredToolInterface[],
     toolEventCb?: ToolEventCallback,
     mode?: string,
-  ): StateGraph<typeof AgentState.State, Partial<typeof AgentState.State>, typeof AgentState.Update> {
+  ): AnyStateGraph {
     const resolvedStrategy = WorkflowEngine.resolveStrategy(workflow, mode);
     const resolvedGraph = WorkflowEngine.resolveGraph(workflow, mode);
 

@@ -1,5 +1,5 @@
 import { StateGraph, Annotation, END, START } from "@langchain/langgraph";
-import { BaseMessage, HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
+import { BaseMessage, HumanMessage, SystemMessage, AIMessage, AIMessageChunk, ToolMessage } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type {
@@ -64,6 +64,8 @@ export const AgentState = Annotation.Root({
   iteration: Annotation<number>({ reducer: lastValueNum, default: () => 0 }),
   maxIterations: Annotation<number>({ reducer: lastValueNum, default: () => 20 }),
   done: Annotation<boolean>({ reducer: lastValueBool, default: () => false }),
+  /** Tracks consecutive empty-response nudges to cap retries. */
+  emptyResponseRetries: Annotation<number>({ reducer: lastValueNum, default: () => 0 }),
 });
 
 export type AgentGraphState = typeof AgentState.State;
@@ -153,6 +155,84 @@ function bindToolsSafe(model: BaseChatModel, tools: StructuredToolInterface[]): 
   return model;
 }
 
+/**
+ * Ensure every message in the array is a proper LangChain class instance.
+ *
+ * After PostgreSQL checkpoint round-trips the LangGraph state, messages may
+ * lose their prototype chain and become plain objects.  Vertex / Gemini's
+ * `baseMessageToContent` uses `isInstance` (≈ instanceof) checks, so POJOs
+ * silently fall through and produce "Unsupported message type: undefined".
+ *
+ * This function re-wraps any non-instance message using the type information
+ * still present on the object (`_getType()` or `lc_id`).
+ */
+function ensureMessageInstances(messages: BaseMessage[]): BaseMessage[] {
+  return messages.map((msg) => {
+    const isHuman = msg instanceof HumanMessage;
+    const isAI = msg instanceof AIMessage || msg instanceof AIMessageChunk;
+    const isSys = msg instanceof SystemMessage;
+    const isTool = msg instanceof ToolMessage;
+
+    if (isHuman || isAI || isSys || isTool) {
+      return msg;
+    }
+
+    let type: string | undefined;
+    try {
+      if (typeof (msg as BaseMessage)._getType === "function") {
+        type = (msg as BaseMessage)._getType();
+      }
+    } catch { /* ignore */ }
+
+    if (!type) {
+      const raw = msg as unknown as Record<string, unknown>;
+      const lcId = (raw.lc_id ?? raw.id) as string[] | undefined;
+      if (Array.isArray(lcId) && lcId.length > 0) {
+        const cls = lcId[lcId.length - 1]!;
+        if (cls.includes("Human")) type = "human";
+        else if (cls.includes("AI")) type = "ai";
+        else if (cls.includes("System")) type = "system";
+        else if (cls.includes("Tool")) type = "tool";
+      }
+    }
+
+    const base = {
+      content: msg.content ?? "",
+      additional_kwargs: msg.additional_kwargs ?? {},
+      response_metadata: msg.response_metadata ?? {},
+      id: msg.id,
+      name: msg.name,
+    };
+
+    switch (type) {
+      case "human":
+        return new HumanMessage(base);
+      case "ai": {
+        const src = msg as AIMessage;
+        return new AIMessage({
+          ...base,
+          tool_calls: src.tool_calls,
+          usage_metadata: src.usage_metadata,
+        });
+      }
+      case "system":
+        return new SystemMessage(base);
+      case "tool":
+        return new ToolMessage({
+          ...base,
+          tool_call_id: (msg as ToolMessage).tool_call_id ?? "",
+        });
+      default:
+        logger.warn(
+          `[ensureMessageInstances] Unknown message type "${type}", wrapping as HumanMessage`,
+        );
+        return new HumanMessage({
+          content: typeof base.content === "string" ? base.content : JSON.stringify(base.content),
+        });
+    }
+  });
+}
+
 export function createThinkNode(model: BaseChatModel, tools: StructuredToolInterface[]) {
   const modelWithTools = bindToolsSafe(model, tools);
 
@@ -160,14 +240,13 @@ export function createThinkNode(model: BaseChatModel, tools: StructuredToolInter
     logger.info(`[${state.agentName}] Think: iteration ${state.iteration}`);
 
     const memSummary = summarizeWorkingMemory(state.workingMemory);
-    const contextMessage = memSummary
-      ? new SystemMessage(`## Working Memory\n${memSummary}`)
-      : null;
+    const fullSystemPrompt = memSummary
+      ? `${state.systemPrompt}\n\n## Working Memory\n${memSummary}`
+      : state.systemPrompt;
 
     const messagesToSend: BaseMessage[] = [
-      new SystemMessage(state.systemPrompt),
-      ...(contextMessage ? [contextMessage] : []),
-      ...state.messages,
+      new SystemMessage(fullSystemPrompt),
+      ...ensureMessageInstances(state.messages),
     ];
 
     const response = await modelWithTools.invoke(messagesToSend);
@@ -224,8 +303,6 @@ export function createActNode(tools: StructuredToolInterface[], toolEventCb?: To
     if (!toolCallEntries || toolCallEntries.length === 0) return {};
 
     logger.info(`[${state.agentName}] Act: executing ${toolCallEntries.length} tool call(s) in parallel`);
-
-    const { ToolMessage } = await import("@langchain/core/messages");
 
     const execResults = await Promise.all(
       toolCallEntries.map(async (tc) => {
@@ -313,6 +390,29 @@ export function createActNode(tools: StructuredToolInterface[], toolEventCb?: To
   };
 }
 
+/**
+ * Nudge node: injected when the LLM returns an empty response (no tool calls)
+ * on its first attempt(s). Adds a firm reminder message and routes back to
+ * `think` so the model gets another chance to produce tool calls.
+ */
+export function createNudgeNode() {
+  return async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
+    logger.info(`[${state.agentName}] Nudge: reminding agent to use tools (retry ${state.emptyResponseRetries + 1})`);
+
+    const nudgeMessage = new HumanMessage(
+      `[System Reminder] Your previous response was empty or did not include any tool calls. ` +
+      `You have NOT completed your task yet — no files have been written. ` +
+      `You MUST use the tools available to you (e.g. workspace_write) to complete your assigned task. ` +
+      `Re-read your instructions and produce the required output NOW.`,
+    );
+
+    return {
+      messages: [nudgeMessage],
+      emptyResponseRetries: state.emptyResponseRetries + 1,
+    };
+  };
+}
+
 export function createObserveNode() {
   return async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
     const updatedMemory = addMemoryEntry(state.workingMemory, {
@@ -386,7 +486,13 @@ Provide a JSON reflection with: summary, lessonsLearned (array), suggestedImprov
 // Routing Functions
 // ---------------------------------------------------------------------------
 
-export function routeAfterThink(state: AgentGraphState): "act" | "reflect" {
+/**
+ * Max consecutive times we will nudge the LLM to use tools before giving up.
+ * Keeps the loop bounded if the model genuinely cannot produce tool calls.
+ */
+const MAX_EMPTY_RESPONSE_NUDGES = 2;
+
+export function routeAfterThink(state: AgentGraphState): "act" | "nudge" | "reflect" {
   const lastMessage = state.messages[state.messages.length - 1];
 
   if (lastMessage && "tool_calls" in lastMessage) {
@@ -394,6 +500,22 @@ export function routeAfterThink(state: AgentGraphState): "act" | "reflect" {
     if (aiMsg.tool_calls && aiMsg.tool_calls.length > 0) {
       return "act";
     }
+  }
+
+  // If the agent has never called any tool AND we haven't exhausted nudge
+  // retries, send a nudge message instead of ending prematurely.
+  const hasNoWorkDone = state.toolCalls.length === 0 && state.subAgentResults.length === 0;
+  const canNudge =
+    hasNoWorkDone &&
+    state.emptyResponseRetries < MAX_EMPTY_RESPONSE_NUDGES &&
+    state.iteration < state.maxIterations;
+
+  if (canNudge) {
+    logger.warn(
+      `[${state.agentName}] Empty response with no prior tool calls ` +
+      `(nudge ${state.emptyResponseRetries + 1}/${MAX_EMPTY_RESPONSE_NUDGES}), retrying`,
+    );
+    return "nudge";
   }
 
   return "reflect";
@@ -429,11 +551,13 @@ export function buildAgentGraph(
     .addNode("think", createThinkNode(model, tools))
     .addNode("act", createActNode(tools, toolEventCb))
     .addNode("observe", createObserveNode())
+    .addNode("nudge", createNudgeNode())
     .addNode("reflect", createReflectNode(model))
     .addEdge(START, "perceive")
     .addEdge("perceive", "think")
     .addConditionalEdges("think", routeAfterThink)
     .addEdge("act", "observe")
+    .addEdge("nudge", "think")
     .addConditionalEdges("observe", routeAfterObserve)
     .addEdge("reflect", END);
 

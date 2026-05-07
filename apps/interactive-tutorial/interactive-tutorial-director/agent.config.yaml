@@ -1,6 +1,8 @@
-model: google/gemini-3.1-pro-preview
+provider: vertex
+model: gemini-2.5-pro
 workerModel: z-ai/glm-5
 fallbackModels:
+  - { model: gemini-2.5-flash, provider: vertex }
   - moonshotai/kimi-k2.5
 maxConcurrency: 8
 maxIterations: 50
@@ -17,11 +19,11 @@ allowedTools:
   - reassemble_app
 metadata:
   domain: interactive-tutorial
-  templateDir: ../react-code-rander
+  templateDir: ../template_rander
 pipeline:
   steps:
     - name: research
-      agent: tutorial-content-researcher
+      handler: researchWithCache
       optional: true
       retry:
         maxAttempts: 2
@@ -35,15 +37,17 @@ pipeline:
     - name: save-blueprint
       handler: saveBlueprint
       dependsOn: [architect]
-    - name: coder
-      agent: tutorial-scene-coder
+    # 单一 Coder：读蓝图后串行写入所有文件（App.tsx + pages + components）
+    # 取代原来的多编码器并行拆分，确保全局设计和数据模型一致
+    - name: code
+      agent: tutorial-coder
       dependsOn: [save-blueprint]
       retry:
         maxAttempts: 2
-        backoffMs: 5000
+        backoffMs: 3000
     - name: assemble
       handler: assembleApp
-      dependsOn: [coder]
+      dependsOn: [code]
 evolution:
   enabled: true
   requireApproval: true

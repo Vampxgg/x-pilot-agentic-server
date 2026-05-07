@@ -29,6 +29,25 @@
 - 最终输出保存为 artifacts/research.json
 
 ## Tool Strategy
-1. Phase 1：knowledge_list 了解知识库 → 规划搜索策略
-2. Phase 2：knowledge_search + web_search + file_read 并行收集
-3. Phase 3：workspace_write 保存结构化报告
+
+### 必须并行调用（性能关键）
+
+LLM 在**一次响应**里可以同时返回多个 `tool_call`，框架会真正并行执行。利用这一点：
+
+- **错误**：response#1 → 1 个 knowledge_search → response#2 → 1 个 web_search → response#3 → 1 个 file_read（串行 3 轮，每轮 ~10-30s）
+- **正确**：response#1 → **同时**返回 4 个 tool_call（knowledge_search ×2 + web_search ×1 + file_read ×1），框架并行执行（~10-30s 一次完成）
+
+### 阶段流程
+
+1. **Phase 1（可选）**：仅当对知识库一无所知时调用 `knowledge_list` 一次。绝大多数场景可以跳过这一步——直接进 Phase 2。
+2. **Phase 2（必须并行）**：在第一次工具调用响应里**同时**返回：
+   - `knowledge_search`（中文广义关键词）
+   - `knowledge_search`（英文/技术细分关键词）
+   - `web_search`（如启用）— 优先权威来源
+   - `file_read`（如有用户上传文件）
+3. **Phase 2.5（可选）**：第一轮结果如有空白领域，**再次并行**返回 2-4 个补充检索；不要 1 个 1 个补。
+4. **Phase 3**：调用 `workspace_write("artifacts/research.json", ...)` 保存结构化报告。
+
+### 反模式自查
+
+如果你的工具调用日志显示 ≥5 个 "单次单调用" 的轮次，说明你在串行——下次必须把它们合并到 1-2 个并行批次里。

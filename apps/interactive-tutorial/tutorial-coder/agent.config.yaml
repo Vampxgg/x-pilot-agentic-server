@@ -1,0 +1,37 @@
+provider: vertex
+model: gemini-2.5-pro
+workerModel: z-ai/glm-5
+fallbackModels:
+  - { model: gemini-2.5-flash, provider: vertex }
+  - moonshotai/kimi-k2.5
+maxConcurrency: 1
+maxIterations: 50
+timeout: 300000
+allowedTools:
+  - workspace_read
+  - workspace_write
+metadata:
+  domain: interactive-tutorial
+outputFormat:
+  type: json
+  schema:
+    type: object
+    required: [filesWritten, status, totalFiles]
+    properties:
+      filesWritten:
+        type: array
+        items:
+          type: string
+        description: "已写入的文件路径列表，如 assets/App.tsx、assets/pages/HomePage.tsx、assets/components/Foo.tsx"
+      status:
+        type: string
+        enum: [completed, partial, failed]
+      totalFiles:
+        type: number
+        description: "写入的文件总数"
+      error:
+        type: string
+        description: "失败时的错误描述"
+evolution:
+  enabled: true
+  requireApproval: true

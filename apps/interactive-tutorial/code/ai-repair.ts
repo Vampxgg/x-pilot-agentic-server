@@ -9,22 +9,43 @@ import type { BuildError } from "./types.js";
 import { getTemplateDir } from "./template-dir.js";
 
 const COMPONENT_ALLOWED_IMPORTS = [
-  "@/sdk",
   "react",
+  "react-dom",
+  "react-router-dom",
   "framer-motion",
   "lucide-react",
-  "react-katex",
   "recharts",
+  "d3",
   "three",
   "@react-three/fiber",
   "@react-three/drei",
-  "zustand",
-  "react-router-dom",
-  "react-resizable-panels",
-  "@monaco-editor/react",
-  "matter-js",
-  "react-syntax-highlighter",
+  "@react-spring/web",
+  "@tanstack/react-query",
+  "@xyflow/react",
   "katex",
+  "react-katex",
+  "date-fns",
+  "zod",
+  "papaparse",
+  "react-resizable-panels",
+  "react-hook-form",
+  "@hookform/resolvers",
+  "sonner",
+  "cmdk",
+  "embla-carousel-react",
+  "leva",
+  "class-variance-authority",
+  "clsx",
+  "tailwind-merge",
+  "vaul",
+  "input-otp",
+  "next-themes",
+  "@radix-ui",
+  "zustand",
+  "matter-js",
+  "@monaco-editor/react",
+  "react-syntax-highlighter",
+  "react-day-picker",
 ];
 
 export interface RepairRequest {
@@ -40,29 +61,30 @@ export interface RepairResult {
   originalErrors: string;
 }
 
-let _sdkExportsCache: string | null = null;
+let _shadcnComponentsCache: string | null = null;
 
-async function loadSdkExports(): Promise<string> {
-  if (_sdkExportsCache) return _sdkExportsCache;
+async function loadShadcnComponents(): Promise<string> {
+  if (_shadcnComponentsCache) return _shadcnComponentsCache;
 
-  const indexPath = resolve(getTemplateDir(), "src", "sdk", "index.ts");
-  if (!existsSync(indexPath)) {
-    _sdkExportsCache = "(SDK exports unavailable)";
-    return _sdkExportsCache;
+  const uiDir = resolve(getTemplateDir(), "src", "components", "ui");
+  if (!existsSync(uiDir)) {
+    _shadcnComponentsCache = "(shadcn/ui components unavailable)";
+    return _shadcnComponentsCache;
   }
 
-  const content = await readFile(indexPath, "utf-8");
-  const exports: string[] = [];
-  const exportRegex = /export\s*\{\s*(\w+)\s*\}/g;
-  let match;
-  while ((match = exportRegex.exec(content)) !== null) {
-    exports.push(match[1]!);
+  try {
+    const { readdir: readdirAsync } = await import("node:fs/promises");
+    const entries = await readdirAsync(uiDir);
+    const components = entries
+      .filter(f => f.endsWith(".tsx"))
+      .map(f => f.replace(/\.tsx$/, ""));
+    _shadcnComponentsCache = components.length > 0
+      ? components.join(", ")
+      : "(no components found)";
+  } catch {
+    _shadcnComponentsCache = "(shadcn/ui components unavailable)";
   }
-
-  _sdkExportsCache = exports.length > 0
-    ? exports.join(", ")
-    : "(no exports found)";
-  return _sdkExportsCache;
+  return _shadcnComponentsCache;
 }
 
 function getRepairModel() {
@@ -75,7 +97,7 @@ function buildRepairPrompt(
   filePath: string,
   sourceCode: string,
   errors: string,
-  sdkExports: string,
+  shadcnComponents: string,
 ): string {
   const fileName = filePath.replace(/.*[/\\]/, "");
   const isAppFile = fileName === "App.tsx";
@@ -84,10 +106,15 @@ function buildRepairPrompt(
 
 ## 环境约束
 - 允许的第三方导入: ${COMPONENT_ALLOWED_IMPORTS.join(", ")}
-- SDK 组件统一从 '@/sdk' 导入，可用: ${sdkExports}
-- 组件之间使用相对路径 './' 或 '../' 导入
-- ${isAppFile ? "这是主入口文件 App.tsx，必须有 export default" : "这是子组件文件，必须有 export default 或 export function/const"}
+- shadcn/ui 组件从 '@/components/ui/{name}' 导入（各组件独立文件），可用: ${shadcnComponents}
+- 工具函数从 '@/lib/utils' 导入（提供 cn 函数）
+- ${isAppFile ? "这是路由入口文件 App.tsx，必须 export default 一个 RouteObject[] 数组" : "这是子组件/页面文件，必须有 export default 或 export function/const"}
 - 必须保持组件原有功能，仅修复错误
+- 禁止使用 '@/sdk' 路径（项目中不存在）
+
+## lucide-react 图标重命名（v0.400+）
+如果错误涉及 lucide-react 图标名，请使用新版命名：
+AlertCircle→CircleAlert, AlertTriangle→TriangleAlert, AlertOctagon→OctagonAlert, CheckCircle→CircleCheck, CheckCircle2→CircleCheckBig, XCircle→CircleX, HelpCircle→CircleHelp, PlusCircle→CirclePlus, MinusCircle→CircleMinus, ArrowUpCircle→CircleArrowUp, ArrowDownCircle→CircleArrowDown
 
 ## 文件: ${fileName}
 
@@ -116,14 +143,14 @@ function extractCodeFromResponse(response: string): string | null {
 
 export async function repairFile(request: RepairRequest): Promise<RepairResult> {
   try {
-    const sdkExports = await loadSdkExports();
+    const shadcnComponents = await loadShadcnComponents();
     const model = getRepairModel();
 
     const prompt = buildRepairPrompt(
       request.filePath,
       request.sourceCode,
       request.errors,
-      sdkExports,
+      shadcnComponents,
     );
 
     logger.info(`[ai-repair] Attempting repair: ${request.filePath}`);

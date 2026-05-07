@@ -59,6 +59,7 @@ describe("Parallel Act Node", () => {
       reflections: [],
       iteration: 0,
       maxIterations: 20,
+      emptyResponseRetries: 0,
       done: false,
     };
 
@@ -97,6 +98,7 @@ describe("Parallel Act Node", () => {
       reflections: [],
       iteration: 0,
       maxIterations: 20,
+      emptyResponseRetries: 0,
       done: false,
     };
 
@@ -130,6 +132,7 @@ describe("Parallel Act Node", () => {
       reflections: [],
       iteration: 0,
       maxIterations: 20,
+      emptyResponseRetries: 0,
       done: false,
     };
 
