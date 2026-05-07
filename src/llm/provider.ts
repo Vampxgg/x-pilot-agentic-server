@@ -55,8 +55,8 @@ export function createModel(options: CreateModelOptions): BaseChatModel {
   switch (provider) {
     case "anthropic":
       return new ChatAnthropic({
-        anthropicApiKey: providerConfig?.apiKey,
-        modelName: options.model,
+        apiKey: providerConfig?.apiKey,
+        model: options.model,
         temperature: options.temperature ?? 0.7,
         maxTokens: options.maxTokens ?? 4096,
         maxRetries,
@@ -64,8 +64,8 @@ export function createModel(options: CreateModelOptions): BaseChatModel {
 
     case "openrouter":
       return new ChatOpenAI({
-        openAIApiKey: providerConfig?.apiKey,
-        modelName: options.model,
+        apiKey: providerConfig?.apiKey,
+        model: options.model,
         temperature: options.temperature ?? 0.7,
         maxTokens: options.maxTokens ?? 4096,
         maxRetries,
@@ -78,8 +78,8 @@ export function createModel(options: CreateModelOptions): BaseChatModel {
     case "qwen":
     case "deepseek":
       return new ChatOpenAI({
-        openAIApiKey: providerConfig?.apiKey,
-        modelName: options.model,
+        apiKey: providerConfig?.apiKey,
+        model: options.model,
         temperature: options.temperature ?? 0.7,
         maxTokens: options.maxTokens ?? 4096,
         maxRetries,
@@ -117,8 +117,8 @@ export function createModel(options: CreateModelOptions): BaseChatModel {
     case "openai":
     default:
       return new ChatOpenAI({
-        openAIApiKey: providerConfig?.apiKey,
-        modelName: options.model,
+        apiKey: providerConfig?.apiKey,
+        model: options.model,
         temperature: options.temperature ?? 0.7,
         maxTokens: options.maxTokens ?? 4096,
         maxRetries,
