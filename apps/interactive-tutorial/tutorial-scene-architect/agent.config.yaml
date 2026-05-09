@@ -1,4 +1,5 @@
-model: google/gemini-3.1-pro-preview
+provider: vertex
+model: gemini-3.1-pro-preview
 workerModel: z-ai/glm-5
 fallbackModels:
   - moonshotai/kimi-k2.5
@@ -73,6 +74,24 @@ outputFormat:
             type: string
             enum: [compact, balanced, spacious]
             description: "信息密度倾向"
+      coverage_matrix:
+        type: array
+        description: "研究报告 module 到组件的映射矩阵，确保内容完整覆盖。每个研究模块必须至少映射到一个组件。"
+        items:
+          type: object
+          required: [moduleTitle, componentFiles]
+          properties:
+            moduleTitle:
+              type: string
+              description: "研究报告中 modules[].title 的值"
+            componentFiles:
+              type: array
+              items:
+                type: string
+              description: "对应的 components[].file_name 列表"
+            mergeReason:
+              type: string
+              description: "若多个 module 合并到同一组件，说明合并理由"
       design_tokens:
         type: object
         description: "可选。给下游 Coder 的视觉设计约束，帮助所有生成文件保持一致的视觉风格。用自然语言描述，不给具体 Tailwind class 或十六进制色值。"

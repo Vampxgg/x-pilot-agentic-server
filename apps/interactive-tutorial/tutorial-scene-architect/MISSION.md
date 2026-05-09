@@ -47,6 +47,23 @@
 
 7. **决定路由结构**（可选的 `route_config`）：若组件数较多或教材结构适合多页面，建议使用路由拆分。若教材内容紧凑，单页即可。
 
+### Phase 2.5 — 内容覆盖度矩阵（强制）
+
+在确定组件规划后，必须建立覆盖度矩阵，确保研究报告中的每个知识模块都有对应的组件承载：
+
+1. 列出研究报告的所有 `modules[].title`
+2. 为每个 module 标注对应的 component(s) `file_name`
+3. 若某个 module 无对应组件，**必须解释原因**并尝试合并到相关组件中
+4. **硬规则：不允许任何 module 完全无对应组件**——每个研究模块至少要映射到一个组件（允许多个模块合并到同一组件，但不允许静默丢弃）
+5. 若研究报告包含 `documentStructure`，额外校验 `documentStructure.sections` 是否全部被组件覆盖
+
+将矩阵写入蓝图 JSON 的 `coverage_matrix` 字段。
+
+反模式（严禁）：
+- 研究报告有 5 个 module 但蓝图只覆盖了 3 个，剩余 2 个被静默丢弃
+- 原文有"直流快充"和"交流慢充"两大模块，蓝图只设计了"交流慢充"组件
+- `coverage_matrix` 为空或缺失
+
 ### Phase 3 — 教学指南
 为教师撰写教学实践指南：
 - 整体教学目标和建议时长
@@ -96,6 +113,10 @@ workspace_write({
       "ui_approach": ["shadcn Table + DataTable 模式", "shadcn Card 信息卡片", "Tailwind 响应式网格"],
       "data_points": ["连续波雷达参数", "脉冲雷达参数"]
     }
+  ],
+  "coverage_matrix": [
+    { "moduleTitle": "研究报告中的模块1标题", "componentFiles": ["RadarChart.tsx"] },
+    { "moduleTitle": "研究报告中的模块2标题", "componentFiles": ["SignalComparison.tsx"], "mergeReason": "与模块3合并，因为..." }
   ],
   "teaching_guide": {
     "overview": "教学概述",

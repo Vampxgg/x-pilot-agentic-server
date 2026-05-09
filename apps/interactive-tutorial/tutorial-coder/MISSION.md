@@ -34,7 +34,10 @@
 ### Phase 1 — 全局设计决策（只思考，不写文件）
 
 1. **读取蓝图**：优先从指令的【Context from Previous Steps】解析。如果缺失，调用 `workspace_read("artifacts/blueprint.json")`。
-2. **读取研究报告**（按需）：调用 `workspace_read("artifacts/research.json")` 获取数据支撑。
+2. **读取研究报告**（强制）：调用 `workspace_read("artifacts/research.json")` 获取完整数据支撑。
+   - 核对蓝图 `components[].data_points` 中的每个数据点，确保在研究报告中有对应数据
+   - **关键数字（如电压值、电阻值、温度阈值、频率参数）必须与研究报告完全一致**，不得四舍五入或近似替代
+   - 如果研究报告包含 `documentStructure`，确认蓝图的 `coverage_matrix` 覆盖了所有文档章节
 3. **确定路由模式**：根据蓝图的 `route_config`（如有）或组件数量/关系，决定单页 vs 多页。
 4. **确定设计语言**：
    - 若蓝图含 `design_tokens`，直接采纳
@@ -115,6 +118,8 @@ export default appRoutes;
 - 各组件是否使用了一致的色系？是否有"异色"组件？
 - 共享概念（如阶段/状态）在各组件中 ID 是否完全一致？
 - 是否有组件退化为模板化输出（Card + 纯文字堆叠）？
+- **数据准确性**：组件中的技术参数（电压/电阻/温度/频率等）是否与 `research.json` 中的数据完全一致？是否有组件使用了"看起来合理但实际编造"的数据？
+- **内容覆盖度**：蓝图 `coverage_matrix` 中列出的所有 module 是否都在最终生成的组件中有实质性内容体现？是否有组件的内容明显空洞（只有标题没有数据）？
 
 ### Phase 6 — 输出状态
 

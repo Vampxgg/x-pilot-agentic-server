@@ -48,6 +48,28 @@ outputFormat:
                     type: boolean
             source:
               type: string
+      documentStructure:
+        type: object
+        description: "原始文档的结构化目录，用于下游校验内容覆盖度。当 userFiles 存在时必须填写。"
+        properties:
+          totalSections:
+            type: number
+            description: "原文主要章节总数"
+          sections:
+            type: array
+            items:
+              type: object
+              required: [title, coveredInModule]
+              properties:
+                title:
+                  type: string
+                  description: "原文章节标题"
+                pageRange:
+                  type: string
+                  description: "页码范围，如 3-7"
+                coveredInModule:
+                  type: string
+                  description: "对应到 modules[] 中哪个模块的 title"
       referencedAssets:
         type: array
         description: 引用到的用户上传素材清单，供下游 Coder 直接 <img>/<a> 引用。

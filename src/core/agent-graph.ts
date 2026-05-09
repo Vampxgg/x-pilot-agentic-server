@@ -1,5 +1,5 @@
 import { StateGraph, Annotation, END, START } from "@langchain/langgraph";
-import { BaseMessage, HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
+import { BaseMessage, HumanMessage, SystemMessage, AIMessage, AIMessageChunk, ToolMessage } from "@langchain/core/messages";
 import type { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import type { StructuredToolInterface } from "@langchain/core/tools";
 import type {
@@ -155,6 +155,73 @@ function bindToolsSafe(model: BaseChatModel, tools: StructuredToolInterface[]): 
   return model;
 }
 
+function ensureMessageInstances(messages: BaseMessage[]): BaseMessage[] {
+  return messages.map((msg) => {
+    const isHuman = msg instanceof HumanMessage;
+    const isAI = msg instanceof AIMessage || msg instanceof AIMessageChunk;
+    const isSys = msg instanceof SystemMessage;
+    const isTool = msg instanceof ToolMessage;
+
+    if (isHuman || isAI || isSys || isTool) {
+      return msg;
+    }
+
+    let type: string | undefined;
+    try {
+      if (typeof (msg as BaseMessage)._getType === "function") {
+        type = (msg as BaseMessage)._getType();
+      }
+    } catch {
+      // Fall through to serialized LangChain metadata.
+    }
+
+    if (!type) {
+      const raw = msg as unknown as Record<string, unknown>;
+      const lcId = (raw.lc_id ?? raw.id) as string[] | undefined;
+      if (Array.isArray(lcId) && lcId.length > 0) {
+        const cls = lcId[lcId.length - 1]!;
+        if (cls.includes("Human")) type = "human";
+        else if (cls.includes("AI")) type = "ai";
+        else if (cls.includes("System")) type = "system";
+        else if (cls.includes("Tool")) type = "tool";
+      }
+    }
+
+    const base = {
+      content: msg.content ?? "",
+      additional_kwargs: msg.additional_kwargs ?? {},
+      response_metadata: msg.response_metadata ?? {},
+      id: msg.id,
+      name: msg.name,
+    };
+
+    switch (type) {
+      case "human":
+        return new HumanMessage(base);
+      case "ai": {
+        const src = msg as AIMessage;
+        return new AIMessage({
+          ...base,
+          tool_calls: src.tool_calls,
+          usage_metadata: src.usage_metadata,
+        });
+      }
+      case "system":
+        return new SystemMessage(base);
+      case "tool":
+        return new ToolMessage({
+          ...base,
+          tool_call_id: (msg as ToolMessage).tool_call_id ?? "",
+        });
+      default:
+        logger.warn(`[ensureMessageInstances] Unknown message type "${type}", wrapping as HumanMessage`);
+        return new HumanMessage({
+          content: typeof base.content === "string" ? base.content : JSON.stringify(base.content),
+        });
+    }
+  });
+}
+
 export function createThinkNode(model: BaseChatModel, tools: StructuredToolInterface[]) {
   const modelWithTools = bindToolsSafe(model, tools);
 
@@ -162,14 +229,13 @@ export function createThinkNode(model: BaseChatModel, tools: StructuredToolInter
     logger.info(`[${state.agentName}] Think: iteration ${state.iteration}`);
 
     const memSummary = summarizeWorkingMemory(state.workingMemory);
-    const contextMessage = memSummary
-      ? new SystemMessage(`## Working Memory\n${memSummary}`)
-      : null;
+    const fullSystemPrompt = memSummary
+      ? `${state.systemPrompt}\n\n## Working Memory\n${memSummary}`
+      : state.systemPrompt;
 
     const messagesToSend: BaseMessage[] = [
-      new SystemMessage(state.systemPrompt),
-      ...(contextMessage ? [contextMessage] : []),
-      ...state.messages,
+      new SystemMessage(fullSystemPrompt),
+      ...ensureMessageInstances(state.messages),
     ];
 
     const response = await modelWithTools.invoke(messagesToSend);
@@ -226,8 +292,6 @@ export function createActNode(tools: StructuredToolInterface[], toolEventCb?: To
     if (!toolCallEntries || toolCallEntries.length === 0) return {};
 
     logger.info(`[${state.agentName}] Act: executing ${toolCallEntries.length} tool call(s) in parallel`);
-
-    const { ToolMessage } = await import("@langchain/core/messages");
 
     const execResults = await Promise.all(
       toolCallEntries.map(async (tc) => {

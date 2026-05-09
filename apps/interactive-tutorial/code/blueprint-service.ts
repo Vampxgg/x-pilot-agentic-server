@@ -113,7 +113,7 @@ async function retryArchitectOnce(
         : JSON.stringify(previousResearch, null, 2);
   const researchSource = researchRaw || fallbackResearchRaw;
   const researchExcerpt = researchSource
-    ? `\n\n【Research Report】\n${researchSource.slice(0, 4000)}`
+    ? `\n\n【Research Report】\n${researchSource.slice(0, 20_000)}`
     : "";
   const retryBrief =
     `${initialInput}\n\n` +

@@ -57,10 +57,17 @@ export interface PipelineConfig {
   steps: PipelineStep[];
 }
 
+export interface FallbackModelEntry {
+  model: string;
+  provider?: string;
+  maxTokens?: number;
+}
+
 export interface AgentConfig {
   model: string;
+  provider?: string;
   workerModel?: string;
-  fallbackModels?: string[];
+  fallbackModels?: Array<string | FallbackModelEntry>;
   maxTokens?: number;
   maxIterations?: number;
   maxConcurrency: number;
@@ -357,8 +364,10 @@ export interface LLMProviderConfig {
 
 export interface ModelRouterConfig {
   providers: Record<string, {
-    apiKey: string;
+    apiKey?: string;
     baseUrl?: string;
+    project?: string;
+    location?: string;
   }>;
 }
 

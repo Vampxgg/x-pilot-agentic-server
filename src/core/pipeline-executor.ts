@@ -110,7 +110,8 @@ function buildStepInstruction(
         const serialized = typeof depResult === "string"
           ? depResult
           : JSON.stringify(depResult, null, 2);
-        sections.push(`\n--- ${depName} output ---\n${serialized.slice(0, 50_000)}`);
+        const limit = depName === "research" ? 100_000 : 50_000;
+        sections.push(`\n--- ${depName} output ---\n${serialized.slice(0, limit)}`);
       }
     }
   }

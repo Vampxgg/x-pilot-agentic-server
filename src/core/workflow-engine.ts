@@ -91,13 +91,16 @@ function buildConditionalRouter(
 // Graph builder for ReAct strategy
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyStateGraph = any;
+
 function buildReactGraph(
   agentDef: AgentDefinition,
   graph: WorkflowGraph,
   model: BaseChatModel,
   tools: StructuredToolInterface[],
   toolEventCb?: ToolEventCallback,
-): StateGraph<typeof AgentState.State, Partial<typeof AgentState.State>, typeof AgentState.Update> {
+): AnyStateGraph {
   const sg = new StateGraph(AgentState);
 
   const nodeNameMap = new Map<string, string>();
@@ -162,7 +165,7 @@ export class WorkflowEngine {
     tools: StructuredToolInterface[],
     toolEventCb?: ToolEventCallback,
     mode?: string,
-  ): StateGraph<typeof AgentState.State, Partial<typeof AgentState.State>, typeof AgentState.Update> {
+  ): AnyStateGraph {
     const resolvedStrategy = WorkflowEngine.resolveStrategy(workflow, mode);
     const resolvedGraph = WorkflowEngine.resolveGraph(workflow, mode);
 

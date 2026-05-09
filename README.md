@@ -279,6 +279,20 @@ See `src/core/types.ts` for full TypeScript type definitions, `src/core/stream-p
 
 See `config/default.yaml` for all options. Environment variables in `.env` override config values.
 
+### LLM Provider Configuration
+
+| Env Variable | Description | Default |
+|---|---|---|
+| `OPENAI_API_KEY` | OpenAI API key | - |
+| `ANTHROPIC_API_KEY` | Anthropic API key | - |
+| `OPENROUTER_API_KEY` | OpenRouter API key | - |
+| `ZHIPU_API_KEY` | Zhipu API key | - |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Google Vertex AI service account JSON path | `./secrets/vertex-sa.json` |
+| `GOOGLE_CLOUD_PROJECT` | Google Cloud project id for Vertex AI | - |
+| `GOOGLE_CLOUD_LOCATION` | Vertex AI region | `us-central1` |
+
+Agents that use Vertex must set `provider: vertex` in `agent.config.yaml`; `google/...` model names continue to route through OpenRouter unless a provider is explicitly configured.
+
 ### Knowledge Retrieval Configuration
 
 | Env Variable | Description | Default |

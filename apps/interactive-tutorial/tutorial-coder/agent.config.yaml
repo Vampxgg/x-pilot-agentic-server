@@ -1,4 +1,5 @@
-model: google/gemini-3.1-pro-preview
+provider: vertex
+model: gemini-3.1-pro-preview
 workerModel: z-ai/glm-5
 fallbackModels:
   - moonshotai/kimi-k2.5
