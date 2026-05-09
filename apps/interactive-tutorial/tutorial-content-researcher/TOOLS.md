@@ -20,9 +20,14 @@
 访问特定 URL 获取数据
 - 当需要获取具体网页内容时使用
 
-### file_read（优先级：中）
-读取用户上传的文件
-- 有 userFiles 时使用
+### tutorial_user_file（优先级：高）
+读取本次会话内绑定的用户参考文件（替代旧的通用 file_read）。文件本身是用户级 FileObject，首次 chat 创建 session 后由服务端绑定到当前 session。
+- **当 `Task Context.userFiles` 非空时必须使用**——否则视为流程错误
+- `action: "list"` 列出全部附件元数据（一般可省略，因为 context 已带摘要）
+- `action: "read"`，配合 `fileId` 拿正文。首次自动抽取（PDF/docx/pptx 走专用解析器），后续命中 .text 缓存
+- `offset` / `maxChars`（默认 30000，硬上限 60000）做分页；`truncated:true` 表示要追读
+- 返回的 `unreadable: true` 文件是图片/音视频等二进制资源，**不要再尝试 read**，直接把 `url` 写进 `referencedAssets` 让 Coder 引用
+- 引用用户文件得出的 `keyPoints` **必须** 标注 `source: "user_file"`
 
 ### workspace_write（优先级：高）
 将研究报告写入工作区
@@ -44,7 +49,7 @@ LLM 在**一次响应**里可以同时返回多个 `tool_call`，框架会真正
    - `knowledge_search`（中文广义关键词）
    - `knowledge_search`（英文/技术细分关键词）
    - `web_search`（如启用）— 优先权威来源
-   - `file_read`（如有用户上传文件）
+   - `tutorial_user_file({action:"read", fileId})`——`Task Context.userFiles` 中每个 `unreadable !== true` 的文件各发一次，**全部并行**
 3. **Phase 2.5（可选）**：第一轮结果如有空白领域，**再次并行**返回 2-4 个补充检索；不要 1 个 1 个补。
 4. **Phase 3**：调用 `workspace_write("artifacts/research.json", ...)` 保存结构化报告。
 

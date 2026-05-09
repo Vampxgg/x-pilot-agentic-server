@@ -12,6 +12,7 @@ import { registerTaskRoutes } from "./routes/task.routes.js";
 import { registerHealthRoutes } from "./routes/health.routes.js";
 import { registerBusinessRoutes } from "./routes/business.routes.js";
 import { registerImageRoutes } from "./routes/image.routes.js";
+import { registerUploadRoutes } from "./routes/upload.routes.js";
 import { routeRegistry } from "./route-registry.js";
 import { imageService } from "../services/image-service.js";
 import { registerDifyCompatRoutes } from "./routes/dify-compat.routes.js";
@@ -49,6 +50,7 @@ export async function createServer() {
   registerTaskRoutes(app);
   registerBusinessRoutes(app);
   registerImageRoutes(app);
+  registerUploadRoutes(app);
 
   // Auto-registered business routes from apps/<domain>/code/
   await routeRegistry.applyAll(app);

@@ -4,16 +4,18 @@
 ## Success Criteria
 - 研究报告涵盖主题的核心知识点（至少 5 个）
 - 每个知识点有完整的技术数据或操作步骤
-- 所有数据标注来源类型
+- 所有数据标注来源类型（`knowledge_base` / `web` / `user_file` / `inferred`）
 - 包含至少 3 个适合做交互练习的知识点
 - 输出为合法的 JSON 格式
+- **若 `Task Context.userFiles` 存在，必须用 `tutorial_user_file` 工具读取至少一份可读文件**；不读视为流程错误
+- **引用到的用户素材（图片/PDF 等）必须填入顶层 `referencedAssets` 数组**（含 `fileId`/`url`/`role`），供 Coder 在组件中通过 URL 直接引用
 
 ## Input Specification
-从 Director 接收自然语言指令，包含：
+从 Director 接收自然语言指令，以及结构化 `Task Context`，含：
 - 教材主题
 - 用户补充需求
 - 可用工具提示（是否有知识库、是否可联网）
-- 用户上传文件内容（如有）
+- `userFiles[]`：用户上传文件元数据清单（仅含 fileId/name/mimeType/url/textChars 等摘要）。正文需主动调用 `tutorial_user_file` 拉取
 
 ## Workflow
 
@@ -33,7 +35,7 @@
    - 1 个 `knowledge_search`（如果有 databaseId）— 用最广义的中文主题关键词
    - 1 个 `knowledge_search` — 用更细分的英文/技术关键词（与上面互补）
    - 1-2 个 `web_search`（如果启用联网）— 一个查官方/权威来源、一个查应用案例
-   - 1 个 `file_read`（如果用户上传了文件，列在指令里）
+   - 对 `Task Context.userFiles` 中每个 `unreadable !== true` 的文件，各发 1 次 `tutorial_user_file({action:"read", fileId})`，全部并行
 
 2. **二轮补全（如需要）**：第一轮结果回来后，如果有空白领域，**再次并行**发起 2-4 个补充检索；不要 1 个 1 个补。
 

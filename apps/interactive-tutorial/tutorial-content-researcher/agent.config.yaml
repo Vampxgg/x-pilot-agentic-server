@@ -10,7 +10,7 @@ allowedTools:
   - knowledge_list
   - web_search
   - http_request
-  - file_read
+  - tutorial_user_file
   - workspace_write
   - workspace_read
 metadata:
@@ -48,6 +48,19 @@ outputFormat:
                     type: boolean
             source:
               type: string
+      referencedAssets:
+        type: array
+        description: 引用到的用户上传素材清单，供下游 Coder 直接 <img>/<a> 引用。
+        items:
+          type: object
+          required: [fileId, url, role]
+          properties:
+            fileId: { type: string }
+            url: { type: string }
+            role:
+              type: string
+              enum: [diagram, photo, table, document, audio, video]
+            alt: { type: string }
 evolution:
   enabled: true
   requireApproval: true

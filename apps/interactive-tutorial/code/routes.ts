@@ -5,12 +5,33 @@ import { readFile, writeFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { getTenantId, getUserId } from "../../../src/api/middleware/auth.js";
 import { createStreamWriter, type StreamWriterOptions } from "../../../src/core/stream-writer-factory.js";
+import { workspaceManager } from "../../../src/core/workspace.js";
+import { logger } from "../../../src/utils/logger.js";
 import type { ChatRequest, GenerateRequest, EditRequest, RuntimeErrorReport } from "./types.js";
 import { agentEventToStreamEvent, subscribeSessionProgress } from "./session-events.js";
 import { getTutorialPaths, tutorialPublicFileUrl } from "./build/paths.js";
 import { runBuild } from "./build/compile-service.js";
+import {
+  bindFilesToSession as uploadsBindFilesToSession,
+  importFileUrls as uploadsImportFileUrls,
+  listFiles as uploadsListFiles,
+} from "./uploads/uploads-service.js";
+import { toSummary, type UserFileSummary } from "./uploads/types.js";
 
 const DIRECTOR_AGENT = "interactive-tutorial-director";
+
+function buildEnrichedMessage(message: string, files: UserFileSummary[]): string {
+  if (files.length === 0) return message;
+  const lines = files.map((f) => {
+    const meta = f.unreadable
+      ? "二进制资源，请通过 URL 引用"
+      : f.textChars != null
+        ? `~${f.textChars} 字`
+        : "正文待抽取";
+    return `- ${f.name} (${f.mimeType}, ${meta}) → fileId=${f.fileId}`;
+  });
+  return `${message}\n\n【用户附件 ${files.length} 份】\n${lines.join("\n")}`;
+}
 
 export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
   // ─── 统一对话端点（SSE 流式） ───
@@ -38,6 +59,25 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
     const conversationId = body.conversationId ?? randomUUID();
     const taskId = `task_${randomUUID().slice(0, 8)}`;
 
+    let userFiles: UserFileSummary[] = [];
+    try {
+      const imported = await uploadsImportFileUrls(tenantId, userId, body.fileUrls);
+      const requestedFileIds = [
+        ...(Array.isArray(body.fileIds) ? body.fileIds : []),
+        ...imported.map((file) => file.fileId),
+      ];
+      if (requestedFileIds.length > 0) {
+        await uploadsBindFilesToSession(tenantId, userId, sessionId, requestedFileIds);
+      }
+      userFiles = (await uploadsListFiles(tenantId, userId, sessionId)).map(toSummary);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.warn(`[chat-stream] failed to prepare user files for session=${sessionId}: ${msg}`);
+      return reply.code(400).send({ error: msg });
+    }
+
+    const enrichedMessage = buildEnrichedMessage(body.message, userFiles);
+
     const writerOpts: StreamWriterOptions = {
       taskId,
       sessionId,
@@ -58,7 +98,7 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
       let capturedTutorialUrl: string | null = null;
       let capturedTutorialTitle: string | null = null;
 
-      for await (const event of agentRuntime.streamAgentV2(DIRECTOR_AGENT, body.message, {
+      for await (const event of agentRuntime.streamAgentV2(DIRECTOR_AGENT, enrichedMessage, {
         threadId: conversationId,
         skipPipeline: true,
         tenantId,
@@ -69,6 +109,7 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
           conversationId,
           databaseId: body.databaseId,
           smartSearch: body.smartSearch,
+          ...(userFiles.length > 0 ? { userFiles } : {}),
         },
       })) {
         if (!writer.isOpen) break;

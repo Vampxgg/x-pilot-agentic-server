@@ -28,8 +28,23 @@ function normalizeTopic(topic: string): string {
     .trim();
 }
 
-function researchCacheKey(topic: string, databaseId?: string): string {
-  const seed = `${normalizeTopic(topic)}::${databaseId ?? "none"}`;
+function userFilesFingerprint(userFiles: unknown): string {
+  if (!Array.isArray(userFiles)) return "none";
+  return userFiles
+    .map((file) => {
+      const f = file as Record<string, unknown>;
+      return [
+        typeof f.fileId === "string" ? f.fileId : "unknown",
+        typeof f.textChars === "number" ? f.textChars : "na",
+        f.unreadable === true ? "u" : "r",
+      ].join(":");
+    })
+    .sort()
+    .join("|") || "none";
+}
+
+function researchCacheKey(topic: string, databaseId?: string, fileFingerprint = "none"): string {
+  const seed = `${normalizeTopic(topic)}::${databaseId ?? "none"}::${fileFingerprint}`;
   return createHash("sha256").update(seed).digest("hex").slice(0, 24);
 }
 
@@ -64,7 +79,8 @@ export async function researchWithCacheHandler(ctx: PipelineHandlerContext): Pro
   const { tenantId, userId, sessionId, context, initialInput } = ctx;
   const topic = (context?.topic as string | undefined) ?? (context?.generationBrief as string | undefined) ?? initialInput.slice(0, 200);
   const databaseId = context?.databaseId as string | undefined;
-  const key = researchCacheKey(topic, databaseId);
+  const fileFingerprint = userFilesFingerprint(context?.userFiles);
+  const key = researchCacheKey(topic, databaseId, fileFingerprint);
 
   const cached = await readResearchCache(key);
   if (cached) {

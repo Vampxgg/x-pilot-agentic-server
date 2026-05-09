@@ -37,6 +37,22 @@ workspace_write({
 - `workspace_read("artifacts/blueprint.json")` — 读完整蓝图（若指令中未给出）
 - `workspace_read("artifacts/research.json")` — 读研究报告，按需提取数据
 
+## 用户素材引用约定
+
+若 `artifacts/research.json` 中存在顶层 `referencedAssets` 数组，或 `modules[].keyPoints[]` 标注 `source: "user_file"`，意味着用户在本次会话上传了素材。这些素材的 `url` 字段是**永久绝对地址**，形如：
+
+```
+http://<host>/api/files/tenants/<t>/users/<u>/workspaces/<sid>/uploads/<id>.<ext>
+```
+
+引用规则（**强制**）：
+
+- **图片** (`role: "diagram"|"photo"`)：直接 `<img src={URL} alt={...} />`，不要 `import`、不要复制到 `src/`、不要 `fetch()` 内嵌成 base64。
+- **PDF / Word** (`role: "document"`)：用 `<a href={URL} target="_blank" rel="noreferrer" download>` 提供下载链接。
+- **音视频** (`role: "audio"|"video"`)：用原生 `<audio src>` / `<video src>` 直接引用 URL。
+- 不要试图把这些 URL 拷进项目 `public/` 或 `src/assets/`——`workspace-sync` 故意不复制非 `.tsx/.ts` 文件，URL 引用是**预期行为**。
+- URL 含 emoji/中文路径风险？没有——`fileId` 是 UUID、`storedName` 全英文。
+
 ## Tool Strategy
 
 1. Phase 1：读蓝图（可能需要 `workspace_read`）

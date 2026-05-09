@@ -4,6 +4,11 @@ export interface ChatRequest {
   sessionId?: string;
   databaseId?: string;
   smartSearch?: boolean;
+  /** Upload manifest fileIds previously returned by POST /uploads. Preferred over `attachments`. */
+  fileIds?: string[];
+  /** Remote files to import before this message is processed; converted to fileIds and bound to the session. */
+  fileUrls?: string[];
+  /** @deprecated Held for backward compatibility; not consumed by the route. Use `fileIds`. */
   attachments?: string;
 }
 

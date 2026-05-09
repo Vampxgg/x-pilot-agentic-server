@@ -38,9 +38,11 @@
   "sessionId": "sess_demo_001",
   "databaseId": "kb_radar_internal_001",
   "smartSearch": true,
-  "attachments": "（可选，附件摘要文本）"
+  "fileIds": ["file_8a2c-..."]
 }
 ```
+
+`fileIds` 来自先前 `POST /api/uploads` 或 `POST /api/uploads/from-url` 返回的用户级 FileObject；首次无 `sessionId` 调用时，`chat-stream` 会创建 session 并绑定这些文件。详见 [interactive-tutorial-file-upload.md](../interactive-tutorial-file-upload.md)。`attachments` 字段保留为 deprecated，路由不再读取。
 
 ### 2.2 传入 `streamAgentV2` 的参数
 
@@ -369,7 +371,9 @@ session_id: sess_demo_001
 - 有 `userPrompt`：`请生成一个关于「${topic}」的互动教材。\n补充需求：${userPrompt}`
 - 否则：`请生成一个关于「${topic}」的互动教材。`
 
-同样 **`skipPipeline: true`**，`context` 含 `businessType`、`conversationId`、`databaseId`、`smartSearch`（**无** `userFiles` 自动注入到 context；若需附件应走 `chat-stream` 的 `attachments` 并在导演侧写入 brief）。
+同样 **`skipPipeline: true`**，`context` 含 `businessType`、`conversationId`、`databaseId`、`smartSearch`。
+
+**附件能力（已落地）**：`chat-stream` 收到 `fileIds[]` 后会读取 `<workspace>/uploads/manifest.json`、按 fileId 匹配，把摘要塞进 `context.userFiles[]`，并在用户消息末尾追加一段 `【用户附件 N 份】` 列表给 Director 看。Director 调用 `start_generation_pipeline` 时必须把它原样透传到 `capabilities.userFiles`，最终 Researcher 通过 `tutorial_user_file({action:"read",fileId})` 工具按需拉取正文。详见 [interactive-tutorial-file-upload.md](../interactive-tutorial-file-upload.md)。
 
 ### 5.2 `edit-stream`（`EditRequest`）
 

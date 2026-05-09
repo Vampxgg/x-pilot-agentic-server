@@ -8,7 +8,8 @@
 - `brief` 中必须明确新模板无 SDK、`App.tsx` 导出 `RouteObject[]`、只写业务注入区、不得覆盖保留区
 - `brief` 中必须要求完整可导航应用：多步骤主题不能只生成第一步，所有页面/组件必须有入口
 - `topic` 用于系统标识和日志，应短而稳定，不要塞入长篇需求
-- `capabilities` 控制下游工具（知识库搜索、联网搜索）
+- `capabilities` 控制下游工具（知识库搜索、联网搜索）与素材清单
+- **当 `Task Context.userFiles` 非空时，必须把它原样透传到 `capabilities.userFiles`**——用户文件可能来自首次无 session 调用时绑定的 `fileIds/fileUrls`，这是把用户素材接到下游 Researcher 的唯一通道；漏传 = 用户素材丢失
 - 返回值是摘要（标题、URL、组件数），完整数据在 workspace 中
 
 ### spawn_sub_agent（优先级：高）
@@ -65,3 +66,4 @@
 - 用户提供知识库或课程资料时，优先传 `capabilities.databaseId`
 - 用户要求最新标准、真实规范、行业数据，且知识库可能不足时，开启 `capabilities.smartSearch`
 - 用户只是泛化生成或创意演示时，不要无意义开启联网搜索
+- `Task Context.userFiles` 中存在的每一项 **必须** 原样塞入 `capabilities.userFiles`（保留 `fileId/name/mimeType/kind/url` 等字段）。不要在 `brief` 里靠自然语言转述代替——`brief` 的文字是给 LLM 读的，`capabilities.userFiles` 才是 Researcher 工具能识别的结构化句柄

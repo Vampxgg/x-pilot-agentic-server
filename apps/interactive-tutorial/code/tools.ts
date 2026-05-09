@@ -89,7 +89,20 @@ export function createStartGenerationPipelineTool(
         capabilities: z.object({
           databaseId: z.string().optional().describe("知识库 ID，有值时下游 Researcher 可使用 knowledge_search"),
           smartSearch: z.boolean().optional().describe("是否启用联网搜索，为 true 时下游 Researcher 可使用 web_search"),
-        }).optional().describe("系统能力开关，影响下游 Agent 的工具配置"),
+          userFiles: z.array(z.object({
+            fileId: z.string(),
+            name: z.string(),
+            mimeType: z.string(),
+            kind: z.enum(["doc", "image", "audio", "video", "data", "unknown"]),
+            byteSize: z.number().optional(),
+            url: z.string(),
+            textChars: z.number().optional(),
+            unreadable: z.boolean().optional(),
+          })).optional().describe(
+            "用户上传的文件清单。当 Task Context.userFiles 非空时，必须原样透传到此字段；" +
+            "下游 Researcher 用 tutorial_user_file 工具按需读取正文，图片等二进制资源由 Coder 通过 url 直接引用。",
+          ),
+        }).optional().describe("系统能力开关与素材清单，影响下游 Agent 的工具配置和数据访问"),
       }),
     },
   );

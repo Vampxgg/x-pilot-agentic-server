@@ -1,12 +1,24 @@
 import { logger } from "../../../src/utils/logger.js";
 import { collectSessionTimeline, type TimelineEntry } from "./session-events.js";
 
+export interface PipelineUserFile {
+  fileId: string;
+  name: string;
+  mimeType: string;
+  kind: "doc" | "image" | "audio" | "video" | "data" | "unknown";
+  byteSize?: number;
+  url: string;
+  textChars?: number;
+  unreadable?: boolean;
+}
+
 export interface StartGenerationParams {
   topic: string;
   brief: string;
   capabilities?: {
     databaseId?: string;
     smartSearch?: boolean;
+    userFiles?: PipelineUserFile[];
   };
 }
 
@@ -57,6 +69,9 @@ export async function runGenerationPipeline(
   };
   if (params.capabilities?.databaseId) context.databaseId = params.capabilities.databaseId;
   if (params.capabilities?.smartSearch) context.smartSearch = params.capabilities.smartSearch;
+  if (params.capabilities?.userFiles && params.capabilities.userFiles.length > 0) {
+    context.userFiles = params.capabilities.userFiles;
+  }
 
   const initialInput = `【Generation Brief — 由总导演整理】\n${params.brief}`;
   const startedAt = Date.now();
