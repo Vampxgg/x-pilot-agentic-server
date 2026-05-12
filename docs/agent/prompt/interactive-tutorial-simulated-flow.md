@@ -38,11 +38,18 @@
   "sessionId": "sess_demo_001",
   "databaseId": "kb_radar_internal_001",
   "smartSearch": true,
-  "fileIds": ["file_8a2c-..."]
+  "fileIds": ["file_8a2c-..."],
+  "fileUrls": [
+    {
+      "fileName": "radar-guide.pdf",
+      "fileType": "application/pdf",
+      "url": "https://example.com/files/radar-guide"
+    }
+  ]
 }
 ```
 
-`fileIds` 来自先前 `POST /api/uploads` 或 `POST /api/uploads/from-url` 返回的用户级 FileObject；首次无 `sessionId` 调用时，`chat-stream` 会创建 session 并绑定这些文件。详见 [interactive-tutorial-file-upload.md](../interactive-tutorial-file-upload.md)。`attachments` 字段保留为 deprecated，路由不再读取。
+`fileIds` 来自先前 `POST /api/uploads` 返回的用户级 FileObject；`fileUrls` 用于在本次对话中直接导入远程文件，且只接受 `{ fileName, fileType, url }` 对象数组。首次无 `sessionId` 调用时，`chat-stream` 会创建 session 并绑定这些文件。详见 [interactive-tutorial-file-upload.md](../interactive-tutorial-file-upload.md)。`attachments` 字段保留为 deprecated，路由不再读取。
 
 ### 2.2 传入 `streamAgentV2` 的参数
 

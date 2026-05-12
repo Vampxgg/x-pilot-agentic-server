@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { existsSync, rmSync } from "node:fs";
 import { WorkspaceManager } from "../../src/core/workspace.js";
 
@@ -30,6 +30,17 @@ describe("WorkspaceManager", () => {
     expect(sid).toBeTruthy();
     expect(sid.length).toBeGreaterThan(10);
     expect(existsSync(ws.getPath(TENANT, USER, sid))).toBe(true);
+  });
+
+  it("should not pre-create optional asset directories", async () => {
+    const sid = await ws.create(TENANT, USER, "minimal-session");
+    const workspacePath = ws.getPath(TENANT, USER, sid);
+
+    expect(existsSync(join(workspacePath, "artifacts"))).toBe(true);
+    expect(existsSync(join(workspacePath, "logs"))).toBe(true);
+    expect(existsSync(join(workspacePath, "assets"))).toBe(false);
+    expect(existsSync(join(workspacePath, "assets", "images"))).toBe(false);
+    expect(existsSync(join(workspacePath, "assets", "intermediate"))).toBe(false);
   });
 
   it("should write and read artifacts", async () => {

@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { logger } from "../../../../src/utils/logger.js";
 import { workspaceManager as defaultWorkspaceManager, type WorkspaceManager } from "../../../../src/core/workspace.js";
 import { fileObjectService, type FileObjectService, type FileObject } from "../../../../src/services/file-object-service.js";
+import type { ChatFileUrlInput } from "../types.js";
 import type { UploadedFile, UploadsManifest } from "./types.js";
 import { manifestPath, uploadsDir } from "./paths.js";
 
@@ -228,14 +229,29 @@ export async function resolveByIds(
 export async function importFileUrls(
   tenantId: string,
   userId: string,
-  urls: string[] | undefined,
+  fileUrls: ChatFileUrlInput[] | undefined,
   options?: UploadsServiceOptions,
 ): Promise<UploadedFile[]> {
-  if (!Array.isArray(urls) || urls.length === 0) return [];
+  if (!Array.isArray(fileUrls) || fileUrls.length === 0) return [];
   const { fileService } = deps(options);
   const files = [];
-  for (const url of urls) {
-    files.push(asUploadedFile(await fileService.importFromUrl(tenantId, userId, url)));
+  for (const [index, file] of fileUrls.entries()) {
+    if (
+      typeof file !== "object" ||
+      file === null ||
+      typeof file.fileName !== "string" ||
+      file.fileName.trim() === "" ||
+      typeof file.fileType !== "string" ||
+      file.fileType.trim() === "" ||
+      typeof file.url !== "string" ||
+      file.url.trim() === ""
+    ) {
+      throw new Error(`fileUrls[${index}] must be an object with fileName, fileType, and url`);
+    }
+    files.push(asUploadedFile(await fileService.importFromUrl(tenantId, userId, file.url.trim(), {
+      originalName: file.fileName.trim(),
+      mimeType: file.fileType.trim(),
+    })));
   }
   return files;
 }

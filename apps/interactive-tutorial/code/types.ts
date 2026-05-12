@@ -1,3 +1,9 @@
+export interface ChatFileUrlInput {
+  fileName: string;
+  fileType: string;
+  url: string;
+}
+
 export interface ChatRequest {
   message: string;
   conversationId?: string;
@@ -7,7 +13,7 @@ export interface ChatRequest {
   /** Upload manifest fileIds previously returned by POST /uploads. Preferred over `attachments`. */
   fileIds?: string[];
   /** Remote files to import before this message is processed; converted to fileIds and bound to the session. */
-  fileUrls?: string[];
+  fileUrls?: ChatFileUrlInput[];
   /** @deprecated Held for backward compatibility; not consumed by the route. Use `fileIds`. */
   attachments?: string;
 }

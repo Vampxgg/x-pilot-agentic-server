@@ -44,8 +44,8 @@ export class WorkspaceManager {
       await mkdir(dir, { recursive: true });
     }
     
-    // Initialize required subdirectories for the workspace
-    const subDirs = ["artifacts", "assets/images", "assets/intermediate/sections", "logs"];
+    // Initialize only required subdirectories; asset paths are created lazily when written.
+    const subDirs = ["artifacts", "assets", "logs"];
     for (const subDir of subDirs) {
       const fullSubDir = join(dir, subDir);
       if (!existsSync(fullSubDir)) {

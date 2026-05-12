@@ -1,10 +1,11 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 import { WorkspaceManager } from "../../src/core/workspace.js";
 import { FileObjectService } from "../../src/services/file-object-service.js";
 import {
   bindFilesToSession,
+  importFileUrls,
   listFiles,
   resolveByIds,
 } from "../../apps/interactive-tutorial/code/uploads/uploads-service.js";
@@ -70,5 +71,46 @@ describe("interactive-tutorial session file binding", () => {
         workspaceManager,
       }),
     ).rejects.toThrow(/file not found or not accessible/);
+  });
+
+  it("imports remote file objects with explicit metadata", async () => {
+    const importFromUrl = vi.fn().mockResolvedValue({
+      fileId: "file_url",
+      tenantId: "tenant-a",
+      userId: "user-a",
+      name: "source.pdf",
+      storedName: "file_url.pdf",
+      mimeType: "application/pdf",
+      kind: "doc",
+      size: 123,
+      storagePath: "uploads/objects/file_url.pdf",
+      url: "http://test.local/api/files/uploads/objects/file_url.pdf",
+      source: "url",
+      originalUrl: "https://example.com/source",
+      createdAt: "2026-05-12T00:00:00.000Z",
+    });
+
+    const files = await importFileUrls(
+      "tenant-a",
+      "user-a",
+      [{ fileName: "source.pdf", fileType: "application/pdf", url: "https://example.com/source" }],
+      { fileService: { importFromUrl } as unknown as FileObjectService, workspaceManager },
+    );
+
+    expect(importFromUrl).toHaveBeenCalledWith("tenant-a", "user-a", "https://example.com/source", {
+      originalName: "source.pdf",
+      mimeType: "application/pdf",
+    });
+    expect(files[0]?.name).toBe("source.pdf");
+    expect(files[0]?.mimeType).toBe("application/pdf");
+  });
+
+  it("rejects legacy string fileUrls", async () => {
+    await expect(
+      importFileUrls("tenant-a", "user-a", ["https://example.com/source.pdf"] as never, {
+        fileService,
+        workspaceManager,
+      }),
+    ).rejects.toThrow(/fileUrls\[0\] must be an object with fileName, fileType, and url/);
   });
 });

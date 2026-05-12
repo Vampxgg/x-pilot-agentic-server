@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { existsSync, rmSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -15,6 +15,7 @@ describe("FileObjectService", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     if (existsSync(TEST_DIR)) rmSync(TEST_DIR, { recursive: true, force: true });
   });
 
@@ -46,5 +47,24 @@ describe("FileObjectService", () => {
     await expect(
       service.importFromUrl("tenant-a", "user-a", "http://127.0.0.1/private.txt"),
     ).rejects.toThrow(/private or loopback addresses are not allowed/);
+  });
+
+  it("uses explicit metadata when importing a file URL", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response("a,b\n1,2\n", {
+        status: 200,
+        headers: { "content-type": "application/octet-stream" },
+      }),
+    );
+
+    const file = await service.importFromUrl("tenant-a", "user-a", "http://93.184.216.34/download", {
+      originalName: "measurements.csv",
+      mimeType: "text/csv",
+    });
+
+    expect(file.name).toBe("measurements.csv");
+    expect(file.mimeType).toBe("text/csv");
+    expect(file.kind).toBe("data");
+    expect(file.originalUrl).toBe("http://93.184.216.34/download");
   });
 });

@@ -38,6 +38,11 @@ export interface ImportBufferInput {
   originalUrl?: string;
 }
 
+export interface ImportUrlOptions {
+  originalName?: string;
+  mimeType?: string;
+}
+
 export interface FileObjectSummary {
   fileId: string;
   name: string;
@@ -100,6 +105,9 @@ function inferKind(mimeType: string, ext: string): FileKind {
   if (mt.startsWith("image/")) return "image";
   if (mt.startsWith("audio/")) return "audio";
   if (mt.startsWith("video/")) return "video";
+  if (mt.includes("spreadsheet") || mt === "text/csv" || ext === ".csv" || ext === ".tsv") {
+    return "data";
+  }
   if (mt.startsWith("text/") || mt === "application/json") return "doc";
   if (
     mt === "application/pdf" ||
@@ -109,9 +117,6 @@ function inferKind(mimeType: string, ext: string): FileKind {
     mt === "application/vnd.ms-powerpoint"
   ) {
     return "doc";
-  }
-  if (mt.includes("spreadsheet") || mt === "text/csv" || ext === ".csv" || ext === ".tsv") {
-    return "data";
   }
   if ([".txt", ".md", ".markdown", ".log", ".yaml", ".yml", ".html", ".htm", ".xml", ".srt", ".vtt"].includes(ext)) {
     return "doc";
@@ -220,7 +225,7 @@ export class FileObjectService {
     return file;
   }
 
-  async importFromUrl(tenantId: string, userId: string, rawUrl: string): Promise<FileObject> {
+  async importFromUrl(tenantId: string, userId: string, rawUrl: string, options?: ImportUrlOptions): Promise<FileObject> {
     const url = new URL(rawUrl);
     if (url.protocol !== "http:" && url.protocol !== "https:") {
       throw new Error("Only http and https URLs are supported");
@@ -242,10 +247,12 @@ export class FileObjectService {
       if (buffer.byteLength > URL_IMPORT_MAX_BYTES) {
         throw new Error(`URL import too large: ${buffer.byteLength} > ${URL_IMPORT_MAX_BYTES} bytes`);
       }
+      const declaredMimeType = options?.mimeType?.split(";")[0]?.trim();
+      const responseMimeType = response.headers.get("content-type")?.split(";")[0]?.trim();
       return this.importFromBuffer(tenantId, userId, {
         buffer,
-        originalName: basenameFromUrl(url),
-        mimeType: response.headers.get("content-type")?.split(";")[0]?.trim() || "application/octet-stream",
+        originalName: options?.originalName?.trim() || basenameFromUrl(url),
+        mimeType: declaredMimeType || responseMimeType || "application/octet-stream",
         source: "url",
         originalUrl: rawUrl,
       });

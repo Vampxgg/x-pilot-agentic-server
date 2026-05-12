@@ -45,30 +45,4 @@ export function registerUploadRoutes(app: FastifyInstance): void {
     }
     return reply.code(201).send({ files: saved, errors: errors.length > 0 ? errors : undefined });
   });
-
-  app.post("/api/uploads/from-url", async (request, reply) => {
-    const tenantId = getTenantId(request);
-    const userId = getUserId(request);
-    const body = (request.body ?? {}) as { url?: string; urls?: string[] };
-    const urls = Array.isArray(body.urls) ? body.urls : body.url ? [body.url] : [];
-    if (urls.length === 0) {
-      return reply.code(400).send({ error: "url or urls is required" });
-    }
-
-    const saved = [];
-    const errors: Array<{ url: string; error: string }> = [];
-    for (const url of urls) {
-      try {
-        const file = await fileObjectService.importFromUrl(tenantId, userId, url);
-        saved.push(toFileObjectSummary(file));
-      } catch (err) {
-        errors.push({ url, error: err instanceof Error ? err.message : String(err) });
-      }
-    }
-
-    if (saved.length === 0 && errors.length > 0) {
-      return reply.code(400).send({ files: [], errors });
-    }
-    return reply.code(201).send({ files: saved, errors: errors.length > 0 ? errors : undefined });
-  });
 }

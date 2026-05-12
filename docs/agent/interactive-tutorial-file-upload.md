@@ -31,7 +31,6 @@
 | 方法 | 路径 | 用途 |
 |---|---|---|
 | `POST` | `/api/uploads` | 通用 multipart 上传，不需要 `sessionId`。返回 `{ files: FileObjectSummary[], errors? }` |
-| `POST` | `/api/uploads/from-url` | 导入远程 `http/https` 文件链接，服务端下载并归一化成 FileObject |
 | `POST` | `/api/business/interactive-tutorial/chat-stream` | 首次无 `sessionId` 时创建 session，并绑定本次 `fileIds/fileUrls` |
 
 文件实际下载继续走 `/api/files/...`（基座现成静态挂载，匿名可达——URL 即令牌；与 dist 预览策略一致）。
@@ -82,15 +81,6 @@ curl -X POST 'http://192.168.50.117:3000/api/uploads' \
 
 可立刻把 `url` 在浏览器打开验证，文件已在那儿。
 
-也可以先导入文件链接：
-
-```bash
-curl -X POST 'http://192.168.50.117:3000/api/uploads/from-url' \
-  -H 'Content-Type: application/json' \
-  -H 'Authorization: Bearer x-pilot-default-key' \
-  --data-raw '{"url":"https://example.com/电池安装手册.pdf"}'
-```
-
 ### 3.2 第二步：首次用 fileIds 发起对话
 
 ```bash
@@ -105,11 +95,31 @@ curl -X POST 'http://192.168.50.117:3000/api/business/interactive-tutorial/chat-
   }'
 ```
 
+也可以在首次对话时直接导入远程文件链接。`fileUrls` 只接受文件对象数组，不再接受字符串 URL 数组：
+
+```bash
+curl -X POST 'http://192.168.50.117:3000/api/business/interactive-tutorial/chat-stream' \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer x-pilot-default-key' \
+  --data-raw '{
+    "message": "请基于附件资料生成一个动力电池管理系统及充电系统讲解的互动应用。",
+    "databaseId": "",
+    "smartSearch": 1,
+    "fileUrls": [
+      {
+        "fileName": "电池安装手册.pdf",
+        "fileType": "application/pdf",
+        "url": "https://example.com/files/battery-guide"
+      }
+    ]
+  }'
+```
+
 首次调用可以不传 `sessionId`；服务端会创建新 session，并在 SSE 事件的 `session_id` 中返回。前端保存这个值，后续继续对话时再传 `sessionId`。
 
 服务端会自动：
 1. 若 `sessionId` 缺失，先创建 session。
-2. 将 `fileUrls` 导入为 FileObject，并与 `fileIds` 一起绑定到当前 session。
+2. 将 `fileUrls` 文件对象数组导入为 FileObject，并与 `fileIds` 一起绑定到当前 session。
 3. 读取该 session 已绑定文件，生成 `context.userFiles[]`。
 4. 在用户消息末尾追加一段 `【用户附件 N 份】` 列表（让 Director 看见但不读正文）。
 5. 把摘要塞进 `streamAgentV2` 的 `context.userFiles[]`，自动出现在 Director 系统提示的 `# Task Context` 段。
@@ -128,7 +138,6 @@ curl -X POST 'http://192.168.50.117:3000/api/business/interactive-tutorial/chat-
 ```mermaid
 flowchart LR
     Client["Client"] -->|"POST /api/uploads multipart"| US["FileObjectService"]
-    Client -->|"POST /api/uploads/from-url"| US
     US -->|"写原文件"| Store[("data/uploads/objects")]
     US -->|"写元数据"| Meta[("data/uploads/metadata.json")]
     US -->|"返回 fileId, url"| Client
@@ -154,7 +163,7 @@ flowchart LR
 
 ## 5. 安全与限制
 
-- 鉴权：`/api/uploads`、`/api/uploads/from-url`、`/api/business/...` 路径走标准 `authMiddleware`（Bearer / `apiKey`）。文件实际下载 `/api/files/` 跳过鉴权，URL 即令牌（与 dist 预览一致）。
+- 鉴权：`/api/uploads`、`/api/business/...` 路径走标准 `authMiddleware`（Bearer / `apiKey`）。文件实际下载 `/api/files/` 跳过鉴权，URL 即令牌（与 dist 预览一致）。
 - MIME 黑名单：`application/x-msdownload`、`application/x-sh`、`application/x-bat`、`application/x-msi`、`application/x-msdos-program` 直接拒绝。
 - 文件名内部化：磁盘真名 = `<fileId>.<safeExt>`，`safeExt` 由 mimeType 反查表 + 原扩展名校验得到（无效 → `bin`），避免路径穿越和奇异字符。
 - 沙箱化访问：`tutorial_user_file` 工具只接受 `fileId`，不暴露任意路径；researcher 的 `agent.config.yaml.allowedTools` **已移除**通用 `file_read`，禁止读取任意磁盘文件。
