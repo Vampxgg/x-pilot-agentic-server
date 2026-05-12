@@ -27,6 +27,7 @@ agents/*/memory/*.md
 
 # Runtime/local data should never be committed
 data/
+secrets/
 
 # Docker Compose: PostgreSQL bind mount (./volumes/postgres)
 volumes/postgres/

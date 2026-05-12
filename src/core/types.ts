@@ -63,6 +63,17 @@ export interface FallbackModelEntry {
   maxTokens?: number;
 }
 
+export interface ToolLimitsConfig {
+  /** Maximum tool calls for a single agent invocation. Counts blocked calls too. */
+  maxCalls?: number;
+  /** Per-tool call caps for a single agent invocation, keyed by tool name. */
+  maxCallsByName?: Record<string, number>;
+  workspaceWrite?: {
+    /** Maximum successful writes to the same normalized workspace path. */
+    maxWritesPerPath?: number;
+  };
+}
+
 export interface AgentConfig {
   model: string;
   provider?: string;
@@ -70,8 +81,11 @@ export interface AgentConfig {
   fallbackModels?: Array<string | FallbackModelEntry>;
   maxTokens?: number;
   maxIterations?: number;
+  /** LangGraph node-step budget. Defaults to a multiple of maxIterations. */
+  graphRecursionLimit?: number;
   maxConcurrency: number;
   allowedTools: string[];
+  toolLimits?: ToolLimitsConfig;
   heartbeat: {
     enabled: boolean;
     intervalMs: number;

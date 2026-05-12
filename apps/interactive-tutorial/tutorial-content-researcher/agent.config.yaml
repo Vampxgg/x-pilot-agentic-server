@@ -13,6 +13,15 @@ allowedTools:
   - tutorial_user_file
   - workspace_write
   - workspace_read
+toolLimits:
+  maxCallsByName:
+    knowledge_list: 1
+    knowledge_search: 4
+    web_search: 10
+    http_request: 2
+    workspace_write: 1
+  workspaceWrite:
+    maxWritesPerPath: 1
 metadata:
   domain: interactive-tutorial
 outputFormat:

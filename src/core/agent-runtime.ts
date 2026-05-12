@@ -88,6 +88,14 @@ function extractTextContent(content: unknown): string {
   return "";
 }
 
+function getIterationBudget(agentDef: AgentDefinition): { agentMaxIterations: number; graphRecursionLimit: number } {
+  const agentMaxIterations = agentDef.config.maxIterations ?? 50;
+  const graphRecursionLimit = agentDef.config.graphRecursionLimit
+    ?? Math.max(50, agentMaxIterations * 4 + 20);
+
+  return { agentMaxIterations, graphRecursionLimit };
+}
+
 export class AgentRuntime {
   private checkpointerPromise: Promise<BaseCheckpointSaver>;
   private _checkpointer: BaseCheckpointSaver | null = null;
@@ -262,26 +270,32 @@ export class AgentRuntime {
     logger.info(`Invoking agent: ${agentName} tenant=${tenantId} user=${userId} thread=${tid} session=${sessionId ?? "none"}`);
 
     const traceHandler = sessionId ? new WorkspaceTraceCallbackHandler(tenantId, userId, sessionId, agentName) : undefined;
+    const { agentMaxIterations, graphRecursionLimit } = getIterationBudget(agentDef);
 
-    const result = await compiled.invoke(
-      {
-        messages: [new HumanMessage(input)],
-        agentName,
-        tenantId,
-        sessionId: sessionId ?? "",
-        taskContext: taskContext ?? "",
-        systemPrompt,
-        longTermMemory,
-      } as Record<string, unknown>,
-      { 
-        configurable: { thread_id: tid },
-        recursionLimit: agentDef.config.maxIterations ?? 50,
-        callbacks: traceHandler ? [traceHandler] : undefined,
-      },
-    );
-
-    if (traceHandler) {
-      await traceHandler.saveTrace();
+    let result: unknown;
+    try {
+      result = await compiled.invoke(
+        {
+          messages: [new HumanMessage(input)],
+          agentName,
+          tenantId,
+          sessionId: sessionId ?? "",
+          taskContext: taskContext ?? "",
+          systemPrompt,
+          longTermMemory,
+          maxIterations: agentMaxIterations,
+          ...(options.skipPipeline ? { disableNudge: true } : {}),
+        } as Record<string, unknown>,
+        { 
+          configurable: { thread_id: tid },
+          recursionLimit: graphRecursionLimit,
+          callbacks: traceHandler ? [traceHandler] : undefined,
+        },
+      );
+    } finally {
+      if (traceHandler) {
+        await traceHandler.saveTrace();
+      }
     }
 
     await this.memoryManager.logDaily(tenantId, agentName, `Task completed. Input: ${input.slice(0, 200)}`);
@@ -426,6 +440,7 @@ export class AgentRuntime {
     logger.info(`Streaming agent (legacy): ${agentName} tenant=${tenantId} user=${userId} thread=${tid} session=${sessionId ?? "none"}`);
 
     const traceHandler = sessionId ? new WorkspaceTraceCallbackHandler(tenantId, userId, sessionId, agentName) : undefined;
+    const { agentMaxIterations, graphRecursionLimit } = getIterationBudget(agentDef);
 
     const stream = await compiled.stream(
       {
@@ -436,10 +451,11 @@ export class AgentRuntime {
         taskContext: taskContext ?? "",
         systemPrompt,
         longTermMemory,
+        maxIterations: agentMaxIterations,
       } as Record<string, unknown>,
       { 
         configurable: { thread_id: tid }, 
-        recursionLimit: agentDef.config.maxIterations ?? 50,
+        recursionLimit: graphRecursionLimit,
         streamMode: "updates",
         callbacks: traceHandler ? [traceHandler] : undefined,
       },
@@ -447,54 +463,56 @@ export class AgentRuntime {
 
     const SPAWN_TOOL_NAMES = new Set(["spawn_sub_agent", "spawn_parallel_agents"]);
 
-    for await (const event of stream) {
-      for (const [nodeName, nodeOutput] of Object.entries(event)) {
-        const output = nodeOutput as Partial<AgentGraphState>;
+    try {
+      for await (const event of stream) {
+        for (const [nodeName, nodeOutput] of Object.entries(event)) {
+          const output = nodeOutput as Partial<AgentGraphState>;
 
-        if (nodeName === "perceive" || nodeName === "observe") {
-          yield {
-            type: "status",
-            data: { node: nodeName, iteration: (output as any).iteration ?? 0 },
-            timestamp: new Date().toISOString(),
-          };
-        }
+          if (nodeName === "perceive" || nodeName === "observe") {
+            yield {
+              type: "status",
+              data: { node: nodeName, iteration: (output as any).iteration ?? 0 },
+              timestamp: new Date().toISOString(),
+            };
+          }
 
-        if (nodeName === "think" && output.messages) {
-          for (const msg of output.messages) {
-            if (msg._getType() === "ai") {
-              const text = extractTextContent(msg.content);
-              if (text) {
-                yield { type: "token", data: { content: text, node: nodeName }, timestamp: new Date().toISOString() };
+          if (nodeName === "think" && output.messages) {
+            for (const msg of output.messages) {
+              if (msg._getType() === "ai") {
+                const text = extractTextContent(msg.content);
+                if (text) {
+                  yield { type: "token", data: { content: text, node: nodeName }, timestamp: new Date().toISOString() };
+                }
               }
             }
           }
-        }
 
-        if (nodeName === "act" && output.toolCalls) {
-          for (const tc of output.toolCalls) {
-            if (SPAWN_TOOL_NAMES.has(tc.toolName)) {
-              yield { type: "sub_agent_spawn", data: tc, timestamp: new Date().toISOString() };
-              if (tc.success) {
-                yield { type: "sub_agent_complete", data: tc, timestamp: new Date().toISOString() };
+          if (nodeName === "act" && output.toolCalls) {
+            for (const tc of output.toolCalls) {
+              if (SPAWN_TOOL_NAMES.has(tc.toolName)) {
+                yield { type: "sub_agent_spawn", data: tc, timestamp: new Date().toISOString() };
+                if (tc.success) {
+                  yield { type: "sub_agent_complete", data: tc, timestamp: new Date().toISOString() };
+                } else {
+                  yield { type: "error", data: tc, timestamp: new Date().toISOString() };
+                }
               } else {
-                yield { type: "error", data: tc, timestamp: new Date().toISOString() };
+                yield { type: tc.success ? "tool_result" : "error", data: tc, timestamp: new Date().toISOString() };
               }
-            } else {
-              yield { type: tc.success ? "tool_result" : "error", data: tc, timestamp: new Date().toISOString() };
             }
           }
-        }
 
-        if (nodeName === "reflect" && output.reflections) {
-          for (const r of output.reflections) {
-            yield { type: "reflection", data: r, timestamp: new Date().toISOString() };
+          if (nodeName === "reflect" && output.reflections) {
+            for (const r of output.reflections) {
+              yield { type: "reflection", data: r, timestamp: new Date().toISOString() };
+            }
           }
         }
       }
-    }
-
-    if (traceHandler) {
-      await traceHandler.saveTrace();
+    } finally {
+      if (traceHandler) {
+        await traceHandler.saveTrace();
+      }
     }
 
     yield { type: "done", data: { threadId: tid, sessionId }, timestamp: new Date().toISOString() };
@@ -584,6 +602,7 @@ export class AgentRuntime {
     yield createTaskStarted(ctx, agentName, tid);
 
     const traceHandler = sessionId ? new WorkspaceTraceCallbackHandler(tenantId, userId, sessionId, agentName) : undefined;
+    const { agentMaxIterations, graphRecursionLimit } = getIterationBudget(agentDef);
 
     // --- Run LangGraph stream in background, pushing graph_update items ---
     const NODE_TYPES = new Set(["perceive", "think", "act", "observe", "reflect"]);
@@ -599,10 +618,12 @@ export class AgentRuntime {
             taskContext: taskContext ?? "",
             systemPrompt,
             longTermMemory,
+            maxIterations: agentMaxIterations,
+            ...(options.skipPipeline ? { disableNudge: true } : {}),
           } as Record<string, unknown>,
           {
             configurable: { thread_id: tid },
-            recursionLimit: agentDef.config.maxIterations ?? 50,
+            recursionLimit: graphRecursionLimit,
             streamMode: ["updates", "messages"],
             callbacks: traceHandler ? [traceHandler] : undefined,
           },

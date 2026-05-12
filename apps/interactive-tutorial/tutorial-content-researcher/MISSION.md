@@ -9,6 +9,7 @@
 - 输出为合法的 JSON 格式
 - **若 `Task Context.userFiles` 存在，必须用 `tutorial_user_file` 工具读取至少一份可读文件**；不读视为流程错误
 - **引用到的用户素材（图片/PDF 等）必须填入顶层 `referencedAssets` 数组**（含 `fileId`/`url`/`role`），供 Coder 在组件中通过 URL 直接引用
+- 检索必须有边界：最多 2 轮补充检索，`web_search` 总数不得超过 10 次；资料不足时标注可信度，不要无限换词搜索
 
 ## Input Specification
 从 Director 接收自然语言指令，以及结构化 `Task Context`，含：
@@ -38,6 +39,8 @@
    - 对 `Task Context.userFiles` 中每个 `unreadable !== true` 的文件，各发 1 次 `tutorial_user_file({action:"read", fileId})`，全部并行
 
 2. **二轮补全（如需要）**：第一轮结果回来后，如果有空白领域，**再次并行**发起 2-4 个补充检索；不要 1 个 1 个补。
+   - 二轮补全后必须进入 Phase 3，不得继续第三轮、第四轮换词搜索。
+   - 如果某些精确参数找不到，使用已有来源给出的区间/经验值，并标注 `source: "inferred"` 或较低 `confidence`。
 
 3. **避免反模式**：
    - ❌ 调用 `knowledge_search`，等结果，再调用 `web_search`，再等结果（串行 → 30-90s）
@@ -66,6 +69,7 @@
 - 标注来源和可信度
 - 标记适合交互的知识点
 - 写入 workspace（artifacts/research.json）
+- `workspace_write("artifacts/research.json", ...)` 成功后，下一步只允许输出最终 JSON；禁止再调用 `web_search`、`knowledge_search`、`tutorial_user_file` 或再次写入。
 
 ### Phase 3.1 — 覆盖度自检（强制）
 

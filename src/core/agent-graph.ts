@@ -8,6 +8,7 @@ import type {
   Reflection,
   TaskResult,
   ToolCallRecord,
+  ToolLimitsConfig,
   SubAgentResult,
 } from "./types.js";
 import { summarizeWorkingMemory, addMemoryEntry, createWorkingMemory } from "../memory/short-term.js";
@@ -66,6 +67,8 @@ export const AgentState = Annotation.Root({
   done: Annotation<boolean>({ reducer: lastValueBool, default: () => false }),
   /** Tracks consecutive empty-response nudges to cap retries. */
   emptyResponseRetries: Annotation<number>({ reducer: lastValueNum, default: () => 0 }),
+  /** When true, skip nudge even if no tools were called (e.g. conversational director). */
+  disableNudge: Annotation<boolean>({ reducer: lastValueBool, default: () => false }),
 });
 
 export type AgentGraphState = typeof AgentState.State;
@@ -255,7 +258,59 @@ export interface ToolEventCallback {
 
 export type SubAgentEventCallback = (event: import("./types.js").StreamEvent<import("./types.js").StreamEventTypeName>) => void;
 
-export function createActNode(tools: StructuredToolInterface[], toolEventCb?: ToolEventCallback) {
+const WORKSPACE_PREFIXES = ["assets/", "artifacts/", "logs/"];
+
+function normalizeWorkspacePath(name: unknown): string | undefined {
+  if (typeof name !== "string" || name.trim().length === 0) return undefined;
+  const trimmed = name.trim();
+  return WORKSPACE_PREFIXES.some((p) => trimmed.startsWith(p)) ? trimmed : `assets/${trimmed}`;
+}
+
+function getGuardError(
+  state: AgentGraphState,
+  toolName: string,
+  args: Record<string, unknown>,
+  limits: ToolLimitsConfig | undefined,
+  scheduledToolCounts: Map<string, number>,
+  scheduledWriteCounts: Map<string, number>,
+): string | undefined {
+  if (!limits) return undefined;
+
+  const scheduledTotal = Array.from(scheduledToolCounts.values()).reduce((sum, count) => sum + count, 0);
+  if (limits.maxCalls !== undefined && state.toolCalls.length + scheduledTotal + 1 > limits.maxCalls) {
+    return `Tool call budget exceeded: maxCalls=${limits.maxCalls}`;
+  }
+
+  const maxForTool = limits.maxCallsByName?.[toolName];
+  if (maxForTool !== undefined) {
+    const previousForTool = state.toolCalls.filter((tc) => tc.toolName === toolName).length;
+    const scheduledForTool = scheduledToolCounts.get(toolName) ?? 0;
+    if (previousForTool + scheduledForTool + 1 > maxForTool) {
+      return `Tool call budget exceeded for ${toolName}: maxCallsByName=${maxForTool}`;
+    }
+  }
+
+  const maxWritesPerPath = limits.workspaceWrite?.maxWritesPerPath;
+  if (toolName === "workspace_write" && maxWritesPerPath !== undefined) {
+    const targetPath = normalizeWorkspacePath(args.name);
+    if (!targetPath) return "workspace_write requires a valid file name";
+
+    const previousWrites = state.toolCalls.filter((tc) => {
+      if (tc.toolName !== "workspace_write" || !tc.success) return false;
+      const input = tc.input as Record<string, unknown> | undefined;
+      return normalizeWorkspacePath(input?.name) === targetPath;
+    }).length;
+    const scheduledWrites = scheduledWriteCounts.get(targetPath) ?? 0;
+
+    if (previousWrites + scheduledWrites + 1 > maxWritesPerPath) {
+      return `Duplicate workspace_write blocked for ${targetPath}: maxWritesPerPath=${maxWritesPerPath}`;
+    }
+  }
+
+  return undefined;
+}
+
+export function createActNode(tools: StructuredToolInterface[], toolEventCb?: ToolEventCallback, limits?: ToolLimitsConfig) {
   const toolMap = new Map(tools.map((t) => [t.name, t]));
 
   async function executeWithRetry(
@@ -293,11 +348,41 @@ export function createActNode(tools: StructuredToolInterface[], toolEventCb?: To
 
     logger.info(`[${state.agentName}] Act: executing ${toolCallEntries.length} tool call(s) in parallel`);
 
+    const scheduledToolCounts = new Map<string, number>();
+    const scheduledWriteCounts = new Map<string, number>();
+    const guardErrors = toolCallEntries.map((tc) => {
+      const args = tc.args as Record<string, unknown>;
+      const guardError = getGuardError(state, tc.name, args, limits, scheduledToolCounts, scheduledWriteCounts);
+      if (guardError) return guardError;
+
+      scheduledToolCounts.set(tc.name, (scheduledToolCounts.get(tc.name) ?? 0) + 1);
+      if (tc.name === "workspace_write") {
+        const targetPath = normalizeWorkspacePath(args.name);
+        if (targetPath) scheduledWriteCounts.set(targetPath, (scheduledWriteCounts.get(targetPath) ?? 0) + 1);
+      }
+      return undefined;
+    });
+
     const execResults = await Promise.all(
-      toolCallEntries.map(async (tc) => {
+      toolCallEntries.map(async (tc, index) => {
         const toolCallId = tc.id ?? tc.name;
         const t = toolMap.get(tc.name);
         const start = Date.now();
+        const guardError = guardErrors[index];
+
+        if (guardError) {
+          const record: ToolCallRecord = {
+            toolName: tc.name, input: tc.args, output: null,
+            duration: 0, success: false, error: guardError,
+          };
+          toolEventCb?.onToolFinished?.(toolCallId, tc.name, "failed", null, guardError, 0);
+          const msg = new ToolMessage({
+            tool_call_id: toolCallId,
+            content: JSON.stringify({ success: false, blocked: true, error: guardError }),
+          });
+          logger.warn(`[${state.agentName}] Blocked tool call ${tc.name}: ${guardError}`);
+          return { record, msg };
+        }
 
         if (!t) {
           const record: ToolCallRecord = {
@@ -380,23 +465,48 @@ export function createActNode(tools: StructuredToolInterface[], toolEventCb?: To
 }
 
 /**
- * Nudge node: injected when the LLM returns an empty response (no tool calls)
- * on its first attempt(s). Adds a firm reminder message and routes back to
- * `think` so the model gets another chance to produce tool calls.
+ * Nudge node: injected when the LLM returns an empty response (no tool calls).
+ * For cold-start (no prior work): generic "use your tools" reminder.
+ * For partial-work (some tools already called): summarises what was done and
+ * reminds the agent to finish the remaining work.
  */
 export function createNudgeNode() {
   return async (state: AgentGraphState): Promise<Partial<AgentGraphState>> => {
-    logger.info(`[${state.agentName}] Nudge: reminding agent to use tools (retry ${state.emptyResponseRetries + 1})`);
-
-    const nudgeMessage = new HumanMessage(
-      `[System Reminder] Your previous response was empty or did not include any tool calls. ` +
-      `You have NOT completed your task yet — no files have been written. ` +
-      `You MUST use the tools available to you (e.g. workspace_write) to complete your assigned task. ` +
-      `Re-read your instructions and produce the required output NOW.`,
+    const hasWorkDone = state.toolCalls.length > 0 || state.subAgentResults.length > 0;
+    logger.info(
+      `[${state.agentName}] Nudge: ${hasWorkDone ? "partial-work" : "cold-start"} ` +
+      `(retry ${state.emptyResponseRetries + 1})`,
     );
 
+    let nudgeText: string;
+    if (hasWorkDone) {
+      const writeCalls = state.toolCalls.filter(
+        (tc) => tc.toolName === "workspace_write" && tc.success,
+      );
+      const fileList = writeCalls
+        .map((tc) => {
+          const input = tc.input as Record<string, unknown> | undefined;
+          return (input?.name as string) ?? (input?.path as string) ?? "unknown";
+        })
+        .join(", ");
+
+      nudgeText =
+        `[System Reminder] You stopped producing tool calls but your task is NOT finished. ` +
+        `So far you have made ${state.toolCalls.length} tool call(s)` +
+        (writeCalls.length > 0 ? ` and written ${writeCalls.length} file(s): ${fileList}` : "") +
+        `. Review your original instructions — are ALL required files written? ` +
+        `If any files are still missing, continue calling workspace_write for each remaining file NOW. ` +
+        `Do NOT output your final JSON status until every required file has been written.`;
+    } else {
+      nudgeText =
+        `[System Reminder] Your previous response was empty or did not include any tool calls. ` +
+        `You have NOT completed your task yet — no files have been written. ` +
+        `You MUST use the tools available to you (e.g. workspace_write) to complete your assigned task. ` +
+        `Re-read your instructions and produce the required output NOW.`;
+    }
+
     return {
-      messages: [nudgeMessage],
+      messages: [new HumanMessage(nudgeText)],
       emptyResponseRetries: state.emptyResponseRetries + 1,
     };
   };
@@ -481,6 +591,13 @@ Provide a JSON reflection with: summary, lessonsLearned (array), suggestedImprov
  */
 const MAX_EMPTY_RESPONSE_NUDGES = 2;
 
+/**
+ * Max consecutive nudges when the agent has done *some* work but stopped
+ * producing tool calls mid-task. More generous than the cold-start nudge
+ * because the model already demonstrated willingness to use tools.
+ */
+const MAX_PARTIAL_WORK_NUDGES = 3;
+
 export function routeAfterThink(state: AgentGraphState): "act" | "nudge" | "reflect" {
   const lastMessage = state.messages[state.messages.length - 1];
 
@@ -491,18 +608,24 @@ export function routeAfterThink(state: AgentGraphState): "act" | "nudge" | "refl
     }
   }
 
-  // If the agent has never called any tool AND we haven't exhausted nudge
-  // retries, send a nudge message instead of ending prematurely.
-  const hasNoWorkDone = state.toolCalls.length === 0 && state.subAgentResults.length === 0;
-  const canNudge =
-    hasNoWorkDone &&
-    state.emptyResponseRetries < MAX_EMPTY_RESPONSE_NUDGES &&
-    state.iteration < state.maxIterations;
+  if (state.disableNudge || state.iteration >= state.maxIterations) {
+    return "reflect";
+  }
 
-  if (canNudge) {
+  const hasNoWorkDone = state.toolCalls.length === 0 && state.subAgentResults.length === 0;
+
+  if (hasNoWorkDone && state.emptyResponseRetries < MAX_EMPTY_RESPONSE_NUDGES) {
     logger.warn(
       `[${state.agentName}] Empty response with no prior tool calls ` +
       `(nudge ${state.emptyResponseRetries + 1}/${MAX_EMPTY_RESPONSE_NUDGES}), retrying`,
+    );
+    return "nudge";
+  }
+
+  if (!hasNoWorkDone && state.emptyResponseRetries < MAX_PARTIAL_WORK_NUDGES) {
+    logger.warn(
+      `[${state.agentName}] Stopped producing tool calls after ${state.toolCalls.length} call(s) ` +
+      `(partial-work nudge ${state.emptyResponseRetries + 1}/${MAX_PARTIAL_WORK_NUDGES}), retrying`,
     );
     return "nudge";
   }
@@ -538,7 +661,7 @@ export function buildAgentGraph(
   const graph = new StateGraph(AgentState)
     .addNode("perceive", createPerceiveNode(agentDef))
     .addNode("think", createThinkNode(model, tools))
-    .addNode("act", createActNode(tools, toolEventCb))
+    .addNode("act", createActNode(tools, toolEventCb, agentDef.config.toolLimits))
     .addNode("observe", createObserveNode())
     .addNode("nudge", createNudgeNode())
     .addNode("reflect", createReflectNode(model))

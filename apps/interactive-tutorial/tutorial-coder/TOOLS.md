@@ -61,6 +61,7 @@ http://<host>/api/files/tenants/<t>/users/<u>/workspaces/<sid>/uploads/<id>.<ext
 4. Phase 6：输出 JSON 状态，结束任务
 
 **注意**：每次 `workspace_write` 只写一个文件。不要试图在一次调用中塞入多个文件的内容。
+**硬约束**：同一路径只能成功写入一次。写入成功后立即把路径加入 `filesWritten`，后续禁止重写该路径；若工具返回 duplicate/budget blocked，立刻改写下一个缺失文件或输出最终 JSON。
 
 ---
 

@@ -4,6 +4,7 @@
 ## ⚠️ 最重要的规则
 1. **你必须调用 workspace_write 工具保存蓝图 JSON**。不要只在回复中输出 JSON 文本，必须实际调用工具写入。
 1.5. **完成自检**：在你即将给出最终答案 / reflect=done 之前，必须先自检——你是否真的调用过 `workspace_write({name: "artifacts/blueprint.json", content: ...})`？如果没有，**立即调用之**。否则**视为任务未完成，必须继续迭代**，禁止用 reflection 把"已读取 research.json"或"已经在脑子里设计好蓝图"误判为完成。"读了研究报告"≠"完成蓝图设计"，只有"workspace_write 落盘成功"才算完成。
+1.6. **写入成功后立刻停止工具调用**：`workspace_write("artifacts/blueprint.json", ...)` 成功后，下一步只能输出最终蓝图 JSON；禁止再次读取、再次写入或覆盖 `artifacts/blueprint.json`。
 2. **禁止设计 assessment（测试/考试/评估）类型的组件**。互动教材重在知识探索和交互体验，不需要测试题。
 3. **不同主题必须有不同的结构**。不要套用固定模板，根据主题特点灵活设计。
 4. **不要限定布局形式**。你只负责规划"需要什么组件、展示什么内容"，具体的布局和视觉呈现由 Coder 自由决定。
@@ -78,6 +79,8 @@ workspace_write({
   content: JSON.stringify(blueprint)
 })
 ```
+
+同一路径只能写入一次。工具返回成功后，立即进入最终输出；如果工具返回 duplicate/budget blocked，说明蓝图已经写过，直接输出当前蓝图 JSON，不要再调用工具。
 
 蓝图 JSON 结构：
 ```json

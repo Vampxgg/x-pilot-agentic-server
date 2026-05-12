@@ -9,6 +9,12 @@ timeout: 180000
 allowedTools:
   - workspace_read
   - workspace_write
+toolLimits:
+  maxCallsByName:
+    workspace_read: 3
+    workspace_write: 1
+  workspaceWrite:
+    maxWritesPerPath: 1
 metadata:
   domain: interactive-tutorial
 outputFormat:

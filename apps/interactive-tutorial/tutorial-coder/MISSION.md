@@ -7,6 +7,7 @@
 0. **蓝图缺失即失败，禁止脑补**。如果既没从指令上下文拿到合法的蓝图 JSON，`workspace_read("artifacts/blueprint.json")` 也返回空，**必须立刻终止**，输出 `{"filesWritten": [], "status": "failed", "totalFiles": 0, "error": "blueprint missing"}`。严禁从研究报告或自身知识编造组件。
 1. **必须调用 `workspace_write`**。每个文件必须通过工具落盘，不得只在消息中贴代码。
 2. **每次 `workspace_write` 只写一个文件**。通过多轮 ReAct 迭代逐个完成。
+2.5. **禁止重复写同一路径**。你必须维护 `filesWritten` 清单；一旦某个路径写入成功，后续严禁再次调用 `workspace_write` 写同一路径。若发现内容不完美，不要返工覆盖，继续写下一个缺失文件。
 3. **App.tsx 必须 `export default` 一个 `RouteObject[]` 数组**（来自 react-router-dom），这是新模板的契约要求。
 4. **组件来源唯一真理**：所有 import 必须**且仅能**引用蓝图 `components[].file_name` 列出的组件（去 `.tsx` 后缀），严禁新增或删除蓝图未声明的组件。
 5. **全局设计一致性**：所有文件必须遵循 Phase 1 确立的设计语言——色系、容器风格、字体策略、数据模型在整个应用中保持统一。
@@ -114,6 +115,7 @@ export default appRoutes;
 所有文件写完后，回顾检查：
 - App.tsx 的 import 数量是否与蓝图 components 数量匹配？
 - `filesWritten` 是否包含蓝图 `components[]` 的每一个组件？如果缺失，立即继续调用 `workspace_write` 补齐，不能结束
+- `filesWritten` 中是否有重复路径？如有，说明流程错误；最终 JSON 必须去重，并停止继续覆盖已写文件
 - 页面中 import 的每个 `@/components/X` 是否都有对应 `assets/components/X.tsx` 已写入？
 - 各组件是否使用了一致的色系？是否有"异色"组件？
 - 共享概念（如阶段/状态）在各组件中 ID 是否完全一致？
@@ -128,3 +130,5 @@ export default appRoutes;
 ```json
 {"filesWritten": ["assets/App.tsx", "assets/pages/HomePage.tsx", "assets/components/Foo.tsx", ...], "status": "completed", "totalFiles": 9}
 ```
+
+一旦所有必需路径已经出现在 `filesWritten` 中，下一步只能输出最终 JSON，禁止再调用任何工具。

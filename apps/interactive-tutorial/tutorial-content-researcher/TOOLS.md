@@ -15,6 +15,7 @@
 - 启用 smartSearch 时使用
 - 搜索权威来源（标准文档、官方手册）
 - 避免使用来源不明的博客数据
+- 单次研究最多调用 10 次；连续多次 0 results 时停止换词搜索，改用已有资料并标注 `confidence: "medium"` 或 `source: "inferred"`
 
 ### http_request（优先级：低）
 访问特定 URL 获取数据
@@ -52,7 +53,9 @@ LLM 在**一次响应**里可以同时返回多个 `tool_call`，框架会真正
    - `tutorial_user_file({action:"read", fileId})`——`Task Context.userFiles` 中每个 `unreadable !== true` 的文件各发一次，**全部并行**
 3. **Phase 2.5（可选）**：第一轮结果如有空白领域，**再次并行**返回 2-4 个补充检索；不要 1 个 1 个补。
 4. **Phase 3**：调用 `workspace_write("artifacts/research.json", ...)` 保存结构化报告。
+5. 写入 `artifacts/research.json` 成功后，下一步只能输出最终 JSON，禁止继续调用任何检索或写入工具。
 
 ### 反模式自查
 
 如果你的工具调用日志显示 ≥5 个 "单次单调用" 的轮次，说明你在串行——下次必须把它们合并到 1-2 个并行批次里。
+如果已经完成 2 轮检索或 `web_search` 接近 10 次，还没有找到精确参数，不要继续搜索；使用已获得的可靠范围或推断值，并在报告中说明可信度。
