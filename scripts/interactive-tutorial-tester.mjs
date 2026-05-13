@@ -5,10 +5,16 @@ import { readdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
+  DEFAULT_AVM_PROMPT,
   DEFAULTS,
   SAMPLE_DIR,
+  buildEventTree,
+  classifyRun,
+  normalizeFrame,
   parseArgs,
   parseSseText,
+  resolveReplayDir,
+  resolveReplayFile,
   resolveSamplePath,
   summarizeEvents,
   tryParseNestedJson,
@@ -16,7 +22,12 @@ import {
 
 export {
   parseArgs,
+  buildEventTree,
+  classifyRun,
+  normalizeFrame,
   parseSseText,
+  resolveReplayDir,
+  resolveReplayFile,
   resolveSamplePath,
   summarizeEvents,
   tryParseNestedJson,
@@ -32,6 +43,22 @@ async function listSamples() {
   } catch {
     return [];
   }
+}
+
+async function listReplayFiles(dir, opts) {
+  const resolvedDir = resolveReplayDir(dir, { replayRoot: opts.replayRoot });
+  const entries = await readdir(resolvedDir.absolutePath, { withFileTypes: true });
+  return {
+    dir: resolvedDir.relativePath,
+    entries: entries
+      .filter((entry) => entry.isDirectory() || /\.(jsonl|sse|txt)$/i.test(entry.name))
+      .map((entry) => ({
+        name: entry.name,
+        type: entry.isDirectory() ? "dir" : "file",
+        path: `${resolvedDir.relativePath}/${entry.name}`.replace(/\\/g, "/"),
+      }))
+      .sort((a, b) => `${a.type}:${a.name}`.localeCompare(`${b.type}:${b.name}`)),
+  };
 }
 
 async function readJson(req) {
@@ -144,6 +171,27 @@ export function createTesterServer(opts = DEFAULTS) {
         return;
       }
 
+      if (req.method === "GET" && url.pathname === "/api/replay/list") {
+        try {
+          sendJson(res, 200, await listReplayFiles(url.searchParams.get("dir") ?? opts.replayRoot, opts));
+        } catch (err) {
+          sendJson(res, 400, { error: err instanceof Error ? err.message : String(err) });
+        }
+        return;
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/replay/file") {
+        try {
+          const resolvedFile = resolveReplayFile(url.searchParams.get("path") ?? "", { replayRoot: opts.replayRoot });
+          createReadStream(resolvedFile.absolutePath)
+            .on("error", () => sendJson(res, 404, { error: "Replay file not found" }))
+            .pipe(res);
+        } catch (err) {
+          sendJson(res, 400, { error: err instanceof Error ? err.message : String(err) });
+        }
+        return;
+      }
+
       if (req.method === "GET" && url.pathname.startsWith("/api/samples/")) {
         const name = decodeURIComponent(url.pathname.replace("/api/samples/", ""));
         let samplePath;
@@ -164,11 +212,6 @@ export function createTesterServer(opts = DEFAULTS) {
         return;
       }
 
-      if (req.method === "POST" && url.pathname === "/api/stream/edit") {
-        await proxySse(req, res, opts, "/api/business/interactive-tutorial/edit-stream");
-        return;
-      }
-
       if (req.method === "POST" && url.pathname === "/api/uploads") {
         await proxyRaw(req, res, opts, "/api/uploads");
         return;
@@ -182,7 +225,12 @@ export function createTesterServer(opts = DEFAULTS) {
 }
 
 function renderHtml(opts) {
-  const initialConfig = JSON.stringify({ target: opts.target, token: opts.token });
+  const initialConfig = JSON.stringify({
+    target: opts.target,
+    token: opts.token,
+    replayRoot: opts.replayRoot,
+    defaultPrompt: DEFAULT_AVM_PROMPT,
+  });
   return String.raw`<!doctype html>
 <html lang="zh-CN">
 <head>
@@ -204,12 +252,15 @@ function renderHtml(opts) {
       --warn: #fbbf24;
     }
     * { box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
     body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
-    header { padding: 18px 22px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, #111827, #09090b); }
+    header { height: 72px; padding: 14px 22px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, #111827, #09090b); }
     h1 { margin: 0 0 6px; font-size: 20px; }
     p { margin: 0; color: var(--muted); }
-    main { display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 14px; padding: 14px; }
+    main { height: calc(100vh - 72px); display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 14px; padding: 14px; overflow: hidden; }
     .panel { background: rgba(17, 24, 39, 0.82); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+    aside.panel { height: 100%; min-height: 0; overflow-y: auto; align-content: start; }
+    section.stack { height: 100%; min-height: 0; overflow: hidden; grid-template-rows: auto minmax(0, 1fr); }
     .stack { display: grid; gap: 12px; }
     label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
     input, textarea, select, button { border: 1px solid var(--line); border-radius: 10px; background: #09090b; color: var(--text); padding: 9px 10px; font: inherit; }
@@ -226,40 +277,63 @@ function renderHtml(opts) {
     .tabs { display: flex; gap: 8px; margin-bottom: 10px; flex-wrap: wrap; }
     .tab { background: #18181b; border-color: #27272a; }
     .tab.active { background: #155e75; border-color: #22d3ee; }
-    .content { min-height: 640px; }
+    .content { min-height: 0; overflow: hidden; display: grid; grid-template-rows: auto minmax(0, 1fr); }
+    #view { overflow: auto; min-height: 0; padding-right: 4px; }
     .timeline { display: grid; gap: 8px; }
-    .event { border: 1px solid var(--line); border-left: 3px solid #52525b; border-radius: 10px; padding: 10px; background: #0b1120; }
+    .tree { display: grid; gap: 6px; }
+    .tree-children { display: grid; gap: 6px; margin-left: 18px; padding-left: 10px; border-left: 1px dashed #334155; }
+    .event { border: 1px solid var(--line); border-left: 4px solid #52525b; border-radius: 10px; padding: 10px; background: #0b1120; }
+    .event.round { border-left-color: #64748b; }
+    .event.think { border-left-color: #a78bfa; }
+    .event.act, .event.tool { border-left-color: var(--brand); }
+    .event.agent { border-left-color: #60a5fa; }
+    .event.progress { border-left-color: var(--warn); }
     .event.tool { border-left-color: var(--brand); }
     .event.error { border-left-color: var(--bad); }
     .event.message { border-left-color: var(--ok); }
+    .event.generation-risk { border-left-color: #fb923c; box-shadow: inset 0 0 0 1px rgba(251,146,60,.3); }
     .event.malformed { border-left-color: var(--warn); }
     .event-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .event-main { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .event-title { font-weight: 700; }
+    .toggle { width: 26px; padding: 2px 0; border-radius: 7px; background: #18181b; }
     .muted { color: var(--muted); font-size: 12px; }
     .badge { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; color: var(--muted); font-size: 12px; }
+    .badge.bad { color: #fecdd3; border-color: #be123c; background: rgba(190, 18, 60, .2); }
+    .badge.good { color: #bbf7d0; border-color: #059669; background: rgba(5, 150, 105, .18); }
+    .badge.warn { color: #fde68a; border-color: #d97706; background: rgba(217, 119, 6, .18); }
+    .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 12px; min-height: 0; }
+    .detail { position: sticky; top: 0; align-self: start; max-height: calc(100vh - 180px); overflow: auto; }
     details { border: 1px solid var(--line); border-radius: 10px; padding: 8px; background: #09090b; }
     summary { cursor: pointer; color: var(--brand); }
     pre { overflow: auto; max-height: 420px; margin: 8px 0 0; white-space: pre-wrap; font-size: 12px; }
     .answer { white-space: pre-wrap; line-height: 1.55; background: #09090b; border: 1px solid var(--line); border-radius: 12px; padding: 12px; min-height: 180px; }
     .hidden { display: none; }
     .notice { color: var(--warn); font-size: 12px; }
-    @media (max-width: 980px) { main { grid-template-columns: 1fr; } .summary { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 980px) {
+      html, body { overflow: auto; }
+      main { height: auto; grid-template-columns: 1fr; overflow: visible; }
+      aside.panel, section.stack, .content, #view { height: auto; overflow: visible; }
+      .summary { grid-template-columns: repeat(2, 1fr); }
+      .split { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body>
   <header>
     <h1>互动教程编辑流测试页</h1>
-    <p>用于替代 Apifox 手工看流：支持样例回放、实时 chat-stream/edit-stream、Dify 与原生 v2 SSE 解析。</p>
+    <p>用于替代 Apifox 手工看流：支持事件回看、实时 chat-stream、Dify 与原生 v2 SSE 解析。</p>
   </header>
   <main>
     <aside class="panel stack">
       <label>API Base URL <input id="target" /></label>
       <label>Bearer Token <input id="token" type="password" /></label>
       <div class="row">
-        <label>Endpoint
-          <select id="endpoint">
-            <option value="chat">chat-stream 推荐</option>
-            <option value="edit">edit-stream deprecated</option>
+        <label>运行模式
+          <select id="runMode">
+            <option value="generate">首轮生成（可空 sessionId）</option>
+            <option value="edit">后续编辑（必须复用 sessionId）</option>
           </select>
         </label>
         <label>smartSearch
@@ -276,20 +350,25 @@ function renderHtml(opts) {
       <label>fileUrls（JSON 对象数组）
         <textarea id="fileUrls" placeholder='[{"fileName":"demo.pdf","fileType":"application/pdf","url":"https://..."}]'></textarea>
       </label>
-      <label>消息 / 编辑指令 <textarea id="message">修复遗漏了的核心业务组件（components/PerspectiveLabPage）</textarea></label>
+      <label>消息 / 编辑指令 <textarea id="message"></textarea></label>
       <div class="actions">
         <button id="sendBtn">发送实时请求</button>
         <button id="stopBtn" class="danger" disabled>停止</button>
         <button id="clearBtn" class="secondary">清空</button>
+        <button id="defaultPromptBtn" class="secondary">恢复默认 AVM 提示</button>
       </div>
       <div class="notice">默认通过本地 Node 代理调用目标服务，便于处理鉴权与长连接。</div>
       <hr style="width:100%;border-color:var(--line)" />
-      <label>样例流
-        <select id="sampleSelect"></select>
+      <label>事件回看目录
+        <input id="replayDir" placeholder="scripts/edit 或 scripts/generation" />
+      </label>
+      <label>事件流文件
+        <select id="replayFileSelect"></select>
       </label>
       <div class="actions">
-        <button id="loadSampleBtn" class="secondary">加载样例</button>
-        <button id="rawBtn" class="secondary">显示/隐藏原始事件</button>
+        <button id="listReplayBtn" class="secondary">刷新目录</button>
+        <button id="loadReplayBtn" class="secondary">加载回看</button>
+        <button id="rawBtn" class="secondary">显示/隐藏 raw</button>
       </div>
       <label><input id="hideNoise" type="checkbox" checked /> 隐藏 ping、空 observe/perceive、空 thought</label>
     </aside>
@@ -297,9 +376,10 @@ function renderHtml(opts) {
       <div class="summary" id="summary"></div>
       <div class="panel content">
         <div class="tabs">
-          <button class="tab active" data-tab="timeline">时间线</button>
+          <button class="tab active" data-tab="timeline">事件树</button>
           <button class="tab" data-tab="tools">工具调用</button>
           <button class="tab" data-tab="agents">子 Agent</button>
+          <button class="tab" data-tab="diagnosis">路径诊断</button>
           <button class="tab" data-tab="answer">最终回复</button>
           <button class="tab" data-tab="errors">错误诊断</button>
           <button class="tab" data-tab="raw">原始事件</button>
@@ -314,6 +394,9 @@ function renderHtml(opts) {
       frames: [],
       tab: "timeline",
       showRaw: false,
+      collapsed: new Set(),
+      selectedNode: null,
+      treeFilter: "all",
       abort: null,
       streamBuffer: "",
     };
@@ -329,9 +412,11 @@ function renderHtml(opts) {
       $("sessionId").value = saved.sessionId || "";
       $("conversationId").value = saved.conversationId || "";
       $("databaseId").value = saved.databaseId || "";
-      $("endpoint").value = saved.endpoint || "chat";
+      $("runMode").value = saved.runMode || "generate";
       $("smartSearch").value = saved.smartSearch ?? "true";
       $("fileUrls").value = saved.fileUrls || "";
+      $("replayDir").value = saved.replayDir || "scripts/edit";
+      $("message").value = saved.message || INITIAL_CONFIG.defaultPrompt;
     }
 
     function saveSettings() {
@@ -341,9 +426,11 @@ function renderHtml(opts) {
         sessionId: $("sessionId").value,
         conversationId: $("conversationId").value,
         databaseId: $("databaseId").value,
-        endpoint: $("endpoint").value,
+        runMode: $("runMode").value,
         smartSearch: $("smartSearch").value,
         fileUrls: $("fileUrls").value,
+        replayDir: $("replayDir").value,
+        message: $("message").value,
       }));
     }
 
@@ -388,9 +475,12 @@ function renderHtml(opts) {
       const payload = frame.payload || {};
       const data = payload.data || {};
       const event = payload.event || frame.event;
+      const output = data.data?.output || {};
+      const toolName = data.data?.tool_name || output.tool_call_name || data.tool_name || (data.label?.startsWith("CALL ") ? data.label.replace(/^CALL\s+/, "") : "");
       return {
         event,
         id: payload.id || frame.id,
+        businessId: data.id || payload.id || frame.id,
         createdAt: payload.created_at || data.created_at,
         taskId: payload.task_id || payload.taskId,
         sessionId: payload.session_id || payload.conversation_id,
@@ -399,9 +489,76 @@ function renderHtml(opts) {
         label: data.label || data.title || event,
         step: data.step || data.node_type,
         status: data.status,
+        nodeType: data.node_type || (event.includes("tool") ? "tool" : ""),
+        toolName,
+        toolCallId: data.data?.tool_call_id || output.tool_call_id || data.tool_call_id || "",
+        input: data.data?.tool_input || data.arguments,
+        output: tryParseNestedJson(output.tool_response || data.output || data.data?.output),
+        phase: data.phase || data.metadata?.stage || "",
+        agentName: data.data?.agent_name || data.agent_name || "",
+        instruction: data.data?.instruction || data.instruction || "",
+        elapsedTime: data.elapsed_time,
         malformed: frame.malformed,
         raw: payload,
       };
+    }
+
+    function buildTree(frames) {
+      const nodes = [];
+      const byBusinessId = new Map();
+      const byToolCallId = new Map();
+      for (const frame of frames) {
+        const n = normalize(frame);
+        const node = { ...n, key: (n.id || nodes.length) + "-" + (n.businessId || n.event), startEventId: n.id, endEventId: "", endBusinessId: "", children: [] };
+        if (node.toolCallId) {
+          const existing = byToolCallId.get(node.toolCallId);
+          if (existing) {
+            if (node.status && node.status !== "started") existing.status = node.status;
+            existing.endEventId = node.id;
+            existing.endBusinessId = node.businessId;
+            existing.output = node.output || existing.output;
+            existing.elapsedTime = node.elapsedTime || existing.elapsedTime;
+            continue;
+          }
+          byToolCallId.set(node.toolCallId, node);
+        }
+        nodes.push(node);
+        if (node.businessId) byBusinessId.set(String(node.businessId), node);
+      }
+      const roots = [];
+      for (const node of nodes) {
+        const parent = node.parentId ? byBusinessId.get(String(node.parentId)) : null;
+        if (parent && parent !== node) parent.children.push(node);
+        else roots.push(node);
+      }
+      return { roots, nodes };
+    }
+
+    function classifyRun(frames, summary) {
+      const normalized = frames.map(normalize);
+      const tools = new Set(summary.tools.map((tool) => tool.name).filter(Boolean));
+      normalized.forEach((frame) => frame.toolName && tools.add(frame.toolName));
+      const phases = new Set(normalized.map((frame) => frame.phase).filter(Boolean));
+      const hasGenerationTool = tools.has("start_generation_pipeline");
+      const hasEditToolChain = tools.has("workspace_read") && (tools.has("spawn_sub_agent") || normalized.some((frame) => frame.agentName === "tutorial-scene-editor"));
+      const hasReassemble = tools.has("reassemble_app");
+      const hasGenerationPhases = ["research", "architect", "code", "assemble"].some((phase) => phases.has(phase));
+      const expectedEdit = $("runMode")?.value === "edit";
+      let kind = "unknown";
+      let label = "失败或未知";
+      if (hasGenerationTool || hasGenerationPhases) {
+        kind = "generation";
+        label = "首轮生成或完整生成管线";
+      }
+      if (!hasGenerationTool && hasEditToolChain) {
+        kind = "edit";
+        label = hasReassemble ? "后续编辑路径" : "编辑路径未完整收尾";
+      }
+      if (expectedEdit && (hasGenerationTool || hasGenerationPhases)) {
+        kind = "mixed_or_suspicious";
+        label = "疑似误生成：编辑期触发完整生成管线";
+      }
+      return { kind, label, evidence: { tools: [...tools], phases: [...phases], hasGenerationTool, hasEditToolChain, hasReassemble, hasGenerationPhases, hasTutorialUrl: Boolean(summary.tutorialUrl) } };
     }
 
     function summarize(frames) {
@@ -445,28 +602,54 @@ function renderHtml(opts) {
     }
 
     function renderSummary(summary) {
+      const diagnosis = classifyRun(state.frames, summary);
+      const statusClass = diagnosis.kind === "mixed_or_suspicious" ? "bad" : diagnosis.kind === "edit" ? "good" : diagnosis.kind === "generation" ? "warn" : "";
       $("summary").innerHTML = [
         ["状态", summary.status],
         ["事件", summary.totalEvents],
         ["工具", summary.tools.length],
         ["子 Agent", summary.agents.length],
         ["错误", summary.errors.length + summary.malformedCount],
-        ["耗时", summary.elapsedTime == null ? "-" : summary.elapsedTime + "s"],
-      ].map(([label, value]) => '<div class="metric"><span class="muted">' + label + '</span><b>' + escapeHtml(value) + '</b></div>').join("");
+        ["路径", diagnosis.label],
+      ].map(([label, value], index) => '<div class="metric"><span class="muted">' + label + '</span><b class="' + (index === 5 ? statusClass : "") + '">' + escapeHtml(value) + '</b></div>').join("");
     }
 
     function renderTimeline(frames) {
-      const visible = frames.filter((frame) => !isNoise(frame));
-      return '<div class="timeline">' + visible.map((frame) => {
-        const n = normalize(frame);
-        const cls = ["event", n.event, frame.malformed ? "malformed" : "", n.event === "error" ? "error" : "", n.event.includes("tool") || n.label?.startsWith("CALL ") ? "tool" : ""].join(" ");
-        const indent = n.parentId ? "margin-left:18px" : "";
-        return '<div class="' + cls + '" style="' + indent + '">' +
-          '<div class="event-head"><span class="event-title">' + escapeHtml(n.label) + '</span><span class="badge">' + escapeHtml(n.event) + '</span></div>' +
-          '<div class="muted">#' + escapeHtml(n.id || "-") + ' ' + escapeHtml(n.step || "") + ' ' + escapeHtml(n.status || "") + '</div>' +
-          (state.showRaw ? '<details open><summary>raw</summary><pre>' + pretty(n.raw) + '</pre></details>' : '') +
+      const tree = buildTree(frames.filter((frame) => !isNoise(frame)));
+      const selected = state.selectedNode || tree.nodes[0] || null;
+      const controls = '<div class="toolbar">' +
+        '<button class="secondary" data-action="expand-all">全部展开</button>' +
+        '<button class="secondary" data-action="collapse-all">全部折叠</button>' +
+        '<button class="secondary" data-action="filter-tools">' + (state.treeFilter === "tools" ? "显示全部" : "仅工具和错误") + '</button>' +
         '</div>';
-      }).join("") + '</div>';
+      return controls + '<div class="split"><div class="tree">' + tree.roots.map((node) => renderTreeNode(node)).join("") + '</div>' + renderDetail(selected) + '</div>';
+    }
+
+    function renderTreeNode(node) {
+      const hasChildren = node.children.length > 0;
+      const collapsed = state.collapsed.has(node.key);
+      const isToolOrError = node.nodeType === "tool" || node.event.includes("tool") || node.event === "error" || node.malformed || node.status === "failed";
+      if (state.treeFilter === "tools" && !isToolOrError && !node.children.some((child) => child.nodeType === "tool" || child.event === "error" || child.status === "failed")) return "";
+      const kind = node.toolName === "start_generation_pipeline" ? "generation-risk" : node.nodeType === "agent" ? "agent" : node.nodeType === "tool" ? "tool" : node.step || node.event;
+      const cls = ["event", kind, node.malformed ? "malformed" : "", node.event === "error" || node.status === "failed" ? "error" : ""].join(" ");
+      const toggle = hasChildren ? '<button class="toggle" data-toggle="' + escapeHtml(node.key) + '">' + (collapsed ? "+" : "-") + '</button>' : '<span class="toggle muted">·</span>';
+      const risk = node.toolName === "start_generation_pipeline" ? '<span class="badge bad">完整生成管线</span>' : "";
+      const body = '<div class="' + cls + '" data-select="' + escapeHtml(node.key) + '">' +
+        '<div class="event-head"><div class="event-main">' + toggle + '<span class="event-title">' + escapeHtml(node.label || node.toolName || node.event) + '</span>' + risk + '</div><span class="badge">' + escapeHtml(node.event) + '</span></div>' +
+        '<div class="muted">event #' + escapeHtml(node.startEventId || "-") + (node.endEventId ? " -> #" + escapeHtml(node.endEventId) : "") + ' · id=' + escapeHtml(node.businessId || "-") + ' · parent=' + escapeHtml(node.parentId || "-") + ' · exec=' + escapeHtml(node.nodeExecutionId || "-") + ' · ' + escapeHtml(node.status || "") + '</div>' +
+        (state.showRaw ? '<details open><summary>raw</summary><pre>' + pretty(node.raw) + '</pre></details>' : '') +
+      '</div>';
+      const children = hasChildren && !collapsed ? '<div class="tree-children">' + node.children.map((child) => renderTreeNode(child)).join("") + '</div>' : "";
+      return body + children;
+    }
+
+    function renderDetail(node) {
+      if (!node) return '<aside class="panel detail"><p class="muted">请选择一个事件节点查看详情。</p></aside>';
+      return '<aside class="panel detail">' +
+        '<h3 style="margin-top:0">事件详情</h3>' +
+        '<p><span class="badge">' + escapeHtml(node.event) + '</span> <span class="badge">' + escapeHtml(node.status || "unknown") + '</span></p>' +
+        '<pre>' + pretty({ id: node.businessId, parentId: node.parentId, eventId: node.startEventId, endEventId: node.endEventId, nodeExecutionId: node.nodeExecutionId, toolName: node.toolName, input: node.input, output: node.output, instruction: node.instruction, raw: node.raw }) + '</pre>' +
+      '</aside>';
     }
 
     function renderTools(summary) {
@@ -509,29 +692,61 @@ function renderHtml(opts) {
       if (state.tab === "timeline") view.innerHTML = renderTimeline(state.frames);
       if (state.tab === "tools") view.innerHTML = renderTools(summary);
       if (state.tab === "agents") view.innerHTML = renderAgents(summary);
+      if (state.tab === "diagnosis") view.innerHTML = renderDiagnosis(summary);
       if (state.tab === "answer") view.innerHTML = renderAnswer(summary);
       if (state.tab === "errors") view.innerHTML = renderErrors(summary);
       if (state.tab === "raw") view.innerHTML = renderRaw(state.frames);
     }
 
-    async function loadSamples() {
-      const res = await fetch("/api/samples");
-      const { samples } = await res.json();
-      $("sampleSelect").innerHTML = samples.map((name) => '<option value="' + escapeHtml(name) + '">' + escapeHtml(name) + '</option>').join("");
+    function renderDiagnosis(summary) {
+      const diagnosis = classifyRun(state.frames, summary);
+      const sessionInput = $("sessionId").value;
+      const conversationInput = $("conversationId").value;
+      const sessionMismatch = sessionInput && summary.sessionId && sessionInput !== summary.sessionId;
+      const rows = [
+        ["本轮类型", diagnosis.label],
+        ["调用 start_generation_pipeline", diagnosis.evidence.hasGenerationTool ? "是" : "否"],
+        ["调用 workspace_read + editor", diagnosis.evidence.hasEditToolChain ? "是" : "否"],
+        ["调用 reassemble_app", diagnosis.evidence.hasReassemble ? "是" : "否"],
+        ["出现生成阶段 phase", diagnosis.evidence.hasGenerationPhases ? diagnosis.evidence.phases.join(", ") : "否"],
+        ["输出 tutorialUrl", diagnosis.evidence.hasTutorialUrl ? summary.tutorialUrl : "否"],
+        ["sessionId 输入", sessionInput || "空"],
+        ["conversationId 输入", conversationInput || "空"],
+        ["返回 session_id", summary.sessionId || "无"],
+        ["sessionId 是否不一致", sessionMismatch ? "是，请核对是否误填 conversationId" : "否"],
+      ];
+      const warn = diagnosis.kind === "mixed_or_suspicious"
+        ? '<div class="event generation-risk"><b>检测到完整生成管线</b><p class="muted">你当前选择的是后续编辑，但事件流出现 start_generation_pipeline 或完整生成 phase。本轮不是纯编辑。</p></div>'
+        : "";
+      return warn + '<div class="timeline">' + rows.map(([k, v]) => '<div class="event"><div class="event-head"><b>' + escapeHtml(k) + '</b><span class="badge">' + escapeHtml(v) + '</span></div></div>').join("") + '</div>';
     }
 
-    async function loadSample() {
-      const name = $("sampleSelect").value;
-      if (!name) return;
-      const res = await fetch("/api/samples/" + encodeURIComponent(name));
+    async function listReplay() {
+      saveSettings();
+      const dir = $("replayDir").value || "scripts/edit";
+      const res = await fetch("/api/replay/list?dir=" + encodeURIComponent(dir));
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "无法读取回看目录");
+      const files = data.entries.filter((entry) => entry.type === "file");
+      $("replayFileSelect").innerHTML = files.map((entry) => '<option value="' + escapeHtml(entry.path) + '">' + escapeHtml(entry.name) + '</option>').join("");
+      if (files.length === 0) {
+        $("replayFileSelect").innerHTML = '<option value="">该目录没有事件流文件</option>';
+      }
+    }
+
+    async function loadReplay() {
+      const path = $("replayFileSelect").value;
+      if (!path) return;
+      const res = await fetch("/api/replay/file?path=" + encodeURIComponent(path));
       const text = await res.text();
+      if (!res.ok) throw new Error(text);
       state.frames = parseSseText(text);
       state.streamBuffer = "";
+      state.selectedNode = null;
       render();
     }
 
     function buildPayload() {
-      const endpoint = $("endpoint").value;
       const fileIds = $("fileIds").value.split(",").map((s) => s.trim()).filter(Boolean);
       const rawFileUrls = $("fileUrls").value.trim();
       let fileUrls;
@@ -543,9 +758,6 @@ function renderHtml(opts) {
         conversationId: $("conversationId").value || undefined,
         sessionId: $("sessionId").value || undefined,
       };
-      if (endpoint === "edit") {
-        return { sessionId: common.sessionId, conversationId: common.conversationId, editPrompt: $("message").value };
-      }
       return {
         ...common,
         message: $("message").value,
@@ -565,7 +777,10 @@ function renderHtml(opts) {
       $("stopBtn").disabled = false;
       render();
       try {
-        const res = await fetch("/api/stream/" + $("endpoint").value, {
+        if ($("runMode").value === "edit" && !$("sessionId").value) {
+          throw new Error("后续编辑模式必须填写 sessionId，否则会创建新工作区并极可能被当成重新生成。");
+        }
+        const res = await fetch("/api/stream/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token: $("token").value, payload: buildPayload() }),
@@ -601,12 +816,36 @@ function renderHtml(opts) {
     $("sendBtn").addEventListener("click", sendStream);
     $("stopBtn").addEventListener("click", () => state.abort?.abort());
     $("clearBtn").addEventListener("click", () => { state.frames = []; state.streamBuffer = ""; render(); });
-    $("loadSampleBtn").addEventListener("click", loadSample);
+    $("defaultPromptBtn").addEventListener("click", () => { $("message").value = INITIAL_CONFIG.defaultPrompt; saveSettings(); });
+    $("listReplayBtn").addEventListener("click", () => listReplay().catch((err) => alert(err.message || err)));
+    $("loadReplayBtn").addEventListener("click", () => loadReplay().catch((err) => alert(err.message || err)));
     $("rawBtn").addEventListener("click", () => { state.showRaw = !state.showRaw; render(); });
     $("hideNoise").addEventListener("change", render);
+    $("view").addEventListener("click", (event) => {
+      const toggle = event.target.closest("[data-toggle]");
+      if (toggle) {
+        const key = toggle.getAttribute("data-toggle");
+        if (state.collapsed.has(key)) state.collapsed.delete(key);
+        else state.collapsed.add(key);
+        render();
+        return;
+      }
+      const selected = event.target.closest("[data-select]");
+      if (selected) {
+        const tree = buildTree(state.frames.filter((frame) => !isNoise(frame)));
+        state.selectedNode = tree.nodes.find((node) => node.key === selected.getAttribute("data-select")) || null;
+        render();
+        return;
+      }
+      const action = event.target.closest("[data-action]")?.getAttribute("data-action");
+      if (action === "expand-all") state.collapsed.clear();
+      if (action === "collapse-all") buildTree(state.frames).nodes.forEach((node) => state.collapsed.add(node.key));
+      if (action === "filter-tools") state.treeFilter = state.treeFilter === "tools" ? "all" : "tools";
+      if (action) render();
+    });
 
     loadSettings();
-    loadSamples().then(render);
+    listReplay().catch(() => {}).then(render);
   </script>
 </body>
 </html>`;

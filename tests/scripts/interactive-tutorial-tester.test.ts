@@ -18,6 +18,7 @@ describe("interactive tutorial tester helpers", () => {
       target: "http://localhost:3001",
       token: "abc",
       port: 3102,
+      replayRoot: "scripts",
     });
   });
 
@@ -92,5 +93,82 @@ describe("interactive tutorial tester helpers", () => {
       expect(summary.tools.length).toBeGreaterThan(0);
       expect(["succeeded", "failed"]).toContain(summary.status);
     }
+  });
+
+  it("builds a collapsible event tree and pairs lifecycle events", () => {
+    const { buildEventTree, parseSseText } = helpers;
+    const frames = parseSseText([
+      "event: agent_log",
+      "id: 1",
+      'data: {"event":"agent_log","data":{"id":"round-1","label":"ROUND 1","step":"round","status":"started","parent_id":null}}',
+      "",
+      "event: agent_log",
+      "id: 2",
+      'data: {"event":"agent_log","data":{"id":"tool-start","parent_id":"round-1","label":"CALL workspace_read","step":"act","status":"started","node_type":"tool","data":{"tool_name":"workspace_read","tool_call_id":"call-1","tool_input":{"name":"artifacts/blueprint.json"}}}}',
+      "",
+      "event: agent_log",
+      "id: 3",
+      'data: {"event":"agent_log","data":{"id":"tool-end","parent_id":"round-1","label":"CALL workspace_read","step":"act","status":"succeeded","node_type":"tool","data":{"output":{"tool_call_id":"call-1","tool_call_name":"workspace_read","tool_response":"{\\"success\\":true}"}},"elapsed_time":0.2}}',
+      "",
+    ].join("\n"));
+
+    const tree = buildEventTree(frames);
+
+    expect(tree.roots).toHaveLength(1);
+    expect(tree.roots[0].businessId).toBe("round-1");
+    expect(tree.roots[0].children).toHaveLength(1);
+    expect(tree.roots[0].children[0]).toMatchObject({
+      toolName: "workspace_read",
+      status: "succeeded",
+      startEventId: "2",
+      endEventId: "3",
+      businessId: "tool-start",
+      endBusinessId: "tool-end",
+    });
+  });
+
+  it("classifies generation, edit, and suspicious runs", () => {
+    const { classifyRun, parseSseText, summarizeEvents } = helpers;
+    const generationFrames = parseSseText([
+      "event: agent_log",
+      "id: 1",
+      'data: {"event":"agent_log","data":{"id":"tool-start","label":"CALL start_generation_pipeline","step":"act","status":"started","node_type":"tool","data":{"tool_name":"start_generation_pipeline","tool_call_id":"gen-1"}}}',
+      "",
+      "event: progress",
+      "id: 2",
+      'data: {"event":"progress","data":{"phase":"research","message":"research"}}',
+      "",
+      "event: progress",
+      "id: 3",
+      'data: {"event":"progress","data":{"phase":"assemble","message":"assemble"}}',
+      "",
+    ].join("\n"));
+    const editFrames = parseSseText([
+      "event: agent_log",
+      "id: 1",
+      'data: {"event":"agent_log","data":{"id":"read","label":"CALL workspace_read","step":"act","status":"succeeded","node_type":"tool","data":{"tool_name":"workspace_read"}}}',
+      "",
+      "event: agent_log",
+      "id: 2",
+      'data: {"event":"agent_log","data":{"id":"agent","label":"tutorial-scene-editor","step":"act","status":"started","node_type":"agent","data":{"agent_name":"tutorial-scene-editor"}}}',
+      "",
+      "event: agent_log",
+      "id: 3",
+      'data: {"event":"agent_log","data":{"id":"reassemble","label":"CALL reassemble_app","step":"act","status":"succeeded","node_type":"tool","data":{"tool_name":"reassemble_app"}}}',
+      "",
+    ].join("\n"));
+
+    expect(classifyRun(generationFrames, summarizeEvents(generationFrames)).kind).toBe("generation");
+    expect(classifyRun(editFrames, summarizeEvents(editFrames)).kind).toBe("edit");
+    expect(classifyRun(generationFrames, summarizeEvents(generationFrames), { expectedMode: "edit" }).kind).toBe("mixed_or_suspicious");
+  });
+
+  it("keeps replay paths inside the configured replay root", () => {
+    const { resolveReplayDir, resolveReplayFile } = helpers;
+
+    expect(resolveReplayDir("scripts/generation").relativePath).toBe("scripts/generation");
+    expect(resolveReplayFile("scripts/generation/generation1.jsonl").relativePath).toBe("scripts/generation/generation1.jsonl");
+    expect(() => resolveReplayDir("../secrets")).toThrow(/outside replay root/);
+    expect(() => resolveReplayFile("scripts/generation/../../secrets/key.json")).toThrow(/outside replay root/);
   });
 });
