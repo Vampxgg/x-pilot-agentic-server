@@ -5,6 +5,7 @@ export type DynamicToolFactory = (
   tenantId: string,
   userId: string,
   sessionId: string,
+  abortSignal?: AbortSignal,
 ) => StructuredToolInterface;
 
 interface DynamicToolEntry {
@@ -34,6 +35,7 @@ class DynamicToolRegistry {
     tenantId: string,
     userId: string,
     sessionId?: string,
+    abortSignal?: AbortSignal,
   ): StructuredToolInterface[] {
     const useAll = allowedNames.includes("*");
     const results: StructuredToolInterface[] = [];
@@ -41,7 +43,7 @@ class DynamicToolRegistry {
     for (const [name, entry] of this.factories) {
       if (!useAll && !allowedNames.includes(name)) continue;
       if (entry.requiresSession && !sessionId) continue;
-      results.push(entry.factory(tenantId, userId, sessionId ?? ""));
+      results.push(entry.factory(tenantId, userId, sessionId ?? "", abortSignal));
     }
 
     return results;

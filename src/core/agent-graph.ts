@@ -77,6 +77,8 @@ export type AgentGraphState = typeof AgentState.State;
 // System prompt assembly
 // ---------------------------------------------------------------------------
 
+const MAX_MEMORY_INJECT_CHARS = 40_000;
+
 export function buildSystemPrompt(agentDef: AgentDefinition, longTermMemory: string, taskContext?: string, sessionId?: string): string {
   const sections: string[] = [];
 
@@ -111,7 +113,10 @@ export function buildSystemPrompt(agentDef: AgentDefinition, longTermMemory: str
   }
 
   if (longTermMemory) {
-    sections.push(`# Long-term Memory\n${longTermMemory}`);
+    const trimmed = longTermMemory.length > MAX_MEMORY_INJECT_CHARS
+      ? longTermMemory.slice(0, MAX_MEMORY_INJECT_CHARS) + "\n...(memory truncated)"
+      : longTermMemory;
+    sections.push(`# Long-term Memory\n${trimmed}`);
   }
 
   return sections.join("\n\n---\n\n");

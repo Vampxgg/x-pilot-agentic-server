@@ -100,7 +100,9 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
 
       for await (const event of agentRuntime.streamAgentV2(DIRECTOR_AGENT, enrichedMessage, {
         threadId: conversationId,
+        taskId,
         skipPipeline: true,
+        abortSignal: writer.abortSignal,
         tenantId,
         userId,
         sessionId,
@@ -203,7 +205,9 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
     try {
       for await (const event of agentRuntime.streamAgentV2(DIRECTOR_AGENT, message, {
         threadId: conversationId,
+        taskId,
         skipPipeline: true,
+        abortSignal: writer.abortSignal,
         tenantId,
         userId,
         sessionId,
@@ -274,7 +278,9 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
     try {
       for await (const event of agentRuntime.streamAgentV2(DIRECTOR_AGENT, body.editPrompt, {
         threadId: conversationId,
+        taskId,
         skipPipeline: true,
+        abortSignal: writer.abortSignal,
         tenantId,
         userId,
         sessionId: body.sessionId,

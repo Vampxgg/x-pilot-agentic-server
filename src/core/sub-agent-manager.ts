@@ -19,13 +19,13 @@ import { logger } from "../utils/logger.js";
 type AgentInvoker = (
   agentName: string,
   input: string,
-  options?: { threadId?: string; sessionId?: string; context?: Record<string, unknown>; tenantId?: string; userId?: string },
+  options?: { threadId?: string; sessionId?: string; context?: Record<string, unknown>; tenantId?: string; userId?: string; abortSignal?: AbortSignal },
 ) => Promise<unknown>;
 
 type StreamAgentInvoker = (
   agentName: string,
   input: string,
-  options?: { threadId?: string; sessionId?: string; context?: Record<string, unknown>; tenantId?: string; userId?: string; streamThinkTokens?: boolean },
+  options?: { threadId?: string; sessionId?: string; context?: Record<string, unknown>; tenantId?: string; userId?: string; streamThinkTokens?: boolean; abortSignal?: AbortSignal },
 ) => AsyncGenerator<StreamEvent<StreamEventTypeName>>;
 
 type AgentDefResolver = (name: string) => AgentDefinition | undefined;
@@ -99,6 +99,7 @@ export class SubAgentManager {
             context: options.context,
             tenantId: options.tenantId,
             userId: options.userId,
+            abortSignal: options.abortSignal,
           });
 
           for await (const event of stream) {
@@ -267,6 +268,10 @@ export class SubAgentManager {
             context: options.context,
             tenantId: options.tenantId,
             userId: options.userId,
+            abortSignal: options.abortSignal,
+          }),
+          new Promise<never>((_, reject) => {
+            options.abortSignal?.addEventListener("abort", () => reject(new Error("Run cancelled")), { once: true });
           }),
           new Promise<never>((_, reject) =>
             setTimeout(() => reject(new Error(`Sub-agent ${options.agentName} timed out after ${timeoutMs}ms`)), timeoutMs),
@@ -362,6 +367,7 @@ export class SubAgentManager {
     sessionId?: string,
     parentCtx?: StreamContext,
     eventCallback?: SubAgentEventCallback,
+    abortSignal?: AbortSignal,
   ): StructuredToolInterface {
     const manager = this;
 
@@ -370,6 +376,7 @@ export class SubAgentManager {
         try {
           const opts: SpawnSubAgentOptions = {
             parentId, agentName, instruction, model, sessionId, tenantId, userId,
+            abortSignal,
             context: context as Record<string, unknown> | undefined,
             onComplete: parallel ? "silent" : "aggregate",
           };

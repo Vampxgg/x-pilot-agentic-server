@@ -12,6 +12,7 @@ export function createSpawnParallelTool(
   sessionId?: string,
   parentCtx?: StreamContext,
   eventCallback?: SubAgentEventCallback,
+  abortSignal?: AbortSignal,
 ): StructuredToolInterface {
   return tool(
     async ({ tasks }) => {
@@ -19,7 +20,7 @@ export function createSpawnParallelTool(
         const results = await subAgentManager.spawnParallel(
           tasks.map((t: { agentName: string; instruction: string; model?: string; context?: Record<string, unknown> }) => ({
             parentId, agentName: t.agentName, instruction: t.instruction,
-            model: t.model, context: t.context, sessionId, tenantId, userId,
+            model: t.model, context: t.context, sessionId, tenantId, userId, abortSignal,
             onComplete: "aggregate" as const,
           })),
           parentCtx,

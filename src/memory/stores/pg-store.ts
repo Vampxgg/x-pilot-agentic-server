@@ -18,6 +18,10 @@ export class PgMemoryStore implements MemoryStore {
     throw new Error("PgMemoryStore not implemented.");
   }
 
+  async delete(tenantId: string, agentName: string, key: string): Promise<void> {
+    throw new Error("PgMemoryStore not implemented.");
+  }
+
   async list(tenantId: string, agentName: string): Promise<string[]> {
     throw new Error("PgMemoryStore not implemented.");
   }

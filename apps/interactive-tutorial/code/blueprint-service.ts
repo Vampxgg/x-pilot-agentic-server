@@ -87,6 +87,9 @@ async function retryArchitectOnce(
   originalArchitectRaw: unknown,
 ): Promise<Record<string, unknown> | null> {
   const { tenantId, userId, sessionId, context, initialInput } = ctx;
+  if (ctx.abortSignal?.aborted) {
+    throw new Error("Run cancelled");
+  }
   if (!sessionId) return null;
 
   logger.warn(
@@ -128,6 +131,7 @@ async function retryArchitectOnce(
       userId,
       sessionId,
       context,
+      abortSignal: ctx.abortSignal,
     });
   } catch (err) {
     logger.error(`[saveBlueprint] Architect retry threw: ${err}`);

@@ -1,10 +1,10 @@
 # 网页互动教程（Web App）智能体 — HTTP 接口说明
 
-本文档描述 `apps/interactive-tutorial` 业务域对外暴露的 HTTP/SSE 接口，对应「生成可交互教学 Web 应用」能力。
+本文档描述 `apps/interactive-tutorial` 业务域当前对外推荐使用的 HTTP/SSE 接口，对应「通过对话生成或修改可交互教学 Web 应用」能力。
 
 | 项目 | 说明 |
 |------|------|
-| 路由注册 | `apps/interactive-tutorial/code/routes.ts` → `routeRegistry.register("interactive-tutorial", ...)` |
+| 路由注册 | `apps/interactive-tutorial/code/routes.ts` → `registerInteractiveTutorialRoutes(app)` |
 | 编排 Agent | `interactive-tutorial-director` |
 | 运行时 | `agentRuntime.streamAgentV2` + `createStreamWriter`（`src/core/stream-writer-factory.ts`） |
 
@@ -15,9 +15,12 @@
 | 项目 | 说明 |
 |------|------|
 | 业务前缀 | `/api/business/interactive-tutorial` |
-| 核心能力 | 根据主题与可选上下文调用 Director，产出基于 Vite 构建的静态教程站点 |
-| 静态访问 | 构建产物通过 `GET /api/files/tutorials/{tutorialId}/dist/...` 提供（见第 6 节） |
-| 模板工程 | 服务端期望在 **`process.cwd()` 的上一级目录** 存在 `react-code-rander` 项目（含已安装的 `node_modules`），用于复制模板与链接依赖 |
+| 主入口 | `POST /api/business/interactive-tutorial/chat-stream` |
+| 取消入口 | `POST /runs/:runId/cancel` |
+| 静态访问 | 构建产物通过 `GET /api/files/tutorials/{sessionId}/dist/...` 提供 |
+| 模板工程 | 服务端期望在 `process.cwd()` 的上一级目录存在 `react-code-rander` 项目（含已安装的 `node_modules`），用于复制模板与链接依赖 |
+
+新接入方只需要调用 `chat-stream`。生成、继续修改、携带知识库、联网检索和用户文件都通过同一个对话入口完成。
 
 ---
 
@@ -32,7 +35,7 @@
 - **`config/tenants.yaml`**：
   - 若文件存在且解析出至少一个 API Key：生产环境缺少 Key 返回 **401**；开发环境可回落为 `tenantId=userId=default`。
   - 若文件不存在或为空：所有请求视为 `default` / `default`，不校验 Key。
-- **租户与用户覆盖**（可选）：JSON Body 中可传 `tenant_id`、`user_id`，会覆盖中间件解析出的身份（见 `getTenantId` / `getUserId`）。
+- **租户与用户覆盖**：中间件支持从 JSON Body 读取 `tenant_id`、`user_id` 覆盖身份；取消接口需要与创建流时解析出的 `userId` 一致。
 
 **静态文件** `/api/files/...` **跳过鉴权**，任何人持有 URL 即可访问；若需保护预览链接，应在网关或业务层增加令牌或短期签名。
 
@@ -40,148 +43,218 @@
 
 ## 3. 端点总览
 
-当前实现**仅**注册以下两个端点（不再有 `test-build` / `dashboard` 等辅助路由）：
-
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `POST` | `/api/business/interactive-tutorial/generate-stream` | 生成教程（SSE，统一流协议 v2） |
-| `POST` | `/api/business/interactive-tutorial/edit-stream` | 编辑已有教程（SSE，`skipPipeline: true`） |
+| `POST` | `/api/business/interactive-tutorial/chat-stream` | 主对话入口（SSE，统一流协议 v2，`skipPipeline: true`） |
+| `POST` | `/runs/:runId/cancel` | 取消正在运行的流式任务；`runId` 使用 SSE 的 `task_id` 或响应头 `X-Task-Id` |
 
 ---
 
-## 4. `POST .../generate-stream`
+## 4. `POST .../chat-stream`
 
 ### 4.1 用途
 
-启动一次「互动教程」生成。服务端会：
+启动或继续一次「互动教程」对话。服务端会：
 
-1. 校验 `topic`；
-2. 根据 Body 计算**意图标签**（见第 8 节），并拼入发给 Director 的自然语言指令（含固定「核心规则」段落，见 `routes.ts` 中 `buildGenerateInstruction`）；
-3. **创建或复用会话工作区**：`workspaceManager.create(tenantId, userId, body.sessionId)`，返回的会话 ID 与请求中的 `sessionId` 一致（未传则新建 UUID）；
-4. 通过 **`agentRuntime.streamAgentV2("interactive-tutorial-director", instruction, options)`** 推送事件流；未设置 `skipPipeline`，故默认走 `agent.config.yaml` 中的 **Pipeline**（见第 7 节）。
+1. 校验 `message`；
+2. 创建或复用会话工作区：`workspaceManager.create(tenantId, userId, body.sessionId)`，未传 `sessionId` 时创建新会话；
+3. 生成 `conversationId`（未传则自动生成 UUID）与 `taskId`；
+4. 处理本轮用户文件：`fileUrls` 会先导入为用户级 `fileId`，`fileIds` 会绑定到当前 `sessionId`，随后读取当前会话已绑定文件摘要并写入 `context.userFiles`；
+5. 通过 `agentRuntime.streamAgentV2("interactive-tutorial-director", enrichedMessage, options)` 推送事件流。
 
 ### 4.2 请求
 
 - **Headers**：`Content-Type: application/json`；按需带 `Authorization`。
-- **Body**（`apps/interactive-tutorial/code/types.ts` — `GenerateRequest`）：
+- **Body**（`apps/interactive-tutorial/code/types.ts` — `ChatRequest`）：
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| `topic` | `string` | 是 | 教程主题；缺失返回 **400** `{ "error": "topic is required" }` |
-| `userPrompt` | `string` | 否 | 用户补充需求 |
-| `databaseId` | `string` | 否 | 知识库 ID；写入指令并放入 `context.databaseId` |
-| `smartSearch` | `boolean` | 否 | 为 true 时在指令与 `context` 中说明可启用联网检索 |
-| `userFiles` | `string` | 否 | 用户上传文件的文本内容（需由上游先解析为字符串） |
-| `sessionId` | `string` | 否 | 指定工作区会话 ID；不传则新建 |
-| `conversationId` | `string` | 否 | 业务侧会话标识，传入 `context.conversationId` |
-| `tenant_id` | `string` | 否 | 覆盖租户 |
-| `user_id` | `string` | 否 | 覆盖用户 |
+| `message` | `string` | 是 | 本轮用户消息；缺失返回 **400** `{ "error": "message is required" }` |
+| `conversationId` | `string` | 否 | 业务侧会话标识；未传则服务端生成 UUID，并作为 `threadId` 使用 |
+| `sessionId` | `string` | 否 | 工作区会话 ID；首次不传会新建，后续继续修改同一教程时应传回同一个 `sessionId` |
+| `databaseId` | `string` | 否 | 知识库 ID；写入 `context.databaseId` |
+| `smartSearch` | `boolean` | 否 | 是否允许联网检索；写入 `context.smartSearch` |
+| `fileIds` | `string[]` | 否 | 已通过 `POST /api/uploads` 上传得到的文件 ID；服务端会绑定到本次 `sessionId` |
+| `fileUrls` | `ChatFileUrlInput[]` | 否 | 本轮直接导入的远程文件列表；服务端导入后绑定到本次 `sessionId` |
+| `attachments` | `string` | 否 | **已废弃**；路由不再读取，请改用 `fileIds` 或 `fileUrls` |
 
-### 4.3 调用上下文 `InvokeOptions.context`（非 Body 字段）
+`ChatFileUrlInput`：
 
-生成请求传入：
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `fileName` | `string` | 是 | 文件名；不能为空 |
+| `fileType` | `string` | 是 | MIME 类型；不能为空 |
+| `url` | `string` | 是 | 远程文件 URL；不能为空，仅支持 `http` / `https` |
+
+> 注意：旧的 `userFiles: string` 传参已不再用于 `chat-stream`。当前文件传参以 `fileIds` 为主；需要服务端从 URL 抓取时使用 `fileUrls`。
+
+### 4.3 上传文件参数
+
+推荐流程：
+
+1. 先调用 `POST /api/uploads` 上传本地文件，得到 `files[].fileId`；
+2. 调用 `chat-stream` 时把这些 ID 放入 `fileIds`；
+3. 如果文件已经有公网可访问 URL，也可以直接在 `chat-stream` 中传 `fileUrls`，服务端会先导入再绑定。
+
+`POST /api/uploads` 简要说明：
+
+```http
+POST /api/uploads
+Content-Type: multipart/form-data
+Authorization: Bearer <apiKey>
+```
+
+成功响应：
+
+```json
+{
+  "files": [
+    {
+      "fileId": "file_...",
+      "name": "lesson.pdf",
+      "mimeType": "application/pdf",
+      "kind": "doc",
+      "size": 12345,
+      "byteSize": 12345,
+      "url": "http://host/api/files/uploads/objects/file_....pdf"
+    }
+  ]
+}
+```
+
+`chat-stream` 携带已上传文件示例：
+
+```json
+{
+  "message": "请基于这些材料生成一个雨刮系统互动教程",
+  "sessionId": "optional-existing-session-id",
+  "conversationId": "optional-conversation-id",
+  "databaseId": "optional-database-id",
+  "smartSearch": true,
+  "fileIds": ["file_abc", "file_def"]
+}
+```
+
+`chat-stream` 携带远程文件示例：
+
+```json
+{
+  "message": "请读取这份讲义并生成互动教程",
+  "fileUrls": [
+    {
+      "fileName": "雨刮系统讲义.pdf",
+      "fileType": "application/pdf",
+      "url": "https://example.com/materials/wiper.pdf"
+    }
+  ]
+}
+```
+
+文件绑定与读取规则：
+
+- `fileIds` 必须属于当前认证解析出的 `tenantId` / `userId`，否则返回 **400** `{ "error": "file not found or not accessible" }`。
+- `fileUrls` 每一项都必须包含非空 `fileName`、`fileType`、`url`，否则返回 **400**，错误信息形如 `fileUrls[0] must be an object with fileName, fileType, and url`。
+- 首次无 `sessionId` 调用时，服务端会先创建 session，再把 `fileIds` / `fileUrls` 绑定到该 session。
+- 后续同一 `sessionId` 的请求会继续读取该 session 已绑定的文件列表；本轮新传的文件会追加绑定。
+- 传给 Agent 的 `context.userFiles` 只包含摘要：`fileId`、`name`、`mimeType`、`kind`、`byteSize`、`url`、`textChars`、`unreadable`；正文由下游工具按需读取。
+
+### 4.4 调用上下文 `InvokeOptions.context`（非 Body 字段）
 
 | 字段 | 说明 |
 |------|------|
 | `businessType` | 固定 `"interactive-tutorial"` |
-| `intent` | `DIRECT` / `OUTLINE` / `INTERACTIVE`（见第 8 节） |
-| `conversationId` | 来自 Body，可选 |
+| `conversationId` | 来自 Body 或服务端生成 |
 | `databaseId` | 来自 Body，可选 |
 | `smartSearch` | 来自 Body，可选 |
+| `userFiles` | 当前 session 已绑定文件摘要；仅当存在文件时传入 |
 
-### 4.4 响应：Server-Sent Events（统一流协议）
+`chat-stream` 固定以 `skipPipeline: true` 调用 Director。具体生成或重建动作由 Director 在对话中调用工具完成，例如 `start_generation_pipeline`、`reassemble_app`。
+
+### 4.5 响应：Server-Sent Events（统一流协议）
 
 - **成功建立流**：`200`，`Content-Type: text/event-stream`，`Cache-Control: no-cache`，`Connection: keep-alive`。
 - **响应头（Native 模式）**：`X-Stream-Protocol: 2.0`、`X-Task-Id`、`X-Session-Id`（见 `src/core/sse-writer.ts`）。
-- **协议切换**：环境变量 `STREAM_PROTOCOL` 为 `dify` 时，由 `DifySSEWriter` 输出 Dify 兼容格式；默认 `native` 为下文所述 JSON 载荷格式。
+- **协议切换**：环境变量 `STREAM_PROTOCOL` 为 `dify` 时，由 `DifySSEWriter` 输出 Dify 兼容格式；默认 `native` 为下文所述 JSON 载荷格式。两种协议下都应缓存 `X-Task-Id` 或首个 SSE 事件中的 `task_id`，用于取消接口。
 
-**帧格式**：每条事件为 SSE 标准帧，`data` 为**完整 JSON 对象**，包含至少：`event`、`id`、`task_id`、`session_id`、`created_at`、`data`。事件名与 `event` 字段一致。
+**帧格式**：每条事件为 SSE 标准帧，`data` 为完整 JSON 对象，包含至少：`event`、`id`、`task_id`、`session_id`、`created_at`、`data`。事件名与 `event` 字段一致。
 
-**常见事件类型**（完整枚举见 `src/core/types.ts` 中 `StreamEventType`）：
+常见事件类型：
 
 | `event` | 说明 |
 |---------|------|
 | `task_started` | 任务开始；`data.agent_name` 等为 Director 名 |
-| `node_started` / `node_finished` | Pipeline 每步或图节点生命周期；Pipeline 下 `node_id` 为步骤名（如 `research`、`assemble`） |
-| `progress` | 流水线步骤完成进度（`data.message`、`data.phase`、`data.percentage`） |
-| `message` | 非 Pipeline 图模式下，若 Agent 配置为流式思考，可能推送 think 的 token 增量 |
-| `tool_started` / `tool_finished` | 工具调用 |
+| `message` | Agent 输出消息或 token 增量 |
+| `tool_started` / `tool_finished` | 工具调用；生成或重建结果通常出现在相关工具的 `output` 中 |
 | `agent_*` | 子 Agent 相关事件 |
-| `task_finished` | 任务结束；**最终业务结果主要看此事件** |
+| `progress` | 会话进度事件；例如生成、构建、同步等阶段 |
+| `task_finished` | 任务结束；若捕获到教程产物，`data.outputs.tutorialUrl` / `data.outputs.tutorialTitle` 会被补充到该事件 |
 | `error` | 错误；`data.code`、`data.message`、`data.recoverable` |
 | `ping` | 心跳（默认约 15s） |
 | `done` | 流正常结束标记 |
 
-路由层在 `catch` 中会写入 `error` 事件，典型 `code`：`GENERATION_ERROR`。
+路由层在 `catch` 中会写入 `error` 事件，典型 `code`：`CHAT_ERROR`。
 
-**`task_finished` 与教程产物**
+### 4.6 教程产物
 
-- Pipeline **成功**且最后一步为 `assemble` 时，`task_finished.data.output` 为 **字符串**：非字符串的终态结果会被 `JSON.stringify`（见 `agent-runtime.ts` 中 `streamPipeline`）。
-- 客户端应对 `output` 做 JSON 解析后使用，语义上对应 `assembleApp` 的返回值，常见字段包括：
+当 Director 调用 `start_generation_pipeline` 或 `reassemble_app` 成功后，路由会尝试从对应 `tool_finished.data.output` 中解析教程 URL，并在最终 `task_finished.data.outputs` 中追加：
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
-| `tutorialId` | `string` | 本次构建目录 UUID |
-| `title` | `string` | 来自蓝图 `title`，缺省为 `"互动教程"` |
-| `url` | `string` | 入口页路径，形如 `/api/files/tutorials/{tutorialId}/dist/index.html` |
-| `createdAt` | `string` | ISO 8601 时间 |
-| `teachingGuide` | `unknown` | 来自蓝图 `teaching_guide`（若有） |
-| `fileCount` | `number` | 参与构建的组件文件数 |
-| `warnings` | `string[]` | 可选；静态校验告警、剔除失败组件等 |
+| `tutorialUrl` | `string` | 教程入口 URL，通常形如 `/api/files/tutorials/{sessionId}/dist/index.html` |
+| `tutorialTitle` | `string \| null` | 教程标题；无法解析时为 `null` |
 
-- `task_finished.data.status` 为 `succeeded` | `failed` 等（见 `TaskFinishStatus`）；失败时可能同时带 `data.error`。
+客户端也可以直接监听 `tool_finished`，解析 `start_generation_pipeline` / `reassemble_app` 的 `output`，读取更完整的业务结果。
 
-### 4.5 其他 HTTP 错误
+### 4.7 其他 HTTP 错误
 
 | 状态码 | 条件 |
 |--------|------|
-| **400** | 缺少 `topic` |
-| **503** | 注册表中不存在 `interactive-tutorial-director`（在建立 SSE **之前**返回 JSON，非流） |
+| **400** | 缺少 `message` |
+| **400** | `fileIds` 不存在、无权访问，或 `fileUrls` 参数格式不合法 |
+| **503** | 注册表中不存在 `interactive-tutorial-director`（在建立 SSE 之前返回 JSON，非流） |
 
 ---
 
-## 5. `POST .../edit-stream`
+## 5. `POST /runs/:runId/cancel`
 
 ### 5.1 用途
 
-在**已有**工作区上按自然语言修改教程。流程分为两个阶段：
+取消一次正在运行的智能体流式任务。前端通常在用户点击「停止生成」时调用该接口。
 
-1. **Agent 编辑阶段**：调用 `streamAgentV2`（`skipPipeline: true`），Director 通过 `spawn_sub_agent` 委托 `tutorial-scene-editor` 执行场景文件修改和蓝图同步。
-2. **自动重建阶段**：Agent 编辑完成后，路由层自动调用 `reassembleForSession` 重新同步场景文件并执行 Vite 构建，更新 `artifacts/tutorial-meta.json`。
+`runId` 取值：
 
-路由层在发送 Agent 事件流时，会拦截 `task_finished` 和 `done` 事件，在重建完成后才发送包含更新后教程 URL 的 `task_finished`。
+- 优先使用 SSE 响应头 `X-Task-Id`。
+- 若响应头不可用，使用 SSE 帧 `data.task_id`。
+- Native 模式和 Dify 兼容模式都使用同一个取消入口。
 
 ### 5.2 请求
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| `sessionId` | `string` | 是 | 与生成时一致的会话 ID |
-| `editPrompt` | `string` | 是 | 编辑指令 |
-| `conversationId` | `string` | 否 | 传入 `context.conversationId` |
-| `tenant_id` / `user_id` | `string` | 否 | 身份覆盖 |
+```http
+POST /runs/{task_id}/cancel
+Content-Type: application/json
+Authorization: Bearer <apiKey>
 
-缺失 `sessionId` 或 `editPrompt` 返回 **400** `{ "error": "sessionId and editPrompt are required" }`。
+{}
+```
 
-### 5.3 `context`
+取消接口只校验当前解析出的 `userId` 是否与运行中的任务一致。如果创建流时通过 Body 覆盖了 `user_id`，取消请求也应使用同一个身份（同一 API Key 或同样的 `user_id` 覆盖），否则会被视为非本人任务。
 
-| 字段 | 说明 |
-|------|------|
-| `businessType` | 固定 `"interactive-tutorial-edit"` |
-| `conversationId` | 可选 |
+### 5.3 响应
 
-（编辑路径**不**传入生成接口中的 `intent` / `databaseId` / `smartSearch`。）
+| 状态码 | Body | 说明 |
+|--------|------|------|
+| `200` | `{ "success": true }` | 已触发取消；可能来自 Native run、Dify stream 或 pending task |
+| `403` | `{ "error": "Run does not belong to current user" }` | 当前用户无权取消该任务 |
+| `404` | `{ "error": "Run not found or already finished" }` | 任务不存在、已结束，或传入的不是当前协议暴露的 `task_id` |
 
-### 5.4 响应
+### 5.4 取消后的 SSE
 
-与生成接口相同：**统一 SSE 协议 v2**。路由层 `catch` 中典型 `error.code`：`EDIT_ERROR`。
+取消请求成功后，原 SSE 连接会尽快结束：
 
-`task_finished.data.output` 为 `reassembleForSession` 返回的 JSON 字符串，结构与生成接口的 `assembleApp` 输出一致（含 `tutorialId`、`url`、`fileCount`、`warnings` 等）。`task_finished.data.metadata` 也包含相同字段的对象形式。若重建失败，`status` 为 `failed`，错误信息在 `error` 字段中，之前还会有一个 `error` 事件（code: `REBUILD_ERROR`）。
+- Native 模式：通常收到 `task_finished`，`data.status = "cancelled"`，随后 `done`。
+- Dify 兼容模式：通常收到 `workflow_finished`，`data.status = "cancelled"`，`data.error = "Run cancelled"`。
 
-### 5.5 其他 HTTP 错误
-
-| 状态码 | 条件 |
-|--------|------|
-| **503** | `interactive-tutorial-director` 未注册 |
+取消是尽力而为：若底层模型调用或工具调用已经进入不可中断阶段，服务端会在当前可观察节点结束后完成收敛，但不会再把该 run 当作可继续任务。
 
 ---
 
@@ -191,68 +264,23 @@
 
 教程构建输出目录：
 
-`data/tutorials/{tutorialId}/dist/`
+`data/tutorials/{sessionId}/dist/`
 
 浏览器入口通常为：
 
-`/api/files/tutorials/{tutorialId}/dist/index.html`
+`/api/files/tutorials/{sessionId}/dist/index.html`
 
-该路径**不经 API Key 校验**（见第 2 节）。
-
----
-
-## 7. 生成流水线（Pipeline，`skipPipeline` 为 false 时）
-
-配置：`apps/interactive-tutorial/interactive-tutorial-director/agent.config.yaml`。
-
-| 顺序 | 步骤名 | 类型 | 说明 |
-|------|--------|------|------|
-| 1 | `research` | Agent `tutorial-content-researcher` | 可选；失败可跳过 |
-| 2 | `architect` | Agent `tutorial-scene-architect` | 场景蓝图 JSON |
-| 3 | `save-blueprint` | Handler `saveBlueprint` | 写入 `artifacts/blueprint.json` |
-| 4 | `coder` | Agent `tutorial-scene-coder` | 场景 TSX，通常写入 workspace `assets/scenes/**` |
-| 5 | `assemble` | Handler `assembleApp` | 同步场景、Vite 构建、写 `artifacts/tutorial-meta.json` |
-
-**额外注册的 Handler**（`apps/interactive-tutorial/code/index.ts`）：`reassembleApp`，供编辑/工具链在已有 `tutorial-meta.json` 上重新同步与构建。
-
-Handler 实现在 `apps/interactive-tutorial/code/handlers.ts`：
-
-- 从 workspace `assets/scenes` 复制 `.tsx`；若为空则尝试从 Coder 文本中提取 ```tsx 代码块（需含 `export const sceneMeta` 与 `sceneMeta.id`）。
-- 构建前会做静态校验（`validators.ts`）：`sceneMeta`、默认导出、import 白名单等。
-- 构建失败时有限次重试，并可**删除**报错的场景文件以降级通过（`warnings` 会记录）。
+该路径不经 API Key 校验（见第 2 节）。
 
 ---
 
-## 8. 意图标签（写入 Director 指令）
+## 7. 运维与依赖摘要
 
-`routes.ts` 中 `classifyIntent(body)`：
-
-| 条件 | 标签 | 含义（文档性） |
-|------|------|----------------|
-| `topic` 存在且（`userPrompt` 或 `userFiles` 或 `databaseId`）任一为真 | `DIRECT` | 信息较完整，倾向完整生成 |
-| 仅有 `topic` | `OUTLINE` | 细节不足，倾向先大纲 |
-| 不满足上述 | `INTERACTIVE` | 对话引导（`topic` 已必填时极少出现） |
-
-该字符串出现在发给 Director 的指令「【意图路径】」一节，并写入 `context.intent`。**是否走 Pipeline** 由 `streamAgentV2` 的 `skipPipeline` 决定：生成接口未设置 `skipPipeline`，默认走 Pipeline。
+1. **磁盘**：`data/tutorials/`、`data/uploads/` 与 `data/tenants/.../workspaces/{sessionId}` 会持续增长。
+2. **CPU/时间**：Vite 生产构建单次可达数十秒。
+3. **Windows**：构建链路优先使用 `vite.cmd` 调用本地 Vite。
+4. **Agent 可用性**：若 `interactive-tutorial-director` 未加载，`chat-stream` 在发流前返回 **503**。
 
 ---
 
-## 9. 相关类型参考
-
-| 位置 | 内容 |
-|------|------|
-| `apps/interactive-tutorial/code/types.ts` | `GenerateRequest` / `EditRequest`；`TutorialMeta`；`TutorialResponse`（产品层聚合形状参考） |
-| `src/core/types.ts` | `StreamEvent`、`StreamEventType`、`TaskFinishedData`、`ErrorData` 等流事件载荷 |
-
----
-
-## 10. 运维与依赖摘要
-
-1. **磁盘**：`data/tutorials/` 持续增长；`data/tenants/.../workspaces/{sessionId}` 存会话产物。
-2. **CPU/时间**：Vite 生产构建单次可达数十秒；`exec` 超时 120s（handlers）。
-3. **Windows**：优先使用 `vite.cmd` 调用本地 Vite。
-4. **Agent 可用性**：若 `interactive-tutorial-director` 未加载，生成/编辑在发流前返回 **503**。
-
----
-
-*文档与实现对齐：以 `apps/interactive-tutorial/code/*.ts` 与 `src/core/agent-runtime.ts`（`streamAgentV2` / `streamPipeline`）为准；路由或流协议变更时请同步更新本文。*
+*文档与实现对齐：以 `apps/interactive-tutorial/code/routes.ts`、`apps/interactive-tutorial/code/types.ts`、`src/api/routes/upload.routes.ts` 与 `src/api/routes/task.routes.ts` 为准；路由或流协议变更时请同步更新本文。*

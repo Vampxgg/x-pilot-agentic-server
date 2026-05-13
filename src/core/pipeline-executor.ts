@@ -153,6 +153,12 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) {
+    throw new Error("Run cancelled");
+  }
+}
+
 const globalHandlers = new Map<string, PipelineHandler>();
 
 export function registerPipelineHandler(name: string, handler: PipelineHandler): void {
@@ -191,9 +197,11 @@ export class PipelineExecutor {
     const stepMeta: Record<string, { success: boolean; result: unknown; duration: number }> = {};
 
     for (const batch of batches) {
+      throwIfAborted(options.abortSignal);
       logger.info(`[Pipeline] Executing batch: [${batch.map((s) => s.name).join(", ")}]`);
 
       await Promise.all(batch.map(async (step) => {
+        throwIfAborted(options.abortSignal);
         const stepStart = Date.now();
         const maxAttempts = step.retry?.maxAttempts ?? 1;
         const backoffMs = step.retry?.backoffMs ?? 2000;
@@ -216,6 +224,7 @@ export class PipelineExecutor {
         }
 
         for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          throwIfAborted(options.abortSignal);
           try {
             if (step.parallel && step.fanOutFrom) {
               await this.executeFanOut(step, results, initialInput, options, threadId);
@@ -254,7 +263,12 @@ export class PipelineExecutor {
               logger.warn(
                 `[Pipeline] Step "${step.name}" attempt ${attempt}/${maxAttempts} failed: ${lastError}. Retrying in ${waitMs}ms...`,
               );
-              await sleep(waitMs);
+              await Promise.race([
+                sleep(waitMs),
+                new Promise<never>((_, reject) => {
+                  options.abortSignal?.addEventListener("abort", () => reject(new Error("Run cancelled")), { once: true });
+                }),
+              ]);
               continue;
             }
           }
@@ -316,6 +330,8 @@ export class PipelineExecutor {
     initialInput: string,
     options: InvokeOptions,
   ): Promise<void> {
+    throwIfAborted(options.abortSignal);
+
     if (step.handler) {
       const handler = globalHandlers.get(step.handler);
       if (!handler) {
@@ -332,10 +348,13 @@ export class PipelineExecutor {
         sessionId: options.sessionId,
         conversationId: (ctx?.conversationId as string) ?? options.sessionId,
         context: ctx,
+        abortSignal: options.abortSignal,
       });
       results.set(step.name, result);
       return;
     }
+
+    throwIfAborted(options.abortSignal);
 
     if (!step.agent) {
       throw new Error(`Pipeline step "${step.name}" must have either "agent" or "handler"`);
@@ -354,6 +373,8 @@ export class PipelineExecutor {
     options: InvokeOptions,
     parentId: string,
   ): Promise<void> {
+    throwIfAborted(options.abortSignal);
+
     const items = getNestedValue(results, step.fanOutFrom!) as unknown[];
 
     if (!Array.isArray(items)) {
@@ -396,7 +417,9 @@ export class PipelineExecutor {
           typeof item === "string" ? item : JSON.stringify(item, null, 2),
         ),
         tenantId: options.tenantId,
+        userId: options.userId,
         sessionId: options.sessionId,
+        abortSignal: options.abortSignal,
       })),
     );
 

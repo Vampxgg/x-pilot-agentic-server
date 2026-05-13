@@ -39,9 +39,11 @@ import { dynamicToolRegistry } from "../tools/dynamic-tool-registry.js";
 import { logger } from "../utils/logger.js";
 import { getConfig } from "../utils/config.js";
 import { WorkspaceTraceCallbackHandler } from "./callbacks/workspace-trace.js";
+import { runningRunRegistry } from "./run-cancel-registry.js";
 
 export interface InvokeOptions {
   threadId?: string;
+  taskId?: string;
   sessionId?: string;
   context?: Record<string, unknown>;
   tenantId: string;
@@ -50,6 +52,7 @@ export interface InvokeOptions {
   skipPipeline?: boolean;
   /** Override agent's streamMode for think tokens. When true, think tokens are emitted as message events (typewriter). */
   streamThinkTokens?: boolean;
+  abortSignal?: AbortSignal;
 }
 
 async function createCheckpointer(): Promise<BaseCheckpointSaver> {
@@ -156,6 +159,7 @@ export class AgentRuntime {
     context?: Record<string, unknown>,
     streamCtx?: StreamContext,
     subAgentEventCb?: import("./agent-graph.js").SubAgentEventCallback,
+    abortSignal?: AbortSignal,
   ): StructuredToolInterface[] {
     const allowedTools = agentDef.config.allowedTools;
     let baseTools = toolRegistry.getByNames(allowedTools);
@@ -180,8 +184,8 @@ export class AgentRuntime {
     ]);
     const filtered = baseTools.filter((t) => !dynamicToolNames.has(t.name));
 
-    filtered.push(subAgentManager.createSubAgentTool(threadId, tenantId, userId, sessionId, streamCtx, subAgentEventCb));
-    filtered.push(createSpawnParallelTool(threadId, tenantId, userId, sessionId, streamCtx, subAgentEventCb));
+    filtered.push(subAgentManager.createSubAgentTool(threadId, tenantId, userId, sessionId, streamCtx, subAgentEventCb, abortSignal));
+    filtered.push(createSpawnParallelTool(threadId, tenantId, userId, sessionId, streamCtx, subAgentEventCb, abortSignal));
 
     if (allowedTools.includes("image_generate") || allowedTools.includes("*")) {
       filtered.push(createImageGenerateTool(tenantId, userId, sessionId));
@@ -197,7 +201,7 @@ export class AgentRuntime {
       filtered.push(createWorkspaceListTool(tenantId, userId, sessionId));
       filtered.push(createEventEmitTool(sessionId, agentDef.name));
 
-      filtered.push(...dynamicToolRegistry.createTools(allowedTools, tenantId, userId, sessionId));
+      filtered.push(...dynamicToolRegistry.createTools(allowedTools, tenantId, userId, sessionId, abortSignal));
     }
 
     return filtered;
@@ -217,10 +221,11 @@ export class AgentRuntime {
     context?: Record<string, unknown>,
     toolEventCb?: ToolEventCallback,
     streamCtx?: StreamContext,
+    abortSignal?: AbortSignal,
   ) {
     const model = getModelForAgent(agentDef.config);
     const subAgentEventCb = toolEventCb?.onEvent;
-    const tools = this.getToolsForAgent(agentDef, threadId, tenantId, userId, sessionId, context, streamCtx, subAgentEventCb);
+    const tools = this.getToolsForAgent(agentDef, threadId, tenantId, userId, sessionId, context, streamCtx, subAgentEventCb, abortSignal);
 
     let graph;
     if (agentDef.workflow?.graph || agentDef.workflow?.modes) {
@@ -261,7 +266,7 @@ export class AgentRuntime {
       eventBus.emitAgentStarted(agentName, sessionId);
     }
 
-    const compiled = await this.buildGraph(agentDef, tid, tenantId, userId, sessionId, context);
+    const compiled = await this.buildGraph(agentDef, tid, tenantId, userId, sessionId, context, undefined, undefined, options.abortSignal);
 
     const longTermMemory = await this.memoryManager.loadLongTermMemory(tenantId, agentName);
     const taskContext = context ? JSON.stringify(context, null, 2) : undefined;
@@ -290,6 +295,7 @@ export class AgentRuntime {
           configurable: { thread_id: tid },
           recursionLimit: graphRecursionLimit,
           callbacks: traceHandler ? [traceHandler] : undefined,
+          signal: options.abortSignal,
         },
       );
     } finally {
@@ -431,7 +437,7 @@ export class AgentRuntime {
       await workspaceManager.ensureExists(tenantId, userId, sessionId);
     }
 
-    const compiled = await this.buildGraph(agentDef, tid, tenantId, userId, sessionId, context);
+    const compiled = await this.buildGraph(agentDef, tid, tenantId, userId, sessionId, context, undefined, undefined, options.abortSignal);
 
     const longTermMemory = await this.memoryManager.loadLongTermMemory(tenantId, agentName);
     const taskContext = context ? JSON.stringify(context, null, 2) : undefined;
@@ -458,6 +464,7 @@ export class AgentRuntime {
         recursionLimit: graphRecursionLimit,
         streamMode: "updates",
         callbacks: traceHandler ? [traceHandler] : undefined,
+        signal: options.abortSignal,
       },
     );
 
@@ -548,9 +555,16 @@ export class AgentRuntime {
     const shouldStreamThink = options.streamThinkTokens
       ?? (agentDef.config.streamMode === "stream");
 
-    const ctx = createStreamContext(sessionId);
+    const ctx = createStreamContext(sessionId, options.taskId);
+    const abortController = new AbortController();
+    if (options.abortSignal) {
+      options.abortSignal.addEventListener("abort", () => abortController.abort(), { once: true });
+    }
+    const abortSignal = abortController.signal;
     const nodeIdMap = agentDef.workflow?.nodeIdMap;
     const taskStart = Date.now();
+
+    runningRunRegistry.register(ctx.taskId, { abort: abortController, tenantId, userId });
 
     if (sessionId) {
       await workspaceManager.ensureExists(tenantId, userId, sessionId);
@@ -563,7 +577,7 @@ export class AgentRuntime {
       | { kind: "tool_event"; event: StreamEvent<StreamEventTypeName> }
       | { kind: "graph_update"; nodeName: string; output: Partial<AgentGraphState> }
       | { kind: "message_token"; token: string; nodeName: string }
-      | { kind: "end"; error?: string };
+      | { kind: "end"; error?: string; cancelled?: boolean };
 
     const queue: ChannelItem[] = [];
     let resolve: (() => void) | null = null;
@@ -578,6 +592,10 @@ export class AgentRuntime {
       return new Promise<void>((r) => { resolve = r; });
     }
 
+    abortSignal.addEventListener("abort", () => {
+      push({ kind: "end", cancelled: true });
+    }, { once: true });
+
     const toolEventCb: ToolEventCallback = {
       onToolStarted: (toolCallId, toolName, args) => {
         push({ kind: "tool_event", event: createToolStarted(ctx, toolCallId, toolName, args) });
@@ -590,7 +608,7 @@ export class AgentRuntime {
       },
     };
 
-    const compiled = await this.buildGraph(agentDef, tid, tenantId, userId, sessionId || undefined, context, toolEventCb, ctx);
+    const compiled = await this.buildGraph(agentDef, tid, tenantId, userId, sessionId || undefined, context, toolEventCb, ctx, abortSignal);
 
     const longTermMemory = await this.memoryManager.loadLongTermMemory(tenantId, agentName);
     const taskContext = context ? JSON.stringify(context, null, 2) : undefined;
@@ -609,6 +627,11 @@ export class AgentRuntime {
 
     const graphPromise = (async () => {
       try {
+        if (abortSignal.aborted) {
+          push({ kind: "end", cancelled: true });
+          return;
+        }
+
         const stream = await compiled.stream(
           {
             messages: [new HumanMessage(input)],
@@ -626,10 +649,16 @@ export class AgentRuntime {
             recursionLimit: graphRecursionLimit,
             streamMode: ["updates", "messages"],
             callbacks: traceHandler ? [traceHandler] : undefined,
+            signal: abortSignal,
           },
         );
 
         for await (const chunk of stream) {
+          if (abortSignal.aborted) {
+            push({ kind: "end", cancelled: true });
+            return;
+          }
+
           const [mode, data] = chunk as [string, any];
 
           if (mode === "updates") {
@@ -647,12 +676,17 @@ export class AgentRuntime {
         }
         push({ kind: "end" });
       } catch (err) {
+        if (abortSignal.aborted) {
+          push({ kind: "end", cancelled: true });
+          return;
+        }
         push({ kind: "end", error: err instanceof Error ? err.message : String(err) });
       }
     })();
 
     // --- Consume merged channel ---
     let lastError: string | undefined;
+    let wasCancelled = false;
     let currentIteration = 0;
     let lastNodeEndTime = Date.now();
 
@@ -676,6 +710,7 @@ export class AgentRuntime {
 
         if (item.kind === "end") {
           lastError = item.error;
+          wasCancelled = item.cancelled ?? false;
           if (lastError) {
             logger.error(`[streamAgentV2] Error: ${lastError}`);
             yield createError(ctx, "AGENT_EXECUTION_FAILED", lastError, false);
@@ -787,24 +822,30 @@ export class AgentRuntime {
       }
     }
 
-    // Wait for graph promise to settle (should already be done)
-    await graphPromise;
-
-    if (traceHandler) {
-      await traceHandler.saveTrace();
+    // Wait for graph promise to settle unless cancellation already ended the client stream.
+    if (!wasCancelled) {
+      await graphPromise;
     }
 
-    // --- task_finished ---
-    const totalElapsed = (Date.now() - taskStart) / 1000;
-    yield createTaskFinished(ctx, {
-      status: lastError ? "failed" : "succeeded",
-      output: lastThinkOutput || undefined,
-      error: lastError,
-      elapsedTime: totalElapsed,
-    });
+    try {
+      if (traceHandler) {
+        await traceHandler.saveTrace();
+      }
 
-    // --- done ---
-    yield createDone(ctx);
+      // --- task_finished ---
+      const totalElapsed = (Date.now() - taskStart) / 1000;
+      yield createTaskFinished(ctx, {
+        status: wasCancelled ? "cancelled" : lastError ? "failed" : "succeeded",
+        output: lastThinkOutput || undefined,
+        error: wasCancelled ? "Run cancelled" : lastError,
+        elapsedTime: totalElapsed,
+      });
+
+      // --- done ---
+      yield createDone(ctx);
+    } finally {
+      runningRunRegistry.unregister(ctx.taskId);
+    }
   }
 
   private async *streamPipeline(
@@ -820,7 +861,13 @@ export class AgentRuntime {
     const userId = options.userId ?? "default";
     const sessionId = options.sessionId ?? "";
 
-    const ctx = createStreamContext(sessionId);
+    const ctx = createStreamContext(sessionId, options.taskId);
+    const abortController = new AbortController();
+    if (options.abortSignal) {
+      options.abortSignal.addEventListener("abort", () => abortController.abort(), { once: true });
+    }
+    const runOptions: InvokeOptions = { ...options, abortSignal: abortController.signal };
+    runningRunRegistry.register(ctx.taskId, { abort: abortController, tenantId, userId });
     const taskStart = Date.now();
 
     if (sessionId) {
@@ -835,95 +882,104 @@ export class AgentRuntime {
     const results = new Map<string, unknown>();
     let pipelineError: string | undefined;
 
-    for (const batch of batches) {
-      if (pipelineError) break;
+    try {
+      for (const batch of batches) {
+        if (pipelineError || abortController.signal.aborted) break;
 
-      const batchPromises = batch.map(async (step) => {
-        const stepStart = Date.now();
-        const maxAttempts = step.retry?.maxAttempts ?? 1;
-        const backoffMs = step.retry?.backoffMs ?? 2000;
-        let lastError: string | undefined;
+        const batchPromises = batch.map(async (step) => {
+          const stepStart = Date.now();
+          const maxAttempts = step.retry?.maxAttempts ?? 1;
+          const backoffMs = step.retry?.backoffMs ?? 2000;
+          let lastError: string | undefined;
 
-        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-          try {
-            if (step.parallel && step.fanOutFrom) {
-              await executor.execute(agentDef, initialInput, options);
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            if (abortController.signal.aborted) {
+              lastError = "Run cancelled";
               break;
             }
-            await executor.executeSingle(step, results, initialInput, options);
-            lastError = undefined;
-            break;
-          } catch (err) {
-            lastError = err instanceof Error ? err.message : String(err);
-            if (attempt < maxAttempts) {
-              await new Promise((r) => setTimeout(r, backoffMs * attempt));
+
+            try {
+              if (step.parallel && step.fanOutFrom) {
+                await executor.execute(agentDef, initialInput, runOptions);
+                break;
+              }
+              await executor.executeSingle(step, results, initialInput, runOptions);
+              lastError = undefined;
+              break;
+            } catch (err) {
+              lastError = err instanceof Error ? err.message : String(err);
+              if (attempt < maxAttempts) {
+                await new Promise((r) => setTimeout(r, backoffMs * attempt));
+              }
             }
           }
-        }
 
-        return { step, lastError, duration: (Date.now() - stepStart) / 1000 };
+          return { step, lastError, duration: (Date.now() - stepStart) / 1000 };
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+
+        for (const { step, lastError, duration } of batchResults) {
+          const nodeType = step.name as import("./types.js").NodeType;
+
+          yield createNodeStarted(ctx, nodeType, 0, step.name);
+
+          if (lastError) {
+            yield createNodeFinished(ctx, {
+              nodeType,
+              status: "failed",
+              elapsedTime: duration,
+              iteration: 0,
+              nodeId: step.name,
+            });
+
+            if (step.optional) {
+              logger.warn(`[streamPipeline] Optional step "${step.name}" failed, continuing`);
+              results.set(step.name, null);
+            } else {
+              pipelineError = `Pipeline step "${step.name}" failed: ${lastError}`;
+              yield createError(ctx, "PIPELINE_STEP_FAILED", pipelineError, false);
+              break;
+            }
+          } else {
+            const stepOutput = results.get(step.name);
+            yield createNodeFinished(ctx, {
+              nodeType,
+              status: "succeeded",
+              elapsedTime: duration,
+              iteration: 0,
+              output: stepOutput,
+              nodeId: step.name,
+            });
+          }
+
+          yield createProgress(ctx, `Step "${step.name}" completed`, {
+            phase: step.name,
+            percentage: Math.round(
+              ((Array.from(results.keys()).length) / pipeline.steps.length) * 100,
+            ),
+          });
+        }
+      }
+
+      const totalElapsed = (Date.now() - taskStart) / 1000;
+      const lastStep = pipeline.steps[pipeline.steps.length - 1]!;
+      const finalOutput = results.get(lastStep.name);
+      const outputStr = finalOutput != null
+        ? (typeof finalOutput === "string" ? finalOutput : JSON.stringify(finalOutput, null, 2))
+        : undefined;
+
+      yield createTaskFinished(ctx, {
+        status: abortController.signal.aborted ? "cancelled" : pipelineError ? "failed" : "succeeded",
+        output: outputStr,
+        error: abortController.signal.aborted ? "Run cancelled" : pipelineError,
+        elapsedTime: totalElapsed,
       });
 
-      const batchResults = await Promise.all(batchPromises);
-
-      for (const { step, lastError, duration } of batchResults) {
-        const nodeType = step.name as import("./types.js").NodeType;
-
-        yield createNodeStarted(ctx, nodeType, 0, step.name);
-
-        if (lastError) {
-          yield createNodeFinished(ctx, {
-            nodeType,
-            status: "failed",
-            elapsedTime: duration,
-            iteration: 0,
-            nodeId: step.name,
-          });
-
-          if (step.optional) {
-            logger.warn(`[streamPipeline] Optional step "${step.name}" failed, continuing`);
-            results.set(step.name, null);
-          } else {
-            pipelineError = `Pipeline step "${step.name}" failed: ${lastError}`;
-            yield createError(ctx, "PIPELINE_STEP_FAILED", pipelineError, false);
-            break;
-          }
-        } else {
-          const stepOutput = results.get(step.name);
-          yield createNodeFinished(ctx, {
-            nodeType,
-            status: "succeeded",
-            elapsedTime: duration,
-            iteration: 0,
-            output: stepOutput,
-            nodeId: step.name,
-          });
-        }
-
-        yield createProgress(ctx, `Step "${step.name}" completed`, {
-          phase: step.name,
-          percentage: Math.round(
-            ((Array.from(results.keys()).length) / pipeline.steps.length) * 100,
-          ),
-        });
-      }
+      yield createDone(ctx);
+    } finally {
+      runningRunRegistry.unregister(ctx.taskId);
     }
-
-    const totalElapsed = (Date.now() - taskStart) / 1000;
-    const lastStep = pipeline.steps[pipeline.steps.length - 1]!;
-    const finalOutput = results.get(lastStep.name);
-    const outputStr = finalOutput != null
-      ? (typeof finalOutput === "string" ? finalOutput : JSON.stringify(finalOutput, null, 2))
-      : undefined;
-
-    yield createTaskFinished(ctx, {
-      status: pipelineError ? "failed" : "succeeded",
-      output: outputStr,
-      error: pipelineError,
-      elapsedTime: totalElapsed,
-    });
-
-    yield createDone(ctx);
   }
 
   getMemoryManager(): MemoryManager {

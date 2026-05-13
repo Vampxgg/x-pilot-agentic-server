@@ -40,6 +40,7 @@ export async function runGenerationPipeline(
   userId: string,
   sessionId: string,
   params: StartGenerationParams,
+  options: { abortSignal?: AbortSignal } = {},
 ): Promise<GenerationPipelineResult> {
   const [{ agentRegistry }, { agentRuntime }] = await Promise.all([
     import("../../../src/core/agent-registry.js"),
@@ -78,12 +79,17 @@ export async function runGenerationPipeline(
   logger.info(`[start_generation_pipeline] topic="${params.topic}" session=${sessionId}`);
 
   try {
+    if (options.abortSignal?.aborted) {
+      throw new Error("Run cancelled");
+    }
+
     const { result, timeline, firstPreviewMs, previewUrl } = await collectSessionTimeline(sessionId, () =>
       executor.execute(directorDef, initialInput, {
         tenantId,
         userId,
         sessionId,
         context,
+        abortSignal: options.abortSignal,
       }),
     );
 

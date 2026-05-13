@@ -55,11 +55,15 @@ export function createStartGenerationPipelineTool(
   tenantId: string,
   userId: string,
   sessionId: string,
+  abortSignal?: AbortSignal,
 ): StructuredToolInterface {
   return tool(
     async (params) => {
       try {
-        const result = await runGenerationPipeline(tenantId, userId, sessionId, params);
+        if (abortSignal?.aborted) {
+          throw new Error("Run cancelled");
+        }
+        const result = await runGenerationPipeline(tenantId, userId, sessionId, params, { abortSignal });
         return JSON.stringify(result);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);

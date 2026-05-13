@@ -77,6 +77,10 @@ async function writeResearchCache(entry: ResearchCacheEntry): Promise<void> {
 
 export async function researchWithCacheHandler(ctx: PipelineHandlerContext): Promise<unknown> {
   const { tenantId, userId, sessionId, context, initialInput } = ctx;
+  if (ctx.abortSignal?.aborted) {
+    throw new Error("Run cancelled");
+  }
+
   const topic = (context?.topic as string | undefined) ?? (context?.generationBrief as string | undefined) ?? initialInput.slice(0, 200);
   const databaseId = context?.databaseId as string | undefined;
   const fileFingerprint = userFilesFingerprint(context?.userFiles);
@@ -124,6 +128,7 @@ export async function researchWithCacheHandler(ctx: PipelineHandlerContext): Pro
     userId,
     sessionId,
     context,
+    abortSignal: ctx.abortSignal,
   });
 
   const extracted = (result as { taskResult?: { output?: unknown }; output?: unknown }).taskResult?.output

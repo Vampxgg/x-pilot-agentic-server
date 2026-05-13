@@ -3,12 +3,14 @@ import type { AgentDefinition, Reflection } from "../core/types.js";
 import { MemoryManager } from "../memory/memory-manager.js";
 import { Evolver } from "./evolver.js";
 import { ProposalApplier } from "./proposal-applier.js";
+import { getConfig } from "../utils/config.js";
 import { logger } from "../utils/logger.js";
 
 const DEFAULT_TENANT = "default";
 
 export class HeartbeatRunner {
   private timers = new Map<string, ReturnType<typeof setInterval>>();
+  private lastConsolidation = new Map<string, number>();
   private evolver: Evolver;
   private applier: ProposalApplier;
   private memoryManager: MemoryManager;
@@ -55,9 +57,19 @@ export class HeartbeatRunner {
     logger.info(`Heartbeat tick for tenant=${tenantId} agent=${agentDef.name}`);
 
     try {
-      const consolidation = await this.memoryManager.consolidate(tenantId, agentDef.name);
-      if (consolidation) {
-        logger.info(`Memory consolidated for tenant=${tenantId} agent=${agentDef.name}`);
+      const consolidationIntervalMs = getConfig().memory.consolidation?.intervalMs ?? 86_400_000;
+      const consolidationKey = `${tenantId}:${agentDef.name}`;
+      const lastRun = this.lastConsolidation.get(consolidationKey) ?? 0;
+      const now = Date.now();
+
+      if (now - lastRun >= consolidationIntervalMs) {
+        const consolidation = await this.memoryManager.consolidate(tenantId, agentDef.name);
+        if (consolidation) {
+          logger.info(`Memory consolidated for tenant=${tenantId} agent=${agentDef.name}`);
+        }
+        this.lastConsolidation.set(consolidationKey, now);
+      } else {
+        logger.debug(`Skipping consolidation for ${agentDef.name} (next in ${Math.round((consolidationIntervalMs - (now - lastRun)) / 60_000)}min)`);
       }
 
       if (agentDef.config.evolution.enabled) {

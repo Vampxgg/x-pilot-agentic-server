@@ -1,7 +1,28 @@
 import type { FastifyInstance } from "fastify";
 import { taskExecutor } from "../../core/task-executor.js";
+import { runningRunRegistry } from "../../core/run-cancel-registry.js";
+import { runningStreamRegistry } from "../../core/dify/stream-registry.js";
+import { getUserId } from "../middleware/auth.js";
 
 export function registerTaskRoutes(app: FastifyInstance): void {
+  // Cancel a running stream/run by task id
+  app.post<{ Params: { runId: string } }>("/runs/:runId/cancel", async (request, reply) => {
+    const userId = getUserId(request);
+    const result = runningRunRegistry.cancel(request.params.runId, userId);
+    if (result.ok) return { success: true };
+
+    const stoppedDifyStream = runningStreamRegistry.stop(request.params.runId, userId);
+    if (stoppedDifyStream) return { success: true };
+
+    const cancelledPendingTask = taskExecutor.cancelTask(request.params.runId);
+    if (cancelledPendingTask) return { success: true };
+
+    if (result.reason === "forbidden") {
+      return reply.code(403).send({ error: "Run does not belong to current user" });
+    }
+    return reply.code(404).send({ error: "Run not found or already finished" });
+  });
+
   // Get task status
   app.get<{ Params: { id: string } }>("/api/tasks/:id", async (request, reply) => {
     const task = taskExecutor.getTask(request.params.id);

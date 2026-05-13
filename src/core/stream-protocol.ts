@@ -29,9 +29,9 @@ export interface StreamContext {
   sessionId: string;
 }
 
-export function createStreamContext(sessionId?: string): StreamContext {
+export function createStreamContext(sessionId?: string, taskId?: string): StreamContext {
   return {
-    taskId: `task_${randomUUID().slice(0, 8)}`,
+    taskId: taskId ?? `task_${randomUUID().slice(0, 8)}`,
     sessionId: sessionId ?? "",
   };
 }

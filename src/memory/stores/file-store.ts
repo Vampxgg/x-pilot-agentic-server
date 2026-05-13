@@ -1,4 +1,4 @@
-import { readFile, writeFile, readdir, appendFile, mkdir } from "node:fs/promises";
+import { readFile, writeFile, readdir, appendFile, mkdir, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 import type { MemoryStore, MemorySearchResult } from "../../core/types.js";
@@ -39,6 +39,13 @@ export class FileMemoryStore implements MemoryStore {
     await this.ensureDir(dir);
     const filePath = join(dir, key);
     await appendFile(filePath, `\n${content}`, "utf-8");
+  }
+
+  async delete(tenantId: string, agentName: string, key: string): Promise<void> {
+    const filePath = join(this.memoryDir(tenantId, agentName), key);
+    if (existsSync(filePath)) {
+      await unlink(filePath);
+    }
   }
 
   async list(tenantId: string, agentName: string): Promise<string[]> {

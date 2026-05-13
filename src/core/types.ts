@@ -49,6 +49,7 @@ export type PipelineHandlerContext = {
   sessionId?: string;
   conversationId?: string;
   context?: Record<string, unknown>;
+  abortSignal?: AbortSignal;
 };
 
 export type PipelineHandler = (ctx: PipelineHandlerContext) => Promise<unknown>;
@@ -290,6 +291,7 @@ export interface SpawnSubAgentOptions {
   sessionId?: string;
   tenantId?: string;
   userId?: string;
+  abortSignal?: AbortSignal;
 }
 
 export type TaskStatus = "pending" | "running" | "completed" | "failed" | "cancelled";
@@ -337,6 +339,7 @@ export interface MemoryStore {
   read(tenantId: string, agentName: string, key: string): Promise<string | null>;
   write(tenantId: string, agentName: string, key: string, content: string): Promise<void>;
   append(tenantId: string, agentName: string, key: string, content: string): Promise<void>;
+  delete(tenantId: string, agentName: string, key: string): Promise<void>;
   list(tenantId: string, agentName: string): Promise<string[]>;
   search(tenantId: string, agentName: string, query: string): Promise<MemorySearchResult[]>;
 }

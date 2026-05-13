@@ -4,18 +4,26 @@ import type { MemoryStore } from "../core/types.js";
 import { LongTermMemory } from "./long-term.js";
 import { logger } from "../utils/logger.js";
 
-const CONSOLIDATION_PROMPT = `You are a memory consolidation system. Your task is to:
-1. Review the daily memory logs provided
-2. Extract key facts, lessons learned, and important observations
-3. Summarize them into a concise long-term memory update
-4. Prioritize information that would be useful for future tasks
+const MAX_MEMORY_CHARS = 50_000;
 
-Output a concise markdown summary with sections for:
-- Key Facts (persistent information)
-- Lessons Learned (what worked/didn't)
-- Patterns (recurring observations)
+const CONSOLIDATION_PROMPT = `You are a memory consolidation system. You will receive:
+1. The agent's current long-term memory (may be empty)
+2. New daily logs to incorporate
 
-Be selective -- only include truly valuable information. Drop trivial details.`;
+Your task: produce a SINGLE COMPLETE replacement for the long-term memory that merges the existing memory with insights from the new logs.
+
+Output format — concise markdown with these sections:
+- **Key Facts** (persistent domain knowledge, audience info, tech stack)
+- **Lessons Learned** (what worked/didn't, verified patterns)
+- **Patterns** (recurring observations)
+- **Workflow Notes** (proven effective workflows, if any)
+
+Rules:
+- Be highly selective — only truly valuable, non-redundant information.
+- Drop trivial, repetitive, or outdated entries.
+- If two facts say the same thing, keep only the better-phrased one.
+- The output REPLACES the old memory entirely — do not reference "previous" or "existing" memory.
+- Stay under 800 lines of markdown. If the combined information is too large, aggressively summarize.`;
 
 export class MemoryConsolidator {
   private longTerm: LongTermMemory;
@@ -43,9 +51,14 @@ export class MemoryConsolidator {
     }
 
     const existingMemory = await this.longTerm.load(tenantId, agentName);
+
+    const existingSection = existingMemory
+      ? `## Current Long-term Memory\n${existingMemory.slice(0, MAX_MEMORY_CHARS)}`
+      : "## Current Long-term Memory\n(empty)";
+
     const input = [
-      `## Existing Long-term Memory\n${existingMemory || "(empty)"}`,
-      `## Daily Logs to Consolidate\n${dailyContents.join("\n\n")}`,
+      existingSection,
+      `## New Daily Logs to Incorporate\n${dailyContents.join("\n\n")}`,
     ].join("\n\n");
 
     const response = await this.model.invoke([
@@ -55,11 +68,12 @@ export class MemoryConsolidator {
 
     const summary = typeof response.content === "string" ? response.content : JSON.stringify(response.content);
 
-    const updatedMemory = existingMemory
-      ? `${existingMemory}\n\n---\n\n## Consolidation ${new Date().toISOString().split("T")[0]}\n${summary}`
-      : summary;
+    const finalMemory = summary.slice(0, MAX_MEMORY_CHARS);
+    await this.longTerm.save(tenantId, agentName, finalMemory);
 
-    await this.longTerm.save(tenantId, agentName, updatedMemory);
+    for (const file of dailyFiles) {
+      await this.store.delete(tenantId, agentName, file);
+    }
 
     logger.info(`Consolidated ${dailyFiles.length} daily logs for tenant=${tenantId} agent=${agentName}`);
     return summary;
