@@ -440,6 +440,7 @@ type StreamEvent = {
 | `data.status` | 是否成功 |
 | `data.outputs.tutorialUrl` | 最终网页应用链接 |
 | `data.outputs.tutorialTitle` | 最终网页应用标题 |
+| `data.outputs.coverUrl` | 应用封面截图链接（异步生成，可能为空） |
 | `data.error` | 失败原因 |
 
 ### 7.10 `done`
@@ -853,6 +854,7 @@ function handleStreamEvent(
 | `task_finished.data.status` | 成功/失败 |
 | `task_finished.data.outputs.tutorialUrl` | 最终网页地址 |
 | `task_finished.data.outputs.tutorialTitle` | 最终标题 |
+| `task_finished.data.outputs.coverUrl` | 应用封面截图地址 |
 | `error.data.message` | 错误提示 |
 
 ---

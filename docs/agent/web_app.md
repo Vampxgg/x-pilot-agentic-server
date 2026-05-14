@@ -187,7 +187,7 @@ Authorization: Bearer <apiKey>
 | `tool_started` / `tool_finished` | 工具调用；生成或重建结果通常出现在相关工具的 `output` 中 |
 | `agent_*` | 子 Agent 相关事件 |
 | `progress` | 会话进度事件；例如生成、构建、同步等阶段 |
-| `task_finished` | 任务结束；若捕获到教程产物，`data.outputs.tutorialUrl` / `data.outputs.tutorialTitle` 会被补充到该事件 |
+| `task_finished` | 任务结束；若捕获到教程产物，`data.outputs.tutorialUrl` / `data.outputs.tutorialTitle` / `data.outputs.coverUrl` 会被补充到该事件 |
 | `error` | 错误；`data.code`、`data.message`、`data.recoverable` |
 | `ping` | 心跳（默认约 15s） |
 | `done` | 流正常结束标记 |
@@ -202,6 +202,9 @@ Authorization: Bearer <apiKey>
 |------|------|------|
 | `tutorialUrl` | `string` | 教程入口 URL，通常形如 `/api/files/tutorials/{sessionId}/dist/index.html` |
 | `tutorialTitle` | `string \| null` | 教程标题；无法解析时为 `null` |
+| `coverUrl` | `string \| undefined` | 应用封面截图 URL，形如 `/api/files/tutorials/{sessionId}/cover.png`；构建成功后由 Playwright 自动截图生成，异步完成后追加 |
+
+封面截图也会通过 `progress` 事件通知，`stage` 为 `cover_ready`，`metadata.coverUrl` 包含封面地址。
 
 客户端也可以直接监听 `tool_finished`，解析 `start_generation_pipeline` / `reassemble_app` 的 `output`，读取更完整的业务结果。
 

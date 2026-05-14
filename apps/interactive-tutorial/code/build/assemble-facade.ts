@@ -7,11 +7,13 @@ import type { TutorialMeta } from "../types.js";
 import { safeParseJSON } from "../blueprint-service.js";
 import { emitSessionProgress } from "../session-events.js";
 import { getTutorialPaths, tutorialPublicFileUrl } from "./paths.js";
+import { resolvePublicBaseUrl } from "../../../../src/utils/public-url.js";
 import { prepareSourceDir } from "./template-provision.js";
 import { buildWithAIRepair } from "./repair-service.js";
 import { assertAppShellReferencesExist, assertEditorConvergenceBeforeReassemble, buildHasConfigError } from "./validation-service.js";
 import { recoverFilesFromCoderOutputs, syncWorkspaceFiles } from "./workspace-sync.js";
 import type { AssembleJobHandle } from "./types.js";
+import { captureScreenshot } from "../../../../src/services/screenshot-service.js";
 
 const DIRECTOR_AGENT = "interactive-tutorial-director";
 
@@ -56,6 +58,7 @@ function buildSuccessMeta(
   title: string,
   url: string,
   previousMeta?: TutorialMeta | null,
+  coverUrl?: string,
 ): TutorialMeta {
   const successAt = new Date().toISOString();
   return {
@@ -65,6 +68,7 @@ function buildSuccessMeta(
     createdAt: previousMeta?.createdAt ?? successAt,
     lastBuildStatus: "success",
     lastSuccessfulBuildAt: successAt,
+    coverUrl: coverUrl ?? previousMeta?.coverUrl,
   };
 }
 
@@ -84,8 +88,34 @@ async function readTutorialMeta(
   const lastBuildStatus = parsed.lastBuildStatus === "failed" ? "failed" : "success";
   const lastSuccessfulBuildAt =
     typeof parsed.lastSuccessfulBuildAt === "string" ? parsed.lastSuccessfulBuildAt : undefined;
+  const coverUrl = typeof parsed.coverUrl === "string" ? parsed.coverUrl : undefined;
 
-  return { tutorialId, title, url, createdAt, lastBuildStatus, lastSuccessfulBuildAt };
+  return { tutorialId, title, url, createdAt, lastBuildStatus, lastSuccessfulBuildAt, coverUrl };
+}
+
+function captureCoverAsync(
+  sessionId: string,
+  tutorialUrl: string,
+  tenantId: string,
+  userId: string,
+  blueprint: Record<string, unknown> | null | undefined,
+  meta: TutorialMeta,
+): void {
+  captureScreenshot({ url: tutorialUrl, sessionId })
+    .then(async (result) => {
+      const coverPublicUrl = `${resolvePublicBaseUrl()}/api/files/${result.publicPath}`;
+      const updated = { ...meta, coverUrl: coverPublicUrl };
+      await persistMeta(tenantId, userId, sessionId, blueprint, updated);
+      emitSessionProgress(sessionId, DIRECTOR_AGENT, {
+        message: "Cover screenshot captured",
+        phase: "assemble",
+        stage: "cover_ready",
+        coverUrl: coverPublicUrl,
+      });
+    })
+    .catch((err) => {
+      logger.warn(`[assembleApp] Cover screenshot failed for session=${sessionId}: ${err}`);
+    });
 }
 
 async function buildAndPromote(
@@ -186,6 +216,9 @@ export async function assembleTutorial(ctx: PipelineHandlerContext): Promise<obj
   const meta = buildSuccessMeta(sessionId, title, url, previousMeta);
   await persistMeta(tenantId, userId, sessionId, blueprint, meta);
 
+  // Fire-and-forget: capture cover screenshot after successful build
+  captureCoverAsync(sessionId, url, tenantId, userId, blueprint, meta);
+
   const totalElapsed = Date.now() - assembleStart;
   timings["assemble-total"] = totalElapsed;
   try {
@@ -279,14 +312,17 @@ export async function reassembleTutorial(tenantId: string, userId: string, sessi
     throw new Error(`${buildHasConfigError(buildResult.warnings) ? "[CONFIG ERROR] " : ""}Rebuild failed: ${buildResult.warnings.join("; ")}`);
   }
 
+  const reassembleUrl = tutorialPublicFileUrl(sessionId);
   const previousMeta = await readTutorialMeta(tenantId, userId, sessionId);
   const meta = buildSuccessMeta(
     sessionId,
     (blueprint?.title as string) || "互动教材",
-    tutorialPublicFileUrl(sessionId),
+    reassembleUrl,
     previousMeta,
   );
   await persistMeta(tenantId, userId, sessionId, blueprint, meta);
+
+  captureCoverAsync(sessionId, reassembleUrl, tenantId, userId, blueprint, meta);
 
   return {
     ...meta,

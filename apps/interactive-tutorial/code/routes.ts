@@ -88,9 +88,15 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
     };
 
     const writer = createStreamWriter(reply.raw, writerOpts);
+    let capturedCoverUrl: string | null = null;
     const unsubscribeProgress = subscribeSessionProgress(sessionId, (agentEvent) => {
       const progressEvent = agentEventToStreamEvent(writer.streamContext, agentEvent);
       if (progressEvent && writer.isOpen) writer.write(progressEvent);
+
+      const progressData = (agentEvent.data ?? {}) as Record<string, unknown>;
+      if (progressData.stage === "cover_ready" && typeof progressData.coverUrl === "string") {
+        capturedCoverUrl = progressData.coverUrl;
+      }
     });
 
     try {
@@ -136,6 +142,7 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
             ...(taskData.outputs as Record<string, unknown> | undefined),
             tutorialUrl: capturedTutorialUrl,
             tutorialTitle: capturedTutorialTitle,
+            ...(capturedCoverUrl ? { coverUrl: capturedCoverUrl } : {}),
           };
         }
 
@@ -401,6 +408,34 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
       const msg = err instanceof Error ? err.message : String(err);
       logger.error(`[runtime-error] Handler error: ${msg}`);
       return reply.code(500).send({ fixed: false, reason: msg });
+    }
+  });
+
+  // ─── 手动触发封面截图 ───
+  app.post<{
+    Body: { sessionId: string };
+  }>("/api/business/interactive-tutorial/screenshot", async (request, reply) => {
+    const body = request.body as { sessionId?: string };
+    if (!body?.sessionId) {
+      return reply.code(400).send({ error: "sessionId is required" });
+    }
+
+    const { distDir } = getTutorialPaths(body.sessionId);
+    if (!existsSync(join(distDir, "index.html"))) {
+      return reply.code(404).send({ error: "No build output found for this session" });
+    }
+
+    try {
+      const { captureScreenshot } = await import("../../../src/services/screenshot-service.js");
+      const url = tutorialPublicFileUrl(body.sessionId);
+      const result = await captureScreenshot({ url, sessionId: body.sessionId });
+      const { resolvePublicBaseUrl } = await import("../../../src/utils/public-url.js");
+      const coverUrl = `${resolvePublicBaseUrl()}/api/files/${result.publicPath}`;
+      return reply.send({ success: true, coverUrl });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      logger.error(`[screenshot] Handler error: ${msg}`);
+      return reply.code(500).send({ error: msg });
     }
   });
 }

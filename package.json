@@ -41,6 +41,7 @@
     "officeparser": "^6.1.1",
     "p-queue": "^8.0.0",
     "pdf-parse": "^2.4.5",
+    "playwright": "^1.60.0",
     "rehype-parse": "^9.0.1",
     "turndown": "^7.2.2",
     "unified": "^11.0.5",

@@ -1,4 +1,4 @@
-# Local PostgreSQL for MEMORY_STORE=postgres and LangGraph checkpoint (CHECKPOINT_STORE=postgres).
+# Infrastructure services for x-pilot-agentic-server.
 # Start: docker compose up -d
 # Stop:  docker compose down
 # Data:  ./volumes/postgres/ (bind mount, see .gitignore)
@@ -21,3 +21,14 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  playwright:
+    image: mcr.microsoft.com/playwright:v1.60.0-noble
+    container_name: xpilot-playwright
+    restart: unless-stopped
+    init: true
+    ipc: host
+    ports:
+      - "3001:3000"
+    command: >
+      /bin/sh -c "npx -y playwright@1.60.0 run-server --port 3000 --host 0.0.0.0"

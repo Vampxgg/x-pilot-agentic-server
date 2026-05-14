@@ -48,6 +48,8 @@ export interface TutorialMeta {
   createdAt: string;
   lastBuildStatus: "success" | "failed";
   lastSuccessfulBuildAt?: string;
+  /** Auto-generated cover screenshot URL */
+  coverUrl?: string;
 }
 
 export interface TutorialResponse {
