@@ -2,7 +2,8 @@
 
 ### knowledge_search（优先级：高）
 检索内部知识库
-- 有 databaseId 时优先使用
+- 有 `Task Context.capabilities.databaseId` 时必须作为通用 `datasetIds: [databaseId]` 传给 `knowledge_search`
+- 没有 `databaseId` 时不要主动全库扫描；如需发现范围，最多先调用一次 `knowledge_list`，再用明确的 `datasetIds` 或 `datasetNames` 检索
 - 搜索关键词要精确，避免过于宽泛
 - 多次搜索不同角度的关键词
 
@@ -45,10 +46,10 @@ LLM 在**一次响应**里可以同时返回多个 `tool_call`，框架会真正
 
 ### 阶段流程
 
-1. **Phase 1（可选）**：仅当对知识库一无所知时调用 `knowledge_list` 一次。绝大多数场景可以跳过这一步——直接进 Phase 2。
+1. **Phase 1（可选）**：仅当对知识库范围不明确且没有 `databaseId` 时调用 `knowledge_list` 一次。绝大多数场景可以跳过这一步——直接进 Phase 2。
 2. **Phase 2（必须并行）**：在第一次工具调用响应里**同时**返回：
-   - `knowledge_search`（中文广义关键词）
-   - `knowledge_search`（英文/技术细分关键词）
+   - `knowledge_search`（中文广义关键词；如有 `databaseId`，传 `datasetIds: [databaseId]`）
+   - `knowledge_search`（英文/技术细分关键词；如有 `databaseId`，传 `datasetIds: [databaseId]`）
    - `web_search`（如启用）— 优先权威来源
    - `tutorial_user_file({action:"read", fileId})`——`Task Context.userFiles` 中每个 `unreadable !== true` 的文件各发一次，**全部并行**
 3. **Phase 2.5（可选）**：第一轮结果如有空白领域，**再次并行**返回 2-4 个补充检索；不要 1 个 1 个补。

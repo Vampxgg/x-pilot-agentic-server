@@ -1,24 +1,14 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { RetrievalEngine } from "../knowledge/retrieval-engine.js";
-import { getKnowledgeConfig } from "../knowledge/config-helper.js";
+import { getKnowledgeEngine, resetKnowledgeEngine } from "../knowledge/engine-singleton.js";
 import type { RetrievalResult } from "../knowledge/types.js";
 import PQueue from "p-queue";
 
 // Global queue to limit concurrent knowledge searches
 const knowledgeSearchQueue = new PQueue({ concurrency: 3 });
 
-let _engine: RetrievalEngine | null = null;
-
-function getEngine(): RetrievalEngine {
-  if (!_engine) {
-    _engine = new RetrievalEngine(getKnowledgeConfig());
-  }
-  return _engine;
-}
-
 export function resetEngine(): void {
-  _engine = null;
+  resetKnowledgeEngine();
 }
 
 export const knowledgeSearchTool = tool(
@@ -34,7 +24,7 @@ export const knowledgeSearchTool = tool(
     documentFilter,
   }) => {
     try {
-      const engine = getEngine();
+      const engine = getKnowledgeEngine();
       return await knowledgeSearchQueue.add(async () => {
         const queryList = queries?.length ? queries : [query];
 

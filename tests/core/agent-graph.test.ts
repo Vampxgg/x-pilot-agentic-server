@@ -42,6 +42,7 @@ describe("createThinkNode", () => {
       maxIterations: 10,
       done: false,
       emptyResponseRetries: 0,
+      disableNudge: false,
     } as AgentGraphState);
 
     expect(invokedMessages).toHaveLength(2);

@@ -1,21 +1,11 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { RetrievalEngine } from "../knowledge/retrieval-engine.js";
-import { getKnowledgeConfig } from "../knowledge/config-helper.js";
-
-let _engine: RetrievalEngine | null = null;
-
-function getEngine(): RetrievalEngine {
-  if (!_engine) {
-    _engine = new RetrievalEngine(getKnowledgeConfig());
-  }
-  return _engine;
-}
+import { getKnowledgeEngine } from "../knowledge/engine-singleton.js";
 
 export const knowledgeListTool = tool(
   async ({ keyword }) => {
     try {
-      const engine = getEngine();
+      const engine = getKnowledgeEngine();
       const kbManager = engine.getKbManager();
       let datasets = await kbManager.listAvailable();
 
@@ -37,6 +27,14 @@ export const knowledgeListTool = tool(
           description: d.description,
           documentCount: d.documentCount,
           wordCount: d.wordCount,
+          provider: d.provider,
+          indexingTechnique: d.indexingTechnique,
+          embeddingModel: d.embeddingModel,
+          embeddingModelProvider: d.embeddingModelProvider,
+          embeddingAvailable: d.embeddingAvailable,
+          retrievalModel: d.retrievalModel,
+          enableApi: d.enableApi,
+          totalAvailableDocuments: d.totalAvailableDocuments,
         })),
       });
     } catch (err) {

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { createServer } from "node:http";
 import { createReadStream } from "node:fs";
-import { readdir } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, readdir, writeFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import {
   DEFAULT_AVM_PROMPT,
@@ -15,10 +15,17 @@ import {
   parseSseText,
   resolveReplayDir,
   resolveReplayFile,
+  resolveReplaySavePath,
   resolveSamplePath,
   summarizeEvents,
   tryParseNestedJson,
 } from "./interactive-tutorial-tester-lib.mjs";
+
+const TUTORIAL_TESTER_FAVICON_DATA_URL =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#0f172a"/><rect x="4.5" y="6" width="23" height="16" rx="4" fill="none" stroke="#22d3ee" stroke-width="1.35" opacity="0.55"/><path d="M10 16l4 4 8-10" stroke="#22d3ee" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="24" cy="10" r="1.85" fill="#22d3ee"/></svg>',
+  );
 
 export {
   parseArgs,
@@ -28,6 +35,7 @@ export {
   parseSseText,
   resolveReplayDir,
   resolveReplayFile,
+  resolveReplaySavePath,
   resolveSamplePath,
   summarizeEvents,
   tryParseNestedJson,
@@ -127,10 +135,14 @@ async function proxySse(req, res, opts, endpoint) {
       if (done) break;
       res.write(Buffer.from(value));
     }
+    res.end();
+  } catch {
+    reader.releaseLock();
+    res.destroy();
+    return;
   } finally {
     reader.releaseLock();
   }
-  res.end();
 }
 
 async function proxyRaw(req, res, opts, endpoint) {
@@ -192,6 +204,30 @@ export function createTesterServer(opts = DEFAULTS) {
         return;
       }
 
+      if (req.method === "POST" && url.pathname === "/api/replay/save") {
+        try {
+          const body = await readJson(req);
+          if (!Array.isArray(body.frames) && typeof body.content !== "string") {
+            sendJson(res, 400, { error: "content is required" });
+            return;
+          }
+          const content = typeof body.content === "string" ? body.content : "";
+          if (!content.trim()) {
+            sendJson(res, 400, { error: "content is empty" });
+            return;
+          }
+          const resolvedFile = resolveReplaySavePath(body.dir ?? opts.replayRoot, body.filename ?? "", { replayRoot: opts.replayRoot });
+          await mkdir(dirname(resolvedFile.absolutePath), { recursive: true });
+          await writeFile(resolvedFile.absolutePath, content, { encoding: "utf8", flag: "wx" });
+          sendJson(res, 201, { path: resolvedFile.relativePath });
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          const status = err && typeof err === "object" && "code" in err && err.code === "EEXIST" ? 409 : 400;
+          sendJson(res, status, { error: status === 409 ? "Replay file already exists" : message });
+        }
+        return;
+      }
+
       if (req.method === "GET" && url.pathname.startsWith("/api/samples/")) {
         const name = decodeURIComponent(url.pathname.replace("/api/samples/", ""));
         let samplePath;
@@ -219,7 +255,11 @@ export function createTesterServer(opts = DEFAULTS) {
 
       sendJson(res, 404, { error: "Not found" });
     } catch (err) {
-      sendJson(res, 500, { error: err instanceof Error ? err.message : String(err) });
+      if (res.headersSent) {
+        res.destroy();
+      } else {
+        sendJson(res, 500, { error: err instanceof Error ? err.message : String(err) });
+      }
     }
   });
 }
@@ -236,7 +276,11 @@ function renderHtml(opts) {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>互动教程编辑流测试页</title>
+  <meta name="theme-color" content="#09090b" />
+  <meta name="application-name" content="X-Pilot 互动教程流" />
+  <title>X-Pilot · 互动教程编辑流测试页</title>
+  <link rel="icon" type="image/svg+xml" href="${TUTORIAL_TESTER_FAVICON_DATA_URL}" />
+  <link rel="apple-touch-icon" href="${TUTORIAL_TESTER_FAVICON_DATA_URL}" />
   <style>
     :root {
       color-scheme: dark;
@@ -255,7 +299,21 @@ function renderHtml(opts) {
     html, body { height: 100%; overflow: hidden; }
     body { margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); }
     header { height: 72px; padding: 14px 22px; border-bottom: 1px solid var(--line); background: linear-gradient(135deg, #111827, #09090b); }
-    h1 { margin: 0 0 6px; font-size: 20px; }
+    .header-inner { display: flex; align-items: center; gap: 16px; min-width: 0; height: 100%; }
+    .logo {
+      flex-shrink: 0;
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(145deg, rgba(34, 211, 238, 0.22), rgba(8, 145, 178, 0.08));
+      border: 1px solid rgba(34, 211, 238, 0.38);
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35) inset, 0 8px 28px rgba(34, 211, 238, 0.12);
+    }
+    .logo svg { width: 30px; height: 30px; display: block; }
+    .header-titles { min-width: 0; flex: 1; }
+    h1 { margin: 0 0 6px; font-size: 20px; letter-spacing: -0.02em; }
     p { margin: 0; color: var(--muted); }
     main { height: calc(100vh - 72px); display: grid; grid-template-columns: 380px minmax(0, 1fr); gap: 14px; padding: 14px; overflow: hidden; }
     .panel { background: rgba(17, 24, 39, 0.82); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
@@ -322,8 +380,31 @@ function renderHtml(opts) {
 </head>
 <body>
   <header>
-    <h1>互动教程编辑流测试页</h1>
-    <p>用于替代 Apifox 手工看流：支持事件回看、实时 chat-stream、Dify 与原生 v2 SSE 解析。</p>
+    <div class="header-inner">
+      <div class="logo" title="X-Pilot 互动教程流" aria-hidden="true">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" role="img">
+          <defs>
+            <linearGradient id="xpLogoGrad" x1="4" y1="4" x2="30" y2="28" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#67e8f9"/>
+              <stop offset="0.45" stop-color="#22d3ee"/>
+              <stop offset="1" stop-color="#0891b2"/>
+            </linearGradient>
+            <filter id="xpLogoGlow" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="1.2" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <rect x="3" y="5" width="26" height="20" rx="5" stroke="url(#xpLogoGrad)" stroke-width="1.6" opacity="0.55"/>
+          <path d="M9 22h14" stroke="url(#xpLogoGrad)" stroke-width="1.6" stroke-linecap="round" opacity="0.45"/>
+          <path d="M11 11l4.2 4.2L22 9" stroke="url(#xpLogoGrad)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" filter="url(#xpLogoGlow)"/>
+          <circle cx="24" cy="10" r="2.2" fill="url(#xpLogoGrad)"/>
+        </svg>
+      </div>
+      <div class="header-titles">
+        <h1>互动教程编辑流测试页</h1>
+        <p>用于替代 Apifox 手工看流：支持事件回看、实时 chat-stream、Dify 与原生 v2 SSE 解析。</p>
+      </div>
+    </div>
   </header>
   <main>
     <aside class="panel stack">
@@ -370,6 +451,18 @@ function renderHtml(opts) {
         <button id="loadReplayBtn" class="secondary">加载回看</button>
         <button id="rawBtn" class="secondary">显示/隐藏 raw</button>
       </div>
+      <div class="stack">
+        <label>保存目录
+          <input id="saveDir" placeholder="默认复用当前回看目录" />
+        </label>
+        <label>保存文件名
+          <input id="saveFilename" placeholder="自动根据路径诊断生成" />
+        </label>
+        <div class="actions">
+          <button id="saveReplayBtn" class="secondary">保存当前事件流</button>
+        </div>
+        <div id="saveStatus" class="notice">当前事件流可保存为 SSE 文件，用于后续回看。</div>
+      </div>
       <label><input id="hideNoise" type="checkbox" checked /> 隐藏 ping、空 observe/perceive、空 thought</label>
     </aside>
     <section class="stack">
@@ -399,6 +492,7 @@ function renderHtml(opts) {
       treeFilter: "all",
       abort: null,
       streamBuffer: "",
+      saveFilenameTouched: false,
     };
 
     const $ = (id) => document.getElementById(id);
@@ -416,6 +510,8 @@ function renderHtml(opts) {
       $("smartSearch").value = saved.smartSearch ?? "true";
       $("fileUrls").value = saved.fileUrls || "";
       $("replayDir").value = saved.replayDir || "scripts/edit";
+      $("saveDir").value = saved.saveDir || saved.replayDir || "scripts/edit";
+      $("saveFilename").value = saved.saveFilename || "";
       $("message").value = saved.message || INITIAL_CONFIG.defaultPrompt;
     }
 
@@ -430,6 +526,8 @@ function renderHtml(opts) {
         smartSearch: $("smartSearch").value,
         fileUrls: $("fileUrls").value,
         replayDir: $("replayDir").value,
+        saveDir: $("saveDir").value,
+        saveFilename: $("saveFilename").value,
         message: $("message").value,
       }));
     }
@@ -452,6 +550,41 @@ function renderHtml(opts) {
       try { frame.payload = JSON.parse(frame.data); }
       catch { frame.malformed = true; frame.payload = { raw: frame.data }; }
       return frame;
+    }
+
+    function serializeFrames(frames) {
+      return frames.map((frame) => {
+        if (frame.malformed && frame.raw) return String(frame.raw).trim();
+        const lines = [];
+        if (frame.event) lines.push("event: " + frame.event);
+        if (frame.id) lines.push("id: " + frame.id);
+        const data = frame.data || JSON.stringify(frame.payload || {});
+        for (const line of String(data).split(/\r?\n/)) lines.push("data: " + line);
+        return lines.join("\n");
+      }).filter(Boolean).join("\n\n") + "\n\n";
+    }
+
+    function formatTimestamp(date = new Date()) {
+      const pad = (value) => String(value).padStart(2, "0");
+      return [
+        date.getFullYear(),
+        pad(date.getMonth() + 1),
+        pad(date.getDate()),
+        "-",
+        pad(date.getHours()),
+        pad(date.getMinutes()),
+        pad(date.getSeconds()),
+      ].join("");
+    }
+
+    function suggestReplayFilename(frames, summary = summarize(frames)) {
+      const diagnosis = classifyRun(frames, summary);
+      const prefix = diagnosis.kind === "generation" || diagnosis.kind === "mixed_or_suspicious"
+        ? "generation"
+        : diagnosis.kind === "edit"
+          ? "edit"
+          : "event-stream";
+      return prefix + "-" + formatTimestamp() + ".jsonl";
     }
 
     function appendSseChunk(chunk) {
@@ -687,6 +820,10 @@ function renderHtml(opts) {
       const summary = summarize(state.frames);
       if (summary.sessionId) $("sessionId").value ||= summary.sessionId;
       if (summary.conversationId) $("conversationId").value ||= summary.conversationId;
+      $("saveReplayBtn").disabled = state.frames.length === 0;
+      if (state.frames.length > 0 && !$("saveFilename").value && !state.saveFilenameTouched) {
+        $("saveFilename").value = suggestReplayFilename(state.frames, summary);
+      }
       renderSummary(summary);
       const view = $("view");
       if (state.tab === "timeline") view.innerHTML = renderTimeline(state.frames);
@@ -721,7 +858,7 @@ function renderHtml(opts) {
       return warn + '<div class="timeline">' + rows.map(([k, v]) => '<div class="event"><div class="event-head"><b>' + escapeHtml(k) + '</b><span class="badge">' + escapeHtml(v) + '</span></div></div>').join("") + '</div>';
     }
 
-    async function listReplay() {
+    async function listReplay(selectPath = "") {
       saveSettings();
       const dir = $("replayDir").value || "scripts/edit";
       const res = await fetch("/api/replay/list?dir=" + encodeURIComponent(dir));
@@ -732,6 +869,7 @@ function renderHtml(opts) {
       if (files.length === 0) {
         $("replayFileSelect").innerHTML = '<option value="">该目录没有事件流文件</option>';
       }
+      if (selectPath) $("replayFileSelect").value = selectPath;
     }
 
     async function loadReplay() {
@@ -743,7 +881,40 @@ function renderHtml(opts) {
       state.frames = parseSseText(text);
       state.streamBuffer = "";
       state.selectedNode = null;
+      state.saveFilenameTouched = false;
+      $("saveFilename").value = "";
       render();
+    }
+
+    async function saveCurrentReplay() {
+      if (!state.frames.length) {
+        $("saveStatus").textContent = "当前没有事件流，无法保存。";
+        return;
+      }
+      const dir = $("saveDir").value || $("replayDir").value || "scripts/edit";
+      const filename = $("saveFilename").value || suggestReplayFilename(state.frames);
+      const content = serializeFrames(state.frames);
+      $("saveReplayBtn").disabled = true;
+      $("saveStatus").textContent = "正在保存...";
+      try {
+        const res = await fetch("/api/replay/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dir, filename, content }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "保存失败");
+        $("saveStatus").textContent = "已保存：" + data.path;
+        $("replayDir").value = dir;
+        await listReplay(data.path);
+        state.saveFilenameTouched = false;
+        $("saveFilename").value = suggestReplayFilename(state.frames);
+        saveSettings();
+      } catch (err) {
+        $("saveStatus").textContent = err.message || String(err);
+      } finally {
+        $("saveReplayBtn").disabled = state.frames.length === 0;
+      }
     }
 
     function buildPayload() {
@@ -772,6 +943,8 @@ function renderHtml(opts) {
       saveSettings();
       state.frames = [];
       state.streamBuffer = "";
+      state.saveFilenameTouched = false;
+      $("saveFilename").value = "";
       state.abort = new AbortController();
       $("sendBtn").disabled = true;
       $("stopBtn").disabled = false;
@@ -815,12 +988,19 @@ function renderHtml(opts) {
     }));
     $("sendBtn").addEventListener("click", sendStream);
     $("stopBtn").addEventListener("click", () => state.abort?.abort());
-    $("clearBtn").addEventListener("click", () => { state.frames = []; state.streamBuffer = ""; render(); });
+    $("clearBtn").addEventListener("click", () => { state.frames = []; state.streamBuffer = ""; state.saveFilenameTouched = false; $("saveFilename").value = ""; render(); });
     $("defaultPromptBtn").addEventListener("click", () => { $("message").value = INITIAL_CONFIG.defaultPrompt; saveSettings(); });
     $("listReplayBtn").addEventListener("click", () => listReplay().catch((err) => alert(err.message || err)));
     $("loadReplayBtn").addEventListener("click", () => loadReplay().catch((err) => alert(err.message || err)));
+    $("saveReplayBtn").addEventListener("click", () => saveCurrentReplay());
     $("rawBtn").addEventListener("click", () => { state.showRaw = !state.showRaw; render(); });
     $("hideNoise").addEventListener("change", render);
+    $("saveFilename").addEventListener("input", () => { state.saveFilenameTouched = true; saveSettings(); });
+    $("saveDir").addEventListener("input", saveSettings);
+    $("replayDir").addEventListener("input", () => {
+      if (!$("saveDir").value) $("saveDir").value = $("replayDir").value;
+      saveSettings();
+    });
     $("view").addEventListener("click", (event) => {
       const toggle = event.target.closest("[data-toggle]");
       if (toggle) {

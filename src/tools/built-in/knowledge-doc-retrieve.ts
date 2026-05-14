@@ -1,21 +1,11 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { RetrievalEngine } from "../knowledge/retrieval-engine.js";
-import { getKnowledgeConfig } from "../knowledge/config-helper.js";
-
-let _engine: RetrievalEngine | null = null;
-
-function getEngine(): RetrievalEngine {
-  if (!_engine) {
-    _engine = new RetrievalEngine(getKnowledgeConfig());
-  }
-  return _engine;
-}
+import { getKnowledgeEngine } from "../knowledge/engine-singleton.js";
 
 export const knowledgeDocRetrieveTool = tool(
   async ({ datasetId, documentId }) => {
     try {
-      const engine = getEngine();
+      const engine = getKnowledgeEngine();
       const docInfo = await engine.retrieveFullDocument(datasetId, documentId);
 
       if (!docInfo) {

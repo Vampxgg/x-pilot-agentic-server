@@ -14,6 +14,12 @@ export function getKnowledgeConfig(): KnowledgeConfig {
       scoreThreshold: parseFloat(process.env.KNOWLEDGE_SCORE_THRESHOLD ?? "0"),
       maxTokens: parseInt(process.env.KNOWLEDGE_MAX_TOKENS ?? "8000", 10),
       timeout: parseInt(process.env.KNOWLEDGE_TIMEOUT ?? "45000", 10),
+      allowUnscopedSearch: process.env.KNOWLEDGE_ALLOW_UNSCOPED_SEARCH === "true",
+      maxDatasets: parseInt(process.env.KNOWLEDGE_MAX_DATASETS ?? "20", 10),
+      difyTopKMax: parseInt(process.env.KNOWLEDGE_DIFY_TOP_K_MAX ?? "50", 10),
+      fallbackSearchMethod:
+        (process.env.KNOWLEDGE_FALLBACK_SEARCH_METHOD as KnowledgeConfig["retrieval"]["fallbackSearchMethod"]) ??
+        "keyword_search",
     },
     rerank: {
       enabled: process.env.RERANK_ENABLED !== "false",

@@ -21,6 +21,9 @@ export interface DifyDataset {
   embedding_model_provider: string | null;
   embedding_available: boolean | null;
   retrieval_model_dict?: DifyRetrievalModel;
+  enable_api?: boolean;
+  total_available_documents?: number;
+  external_retrieval_model?: DifyExternalRetrievalModel | null;
 }
 
 export interface DifyDatasetListResponse {
@@ -42,7 +45,13 @@ export interface DifyRetrievalModel {
   top_k: number;
   score_threshold_enabled: boolean;
   score_threshold: number | null;
-  weights: number | null;
+  weights: Record<string, unknown> | null;
+}
+
+export interface DifyExternalRetrievalModel {
+  top_k?: number;
+  score_threshold?: number;
+  score_threshold_enabled?: boolean;
 }
 
 export interface DifyMetadataFilterCondition {
@@ -61,6 +70,7 @@ export interface DifyRetrieveRequest {
   retrieval_model?: DifyRetrievalModel & {
     metadata_filtering_conditions?: DifyMetadataFilter;
   };
+  external_retrieval_model?: DifyExternalRetrievalModel;
 }
 
 export interface DifySegment {
@@ -126,7 +136,7 @@ export interface CleanChunk {
   chunkId: string;
   content: string;
   score: number | null;
-  databaseId: string;
+  datasetId: string;
   documentId: string;
   documentName: string;
   position: number;
@@ -163,7 +173,28 @@ export interface RetrievalResult {
     rerankUsed: boolean;
     rrfUsed: boolean;
     durationMs: number;
+    scopeRequired?: boolean;
+    errorCode?: KnowledgeErrorCode;
+    warnings?: string[];
+    failedDatasets?: FailedDataset[];
+    fallbackUsed?: boolean;
   };
+}
+
+export type KnowledgeErrorCode =
+  | "scope_required"
+  | "embedding_forbidden"
+  | "invalid_param"
+  | "dataset_forbidden"
+  | "not_found"
+  | "timeout"
+  | "server_error"
+  | "unknown";
+
+export interface FailedDataset {
+  datasetId: string;
+  errorCode: KnowledgeErrorCode;
+  message: string;
 }
 
 export interface FormattedChunk {
@@ -207,12 +238,13 @@ export interface ContentBlock {
 // ---------------------------------------------------------------------------
 
 export interface RetrievalJob {
-  databaseId: string;
+  datasetId: string;
+  dataset?: CachedDataset;
   metadataFilteringConditions?: DifyMetadataFilter;
 }
 
 export interface RetrievalTask {
-  databaseId: string;
+  datasetId: string;
   documentId?: string;
   retrievalMode: "segment_retrieval" | "full_database_retrieval" | "full_document_retrieval";
   topK?: number;
@@ -246,6 +278,10 @@ export interface KnowledgeConfig {
     scoreThreshold: number;
     maxTokens: number;
     timeout: number;
+    allowUnscopedSearch: boolean;
+    maxDatasets: number;
+    difyTopKMax: number;
+    fallbackSearchMethod: SearchMethod;
   };
   rerank: RerankConfig;
   cache: {
@@ -264,7 +300,15 @@ export interface CachedDataset {
   description: string | null;
   documentCount: number;
   wordCount: number;
+  provider: string;
+  indexingTechnique: string | null;
   embeddingModel: string | null;
+  embeddingModelProvider: string | null;
+  embeddingAvailable: boolean | null;
+  retrievalModel?: DifyRetrievalModel;
+  enableApi: boolean | null;
+  totalAvailableDocuments: number | null;
+  externalRetrievalModel?: DifyExternalRetrievalModel | null;
 }
 
 export interface CachedDocumentMeta {

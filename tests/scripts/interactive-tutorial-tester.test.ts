@@ -171,4 +171,16 @@ describe("interactive tutorial tester helpers", () => {
     expect(() => resolveReplayDir("../secrets")).toThrow(/outside replay root/);
     expect(() => resolveReplayFile("scripts/generation/../../secrets/key.json")).toThrow(/outside replay root/);
   });
+
+  it("resolves replay save paths safely", () => {
+    const { resolveReplaySavePath } = helpers;
+
+    const savePath = resolveReplaySavePath("scripts/generation", "generation-20260513-112530.jsonl");
+    expect(savePath.relativePath).toBe("scripts/generation/generation-20260513-112530.jsonl");
+    expect(savePath.absolutePath.endsWith("scripts\\generation\\generation-20260513-112530.jsonl")).toBe(true);
+
+    expect(() => resolveReplaySavePath("../secrets", "leak.jsonl")).toThrow(/outside replay root/);
+    expect(() => resolveReplaySavePath("scripts/generation", "../leak.jsonl")).toThrow(/Invalid replay filename/);
+    expect(() => resolveReplaySavePath("scripts/generation", "bad.exe")).toThrow(/Replay file must be/);
+  });
 });

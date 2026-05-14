@@ -13,6 +13,7 @@ export class KnowledgeBaseManager {
   private documentTTL: number;
 
   private datasetCache: CacheEntry<CachedDataset[]> | null = null;
+  private datasetRefreshPromise: Promise<CachedDataset[]> | null = null;
   private documentCache = new Map<string, CacheEntry<CachedDocumentMeta>>();
 
   constructor(client: DifyClient, datasetTTL = 300_000, documentTTL = 600_000) {
@@ -29,7 +30,12 @@ export class KnowledgeBaseManager {
     if (this.datasetCache && Date.now() < this.datasetCache.expiresAt) {
       return this.datasetCache.data;
     }
-    return this.refreshDatasets();
+    if (!this.datasetRefreshPromise) {
+      this.datasetRefreshPromise = this.refreshDatasets().finally(() => {
+        this.datasetRefreshPromise = null;
+      });
+    }
+    return this.datasetRefreshPromise;
   }
 
   private async refreshDatasets(): Promise<CachedDataset[]> {
@@ -46,7 +52,15 @@ export class KnowledgeBaseManager {
             description: ds.description,
             documentCount: ds.document_count,
             wordCount: ds.word_count,
+            provider: ds.provider,
+            indexingTechnique: ds.indexing_technique,
             embeddingModel: ds.embedding_model,
+            embeddingModelProvider: ds.embedding_model_provider,
+            embeddingAvailable: ds.embedding_available,
+            retrievalModel: ds.retrieval_model_dict,
+            enableApi: ds.enable_api ?? null,
+            totalAvailableDocuments: ds.total_available_documents ?? null,
+            externalRetrievalModel: ds.external_retrieval_model,
           });
         }
         if (!resp.has_more) break;
@@ -68,17 +82,25 @@ export class KnowledgeBaseManager {
   // ---------------------------------------------------------------------------
 
   async resolveDatasetIds(opts?: { ids?: string[]; names?: string[] }): Promise<string[]> {
-    if (opts?.ids && opts.ids.length > 0) return opts.ids;
+    return (await this.resolveDatasets(opts)).map((d) => d.id);
+  }
+
+  async resolveDatasets(opts?: { ids?: string[]; names?: string[] }): Promise<CachedDataset[]> {
+    if (opts?.ids && opts.ids.length > 0) {
+      const all = await this.listAvailable();
+      const byId = new Map(all.map((d) => [d.id, d]));
+      return opts.ids.map((id) => byId.get(id) ?? createUnknownDataset(id));
+    }
 
     const all = await this.listAvailable();
     if (!opts?.names || opts.names.length === 0) {
-      return all.map((d) => d.id);
+      return all;
     }
 
     const lowerNames = opts.names.map((n) => n.toLowerCase());
     return all
       .filter((d) => lowerNames.some((ln) => d.name.toLowerCase().includes(ln)))
-      .map((d) => d.id);
+      ;
   }
 
   getDatasetNameById(id: string): string | undefined {
@@ -89,8 +111,8 @@ export class KnowledgeBaseManager {
   // Document metadata caching (mirrors original Pipeline's doc_meta_cache)
   // ---------------------------------------------------------------------------
 
-  getDocumentMeta(databaseId: string, documentId: string): CachedDocumentMeta | undefined {
-    const key = `${databaseId}:${documentId}`;
+  getDocumentMeta(datasetId: string, documentId: string): CachedDocumentMeta | undefined {
+    const key = `${datasetId}:${documentId}`;
     const entry = this.documentCache.get(key);
     if (!entry) return undefined;
     if (Date.now() >= entry.expiresAt) {
@@ -100,18 +122,18 @@ export class KnowledgeBaseManager {
     return entry.data;
   }
 
-  setDocumentMeta(databaseId: string, documentId: string, meta: CachedDocumentMeta): void {
-    const key = `${databaseId}:${documentId}`;
+  setDocumentMeta(datasetId: string, documentId: string, meta: CachedDocumentMeta): void {
+    const key = `${datasetId}:${documentId}`;
     this.documentCache.set(key, { data: meta, expiresAt: Date.now() + this.documentTTL });
   }
 
   async prefetchDocumentMeta(
-    tasks: Array<{ databaseId: string; documentId?: string }>,
+    tasks: Array<{ datasetId: string; documentId?: string }>,
   ): Promise<void> {
     const needed: Array<[string, string]> = [];
     for (const t of tasks) {
-      if (t.documentId && !this.getDocumentMeta(t.databaseId, t.documentId)) {
-        needed.push([t.databaseId, t.documentId]);
+      if (t.documentId && !this.getDocumentMeta(t.datasetId, t.documentId)) {
+        needed.push([t.datasetId, t.documentId]);
       }
     }
     if (needed.length === 0) return;
@@ -138,14 +160,14 @@ export class KnowledgeBaseManager {
   }
 
   injectMetadataFromChunks(
-    chunks: Array<{ databaseId: string; documentId: string; documentName: string; docMetadata: Record<string, unknown> }>,
+    chunks: Array<{ datasetId: string; documentId: string; documentName: string; docMetadata: Record<string, unknown> }>,
   ): void {
     for (const c of chunks) {
-      const existing = this.getDocumentMeta(c.databaseId, c.documentId);
+      const existing = this.getDocumentMeta(c.datasetId, c.documentId);
       if (existing?.source === "api_detail") continue;
 
       if (c.documentName || Object.keys(c.docMetadata).length > 0) {
-        this.setDocumentMeta(c.databaseId, c.documentId, {
+        this.setDocumentMeta(c.datasetId, c.documentId, {
           id: c.documentId,
           name: c.documentName,
           docMetadata: c.docMetadata,
@@ -160,12 +182,12 @@ export class KnowledgeBaseManager {
   // ---------------------------------------------------------------------------
 
   async buildDocumentNameFilter(
-    databaseId: string,
+    datasetId: string,
     documentIds: string[],
   ): Promise<DifyMetadataFilter | undefined> {
     const names: string[] = [];
     for (const docId of documentIds) {
-      const meta = this.getDocumentMeta(databaseId, docId);
+      const meta = this.getDocumentMeta(datasetId, docId);
       if (meta?.name) names.push(meta.name);
     }
 
@@ -180,6 +202,24 @@ export class KnowledgeBaseManager {
       })),
     };
   }
+}
+
+function createUnknownDataset(id: string): CachedDataset {
+  return {
+    id,
+    name: id,
+    description: null,
+    documentCount: 0,
+    wordCount: 0,
+    provider: "vendor",
+    indexingTechnique: null,
+    embeddingModel: null,
+    embeddingModelProvider: null,
+    embeddingAvailable: null,
+    enableApi: null,
+    totalAvailableDocuments: null,
+    externalRetrievalModel: null,
+  };
 }
 
 // ---------------------------------------------------------------------------

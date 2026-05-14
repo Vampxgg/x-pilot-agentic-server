@@ -65,6 +65,60 @@ export async function cleanDeadImports(appFile: string, sourceDir: string): Prom
   return totalRemoved;
 }
 
+export async function assertAssetGraphComplete(
+  appFile: string,
+  componentsDir: string,
+  pagesDir: string,
+  blueprint?: Record<string, unknown> | null,
+  errorPrefix = "[ASSEMBLE ERROR]",
+): Promise<void> {
+  const existingComponents = existsSync(componentsDir)
+    ? (await collectComponentFiles(componentsDir)).map((file) => file.replace(/\.tsx?$/, ""))
+    : [];
+  const existingPages = existsSync(pagesDir)
+    ? (await collectComponentFiles(pagesDir)).map((file) => file.replace(/\.tsx?$/, ""))
+    : [];
+  const componentSet = new Set(existingComponents);
+  const pageSet = new Set(existingPages);
+  const missing: string[] = [];
+
+  if (existsSync(appFile)) {
+    const source = await readFile(appFile, "utf-8");
+    for (const match of source.matchAll(/from\s+['"]\.\/components\/([^'"]+)['"]/g)) {
+      const ref = match[1]!.replace(/\.tsx?$/, "");
+      if (!componentSet.has(ref)) missing.push(`components/${ref}`);
+    }
+    for (const match of source.matchAll(/from\s+['"]@\/components\/([^'"]+)['"]/g)) {
+      const ref = match[1]!.replace(/\.tsx?$/, "");
+      if (!componentSet.has(ref)) missing.push(`components/${ref}`);
+    }
+    for (const match of source.matchAll(/from\s+['"]@\/pages\/([^'"]+)['"]/g)) {
+      const ref = match[1]!.replace(/\.tsx?$/, "");
+      if (!pageSet.has(ref)) missing.push(`pages/${ref}`);
+    }
+  }
+
+  const blueprintComponents = Array.isArray(blueprint?.components)
+    ? blueprint.components
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const fileName = (item as Record<string, unknown>).file_name;
+          return typeof fileName === "string" ? fileName.replace(/\.tsx?$/, "") : null;
+        })
+        .filter((name): name is string => Boolean(name))
+    : [];
+
+  for (const ref of blueprintComponents) {
+    if (!componentSet.has(ref)) missing.push(`blueprint component missing: components/${ref}`);
+  }
+
+  if (missing.length > 0) {
+    throw new Error(
+      `${errorPrefix} Generated app references or requires ${missing.length} missing file(s): ${missing.join(", ")}. This usually means the coder did not write every component declared by the blueprint.`,
+    );
+  }
+}
+
 export async function assertAppShellReferencesExist(
   sourceDir: string,
   blueprint?: Record<string, unknown> | null,

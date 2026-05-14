@@ -150,6 +150,27 @@ export function resolveReplayFile(pathValue, opts = {}) {
   };
 }
 
+export function resolveReplaySavePath(dir, filename, opts = {}) {
+  if (!filename || basename(filename) !== filename || /[\\/]/.test(filename)) {
+    throw new Error("Invalid replay filename");
+  }
+  if (!/\.(jsonl|sse|txt)$/i.test(filename)) {
+    throw new Error("Replay file must be .jsonl, .sse, or .txt");
+  }
+
+  const resolvedDir = resolveReplayDir(dir, opts);
+  const absolutePath = resolve(resolvedDir.absolutePath, filename);
+  const replayRoot = resolveReplayRoot(opts.replayRoot ?? DEFAULTS.replayRoot);
+  if (!isInside(replayRoot, absolutePath)) {
+    throw new Error("Replay path is outside replay root");
+  }
+
+  return {
+    absolutePath,
+    relativePath: toPosixPath(relative(WORKSPACE_ROOT, absolutePath)),
+  };
+}
+
 export function normalizeFrame(frame) {
   const payload = frame.payload ?? {};
   const data = payload.data ?? {};

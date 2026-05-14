@@ -37,7 +37,7 @@ Dify API POST /datasets/xxx/retrieve timed out — retrying (2/2)
 
 **原因**：
 - Dify 服务 `DIFY_API_BASE_URL` 不可达或响应慢
-- 未指定 `database_id` 时，会对**全部数据集**并发检索，请求过多导致超时
+- 显式开启 `KNOWLEDGE_ALLOW_UNSCOPED_SEARCH=true` 后未指定 `datasetIds` / `datasetNames`，会对多个数据集并发检索，请求过多导致超时
 
 **处理步骤**：
 
@@ -47,12 +47,11 @@ Dify API POST /datasets/xxx/retrieve timed out — retrying (2/2)
    ```
    （默认 45000ms，可改为 60000～120000）
 
-2. **指定知识库**：在请求中传入 `database_id`，限制检索范围，例如：
+2. **指定知识库**：在调用 `knowledge_search` 时传入 `datasetIds` 或 `datasetNames`，限制检索范围。业务侧的 `database_id` / `databaseId` 应先映射为通用 `datasetIds`。
    ```json
    {
-     "database_id": "目标知识库ID",
-     "select_knowledge_unit": "...",
-     "docTemplate": "..."
+     "datasetIds": ["目标知识库ID"],
+     "query": "检索关键词"
    }
    ```
 
@@ -64,7 +63,29 @@ Dify API POST /datasets/xxx/retrieve timed out — retrying (2/2)
 
 ---
 
-## 3. 日志重复（启动信息多次出现）
+## 3. Dify retrieve 返回 SiliconFlow embeddings 403
+
+**现象**：
+```
+Dify API POST /datasets/xxx/retrieve returned 400:
+{"code":"invalid_param","message":"[models] Bad Request Error, 403 Client Error: Forbidden for url: https://api.siliconflow.cn/v1/embeddings"}
+```
+
+**原因**：
+- 本服务已经成功访问 Dify，但 Dify 在执行语义/混合检索时需要调用它自己配置的 embedding 模型。
+- `https://api.siliconflow.cn/v1/embeddings` 403 通常表示 Dify 后台的 SiliconFlow embedding Key 无权限、额度不足、模型不可用或供应商配置失效。
+- 这不同于本服务的 `SILICONFLOW_API_KEY`；本服务的 Key 只用于可选 rerank（默认 `https://api.siliconflow.cn/v1/rerank`）。
+
+**处理步骤**：
+
+1. 在 Dify 后台检查对应工作区的 SiliconFlow `text-embedding` 模型配置、余额、权限和模型可用性。
+2. 用 Dify Knowledge API 的 `GET /datasets` 查看目标知识库的 `embedding_model_provider`、`embedding_available` 和 `retrieval_model_dict`。
+3. 优先指定明确的 `datasetIds`，避免把一个供应商故障扩散成多个无关知识库的错误。
+4. 如需临时继续流程，可将检索降级为 `keyword_search` 或设置 `KNOWLEDGE_FALLBACK_SEARCH_METHOD=keyword_search`。
+
+---
+
+## 4. 日志重复（启动信息多次出现）
 
 **现象**：`Config loaded`、`Tool registered`、`Agent registered` 等在日志中重复多次。
 

@@ -306,3 +306,11 @@ Agents that use Vertex must set `provider: vertex` in `agent.config.yaml`; `goog
 | `KNOWLEDGE_DEFAULT_TOP_K` | Default max results | `10` |
 | `KNOWLEDGE_SCORE_THRESHOLD` | Minimum relevance score | `0` |
 | `KNOWLEDGE_MAX_TOKENS` | Token budget for results | `8000` |
+| `KNOWLEDGE_ALLOW_UNSCOPED_SEARCH` | Allow searching without `datasetIds` or `datasetNames` | `false` |
+| `KNOWLEDGE_MAX_DATASETS` | Max datasets searched when unscoped search is explicitly enabled | `20` |
+| `KNOWLEDGE_RETRIEVE_CONCURRENCY` | Concurrent Dify retrieve requests | `6` |
+| `KNOWLEDGE_DIFY_TOP_K_MAX` | Upper bound for Dify `retrieval_model.top_k` | `50` |
+| `KNOWLEDGE_FALLBACK_SEARCH_METHOD` | Fallback method when embedding retrieval is forbidden | `keyword_search` |
+| `KNOWLEDGE_TIMEOUT` | Dify request timeout in ms | `45000` |
+
+`DIFY_DATASET_API_KEY` authenticates this server against Dify's Knowledge API. Dify's own embedding provider credentials are configured inside Dify; errors from `https://api.siliconflow.cn/v1/embeddings` must be fixed in Dify's model provider settings. `SILICONFLOW_API_KEY` here is only used by this server's optional external reranker (`/v1/rerank`).

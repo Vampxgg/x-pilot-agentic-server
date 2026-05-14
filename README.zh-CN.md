@@ -1230,6 +1230,14 @@ LOG_LEVEL=info
 | `KNOWLEDGE_DEFAULT_TOP_K` | 默认返回结果数量 | `10` |
 | `KNOWLEDGE_SCORE_THRESHOLD` | 最低相关性得分阈值 | `0` |
 | `KNOWLEDGE_MAX_TOKENS` | 知识结果的 Token 上限 | `8000` |
+| `KNOWLEDGE_ALLOW_UNSCOPED_SEARCH` | 是否允许未指定 `datasetIds` / `datasetNames` 时检索 | `false` |
+| `KNOWLEDGE_MAX_DATASETS` | 显式启用无范围检索时最多检索的数据集数量 | `20` |
+| `KNOWLEDGE_RETRIEVE_CONCURRENCY` | Dify retrieve 并发请求数 | `6` |
+| `KNOWLEDGE_DIFY_TOP_K_MAX` | Dify `retrieval_model.top_k` 上限 | `50` |
+| `KNOWLEDGE_FALLBACK_SEARCH_METHOD` | Embedding 检索被拒绝时的降级策略 | `keyword_search` |
+| `KNOWLEDGE_TIMEOUT` | Dify 请求超时时间（毫秒） | `45000` |
+
+`DIFY_DATASET_API_KEY` 是本服务访问 Dify Knowledge API 的凭证。Dify 内部调用 embedding 模型所需的供应商 Key 在 Dify 后台配置；如果日志出现 `https://api.siliconflow.cn/v1/embeddings` 403，应检查 Dify 的模型供应商配置。这里的 `SILICONFLOW_API_KEY` 只用于本服务可选的外部重排序接口（`/v1/rerank`）。
 
 ### config/tenants.yaml
 

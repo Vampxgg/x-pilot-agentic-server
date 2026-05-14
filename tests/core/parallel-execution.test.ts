@@ -60,6 +60,7 @@ describe("Parallel Act Node", () => {
       iteration: 0,
       maxIterations: 20,
       emptyResponseRetries: 0,
+      disableNudge: false,
       done: false,
     };
 
@@ -99,6 +100,7 @@ describe("Parallel Act Node", () => {
       iteration: 0,
       maxIterations: 20,
       emptyResponseRetries: 0,
+      disableNudge: false,
       done: false,
     };
 
@@ -133,6 +135,7 @@ describe("Parallel Act Node", () => {
       iteration: 0,
       maxIterations: 20,
       emptyResponseRetries: 0,
+      disableNudge: false,
       done: false,
     };
 

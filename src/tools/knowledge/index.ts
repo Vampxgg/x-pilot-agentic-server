@@ -1,5 +1,6 @@
 export { DifyClient } from "./dify-client.js";
 export type { DifyClientConfig } from "./dify-client.js";
+export { getKnowledgeEngine, resetKnowledgeEngine } from "./engine-singleton.js";
 export { KnowledgeBaseManager, cleanMetadata } from "./kb-manager.js";
 export { RagService } from "./rag-service.js";
 export { ContentFormatter } from "./content-formatter.js";
