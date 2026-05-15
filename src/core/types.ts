@@ -272,6 +272,7 @@ export interface SubAgentResult {
   instruction: string;
   result: unknown;
   success: boolean;
+  error?: string;
   duration: number;
 }
 

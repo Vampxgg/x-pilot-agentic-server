@@ -1,0 +1,23 @@
+# Local PostgreSQL for MEMORY_STORE=postgres and LangGraph checkpoint (CHECKPOINT_STORE=postgres).
+# Start: docker compose up -d
+# Stop:  docker compose down
+# Data:  ./volumes/postgres/ (bind mount, see .gitignore)
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: xpilot-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: xpilot
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - ./volumes/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d xpilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5

@@ -118,6 +118,8 @@ export async function validateComponentFile(filePath: string): Promise<string[]>
     errors.push('Missing React component export (need export default or export function/const)');
   }
 
+  errors.push(...detectCommaExpressionPseudoJsx(content));
+
   const ALLOWED_ALIAS_PREFIXES = [
     '@/components/ui',
     '@/lib',
@@ -285,8 +287,26 @@ export async function validateAppFile(filePath: string): Promise<string[]> {
     errors.push('App.tsx must have a default export');
   }
 
+  errors.push(...detectCommaExpressionPseudoJsx(content));
+
   const brackets = checkBrackets(content);
   if (brackets) errors.push(brackets);
+
+  return errors;
+}
+
+export function detectCommaExpressionPseudoJsx(content: string): string[] {
+  const errors: string[] = [];
+  const cleaned = content
+    .replace(/\/\/.*$/gm, '')
+    .replace(/\/\*[\s\S]*?\*\//g, '');
+  const returnPseudoJsx = /return\s*\(\s*["'][A-Za-z][\w:-]*["']\s*,/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = returnPseudoJsx.exec(cleaned)) !== null) {
+    const line = cleaned.slice(0, match.index).split(/\r?\n/).length;
+    errors.push(`Detected comma-expression pseudo JSX return at line ${line}; use real JSX like <div>...</div> instead.`);
+  }
 
   return errors;
 }

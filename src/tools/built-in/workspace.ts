@@ -13,6 +13,18 @@ function normalizePath(name: string): string {
   return `assets/${name}`;
 }
 
+function normalizeSlashes(path: string): string {
+  return path.replace(/\\/g, "/");
+}
+
+function isLogsPath(path: string): boolean {
+  return normalizeSlashes(path).startsWith("logs/");
+}
+
+function isTraceLogPath(path: string): boolean {
+  return /^logs\/trace_.*\.json$/i.test(normalizeSlashes(path));
+}
+
 function isCodeFile(name: string): boolean {
   const dot = name.lastIndexOf(".");
   if (dot === -1) return false;
@@ -65,6 +77,10 @@ export function createWorkspaceReadTool(tenantId: string, userId: string, sessio
     async ({ name }) => {
       try {
         const targetPath = normalizePath(name);
+        if (isLogsPath(targetPath)) {
+          return JSON.stringify({ success: false, error: "Reading logs/ artifacts is not allowed through workspace_read." });
+        }
+
         const content = await workspaceManager.readArtifact(tenantId, userId, sessionId, targetPath);
         if (content === null) {
           return JSON.stringify({ success: false, error: `Artifact not found: ${targetPath}` });
@@ -88,7 +104,8 @@ export function createWorkspaceListTool(tenantId: string, userId: string, sessio
   return tool(
     async () => {
       try {
-        const artifacts = await workspaceManager.listArtifacts(tenantId, userId, sessionId);
+        const artifacts = (await workspaceManager.listArtifacts(tenantId, userId, sessionId))
+          .filter((artifact) => !isTraceLogPath(artifact.name));
         return JSON.stringify({ success: true, sessionId, artifacts });
       } catch (err) {
         return JSON.stringify({ success: false, error: err instanceof Error ? err.message : String(err) });

@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 import { workspaceManager } from "../../../../src/core/workspace.js";
-import { removeDeadImports } from "../validators.js";
+import { detectCommaExpressionPseudoJsx, removeDeadImports } from "../validators.js";
 import { extractStringArray, safeParseJSON } from "../blueprint-service.js";
 
 export async function collectComponentFiles(componentsDir: string): Promise<string[]> {
@@ -63,6 +63,43 @@ export async function cleanDeadImports(appFile: string, sourceDir: string): Prom
   }
 
   return totalRemoved;
+}
+
+export async function assertNoCommaExpressionPseudoJsx(sourceDir: string): Promise<void> {
+  const srcDir = join(sourceDir, "src");
+  const files: string[] = [];
+
+  async function walk(dir: string): Promise<void> {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      const fullPath = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(fullPath);
+      } else if (entry.name.endsWith(".tsx") || entry.name.endsWith(".ts")) {
+        files.push(fullPath);
+      }
+    }
+  }
+
+  await walk(srcDir);
+
+  const failures: string[] = [];
+  for (const file of files) {
+    const errors = detectCommaExpressionPseudoJsx(await readFile(file, "utf-8"));
+    if (errors.length > 0) {
+      failures.push(`${relative(sourceDir, file).replace(/\\/g, "/")}: ${errors.join("; ")}`);
+    }
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`[ASSEMBLE PREFLIGHT ERROR] Generated React source contains comma-expression pseudo JSX: ${failures.join(" | ")}`);
+  }
 }
 
 export async function assertAssetGraphComplete(

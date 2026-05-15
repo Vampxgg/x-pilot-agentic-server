@@ -168,14 +168,15 @@ export class SubAgentManager {
     }
 
     const elapsed = (Date.now() - start) / 1000;
+    const error = lastError ?? "Unknown sub-agent error";
     const subResult: SubAgentResult = {
       agentName: options.agentName, taskId: childTaskId, instruction: options.instruction,
-      result: null, success: false, duration: Date.now() - start,
+      result: { error }, success: false, error, duration: Date.now() - start,
     };
 
     eventCallback(createAgentFinished(parentCtx, {
       childTaskId, agentName: options.agentName,
-      status: "failed", error: lastError, elapsedTime: elapsed,
+      status: "failed", error, elapsedTime: elapsed,
     }));
 
     this.recordResult(options.parentId, subResult);
@@ -312,13 +313,14 @@ export class SubAgentManager {
     }
 
     // All attempts exhausted
+    const error = lastError ?? "Unknown sub-agent error";
     const subResult: SubAgentResult = {
       agentName: options.agentName, taskId, instruction: options.instruction,
-      result: null, success: false, duration: Date.now() - start,
+      result: { error }, success: false, error, duration: Date.now() - start,
     };
 
     this.recordResult(options.parentId, subResult);
-    if (sessionId) eventBus.emitTaskFailed(options.agentName, sessionId, lastError ?? "Unknown error");
+    if (sessionId) eventBus.emitTaskFailed(options.agentName, sessionId, error);
 
     logger.error(`Sub-agent failed after ${maxAttempts} attempt(s): ${options.agentName} - ${lastError}`);
     return subResult;
@@ -387,7 +389,7 @@ export class SubAgentManager {
 
           return JSON.stringify({
             success: result.success, taskId: result.taskId,
-            agentName: result.agentName, result: result.result, duration: result.duration,
+            agentName: result.agentName, result: result.result, error: result.error, duration: result.duration,
           });
         } catch (err) {
           return JSON.stringify({ success: false, error: err instanceof Error ? err.message : String(err) });

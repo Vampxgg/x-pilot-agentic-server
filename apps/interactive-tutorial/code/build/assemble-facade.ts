@@ -10,7 +10,7 @@ import { getTutorialPaths, tutorialPublicFileUrl } from "./paths.js";
 import { resolvePublicBaseUrl } from "../../../../src/utils/public-url.js";
 import { prepareSourceDir } from "./template-provision.js";
 import { buildWithAIRepair } from "./repair-service.js";
-import { assertAppShellReferencesExist, assertEditorConvergenceBeforeReassemble, buildHasConfigError } from "./validation-service.js";
+import { assertAppShellReferencesExist, assertEditorConvergenceBeforeReassemble, assertNoCommaExpressionPseudoJsx, buildHasConfigError } from "./validation-service.js";
 import { recoverFilesFromCoderOutputs, syncWorkspaceFiles } from "./workspace-sync.js";
 import type { AssembleJobHandle } from "./types.js";
 import { captureScreenshot } from "../../../../src/services/screenshot-service.js";
@@ -129,6 +129,7 @@ async function buildAndPromote(
   },
 ) {
   clearDir(distCandidateDir);
+  await assertNoCommaExpressionPseudoJsx(sourceDir);
 
   const buildResult = await buildWithAIRepair(sourceDir, distCandidateDir, 3, { sessionId }, hooks);
   if (!buildResult.success) {
