@@ -500,8 +500,8 @@ export function createNudgeNode() {
         `So far you have made ${state.toolCalls.length} tool call(s)` +
         (writeCalls.length > 0 ? ` and written ${writeCalls.length} file(s): ${fileList}` : "") +
         `. Review your original instructions — are ALL required files written? ` +
-        `If any files are still missing, continue calling workspace_write for each remaining file NOW. ` +
-        `Do NOT output your final JSON status until every required file has been written.`;
+        `If any files are still missing, continue calling the required tools NOW. ` +
+        `If all required files have already been written, output your final JSON now without calling more tools.`;
     } else {
       nudgeText =
         `[System Reminder] Your previous response was empty or did not include any tool calls. ` +
@@ -603,6 +603,25 @@ const MAX_EMPTY_RESPONSE_NUDGES = 2;
  */
 const MAX_PARTIAL_WORK_NUDGES = 3;
 
+function hasMeaningfulMessageContent(message: BaseMessage | undefined): boolean {
+  if (!message) return false;
+
+  const { content } = message;
+  if (typeof content === "string") {
+    return content.trim().length > 0;
+  }
+
+  if (Array.isArray(content)) {
+    return content.some((item) => {
+      if (!item || typeof item !== "object") return false;
+      const maybeText = (item as { text?: unknown }).text;
+      return typeof maybeText === "string" && maybeText.trim().length > 0;
+    });
+  }
+
+  return false;
+}
+
 export function routeAfterThink(state: AgentGraphState): "act" | "nudge" | "reflect" {
   const lastMessage = state.messages[state.messages.length - 1];
 
@@ -611,6 +630,10 @@ export function routeAfterThink(state: AgentGraphState): "act" | "nudge" | "refl
     if (aiMsg.tool_calls && aiMsg.tool_calls.length > 0) {
       return "act";
     }
+  }
+
+  if (hasMeaningfulMessageContent(lastMessage)) {
+    return "reflect";
   }
 
   if (state.disableNudge || state.iteration >= state.maxIterations) {

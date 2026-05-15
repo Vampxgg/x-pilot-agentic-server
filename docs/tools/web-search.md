@@ -68,32 +68,19 @@ for (const r of data.organic_results) {
 | 变量 | 必填 | 说明 |
 |------|------|------|
 | `TAVILY_API_KEY` | 推荐 | Tavily API key，格式 `tvly-xxxxxxxx` |
-| `SEARCH_API_KEY` | ❌ | 兼容旧配置：如果它的值也以 `tvly-` 开头则会被使用 |
+| `SEARCH_API_KEY` | fallback | SearchApi.io API key；仅当 `TAVILY_API_KEY` 未配置时使用 |
 
-**优先级**：`TAVILY_API_KEY` → `SEARCH_API_KEY`（仅当 `tvly-` 开头）→ 内置 fallback key。
+**优先级**：`TAVILY_API_KEY` → `SEARCH_API_KEY`（SearchApi.io）→ 报错。
 
 代码中的 key 解析逻辑（`src/tools/built-in/web-search.ts`）：
 
-```26:38:E:\Vampxgg\E2B\agentic-sever\x-pilot-agentic-server\src\tools\built-in\web-search.ts
-const FALLBACK_TAVILY_KEY = "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";
-
-function resolveTavilyKey(): string {
-  // Pick the first env var that looks like a Tavily key (`tvly-...`).
-  // SEARCH_API_KEY is consulted for back-compat in case the user reused it.
-  const candidates = [process.env.TAVILY_API_KEY, process.env.SEARCH_API_KEY];
-  for (const k of candidates) {
-    if (typeof k === "string" && k.startsWith("tvly-")) return k;
-  }
-  return FALLBACK_TAVILY_KEY;
-}
-```
-
-> 生产环境**强烈建议**显式设置 `TAVILY_API_KEY`，不要依赖代码 fallback。
+> 生产环境建议显式设置 `TAVILY_API_KEY`；`SEARCH_API_KEY` 用作 SearchApi.io 降级方案。
 
 `.env` 示例：
 
 ```bash
 TAVILY_API_KEY=tvly-prod-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+SEARCH_API_KEY=searchapi-prod-xxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
 ---
@@ -233,7 +220,7 @@ TAVILY_API_KEY=tvly-prod-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 | 场景 | 返回示例 |
 |---|---|
-| API key 缺失/格式错误 | `{ "error": "Tavily API key is missing or invalid. Set TAVILY_API_KEY in the environment." }` |
+| API key 缺失 | `{ "error": "Web search API key is missing. Set TAVILY_API_KEY or SEARCH_API_KEY in the environment." }` |
 | Tavily 接口非 200 | `{ "status": 401, "error": "Invalid API key" }` |
 | 超时（`timeout` 触发 abort） | `{ "error": "This operation was aborted" }` |
 | 非 JSON 响应（极少见） | `{ "error": "Unexpected response format from Tavily: ..." }` |
@@ -416,7 +403,7 @@ npx tsx scripts/test-web-search.ts
 
 ---
 
-## 9. 迁移说明（从 SearchApi.io → Tavily）
+## 9. Provider 说明（Tavily + SearchApi fallback）
 
 本工具是一次**接口兼容的底层替换**，绝大多数下游调用无需改动。
 
@@ -431,20 +418,20 @@ npx tsx scripts/test-web-search.ts
 | `image-fetch-service.ts` 通过 `r.link` / `r.thumbnail` 读取的图片字段 | ✅ 保留 |
 
 ### 9.2 行为差异
-| 场景 | 旧（SearchApi.io / Google） | 新（Tavily） |
+| 场景 | SearchApi.io fallback | Tavily |
 |---|---|---|
-| 默认结果数 | 10 | 5（避免输出过大） |
-| `time_period` 粒度 | 支持小时/分钟级 | 仅 day/week/month/year（自动降级） |
-| `extract_content` 的实现 | 工具自行 fetch + Readability 抽取 | Tavily 直接返回 `raw_content`（更快、更稳） |
-| 图片过滤 | Google Images 支持 size/color/type/aspect | Tavily 不支持，参数被忽略 |
+| 默认结果数 | 5 | 5（避免输出过大） |
+| `time_period` 粒度 | day/week/month/year（自动降级） | day/week/month/year（自动降级） |
+| `extract_content` 的实现 | fallback 下不抽取正文，仅返回 snippet | Tavily 直接返回 `raw_content`（更快、更稳） |
+| 图片过滤 | 当前兼容接收但忽略 | 当前兼容接收但忽略 |
 | `ai_overview` | Google 的 AI Overview（仅部分 query 有） | Tavily `answer` 字段（覆盖率更高） |
 | 输出截断方式 | 直接 `.slice(0, 50000)`（可能切坏 JSON） | **结构化裁剪** `content` 字段，永远是合法 JSON |
-| 环境变量 | `SEARCH_API_KEY` | `TAVILY_API_KEY`（兼容 `SEARCH_API_KEY` 若为 tvly-* 格式） |
+| 环境变量 | `SEARCH_API_KEY` | `TAVILY_API_KEY` |
 
-### 9.3 升级清单
-1. 在 `.env` 把 `SEARCH_API_KEY=...` 改/加为 `TAVILY_API_KEY=tvly-...`。
-2. 检查 Researcher 类 Agent 的 prompt 中是否提到 "Google" / "SearchApi"，可换为 "Tavily" 或保留通用描述 "网页搜索"。
-3. 如果代码里有读取 `position` 字段，请替换为 `score` 字段（Tavily 没有 position，提供了相关性分数）。
+### 9.3 配置清单
+1. 优先在 `.env` 设置 `TAVILY_API_KEY=tvly-...`。
+2. 如需 fallback，设置 `SEARCH_API_KEY=...`，未配置 Tavily 时自动走 SearchApi.io。
+3. 检查 Researcher 类 Agent 的 prompt 中是否提到 "Google" / "SearchApi"，建议保留通用描述 "网页搜索"。
 4. 如果代码里依赖 `knowledge_graph` / `inline_images` / `related_questions` 等 Google 特有字段，需要改用 `ai_overview` + `organic_results` 组合表达。
 
 ---

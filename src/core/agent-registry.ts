@@ -95,7 +95,7 @@ class AgentRegistry {
     
     // Lazy load web_search to avoid circular/init issues if needed, or import directly
     import("../tools/built-in/web-search.js").then(({ webSearchTool }) => {
-        toolRegistry.register({ name: "web_search", description: "Search the web via Tavily", tool: webSearchTool });
+        toolRegistry.register({ name: "web_search", description: "Search the web via Tavily or SearchApi fallback", tool: webSearchTool });
     }).catch(err => logger.warn(`Failed to load web_search tool: ${err}`));
 
     toolRegistry.register({ name: "e2b_project_status", description: "Get E2B project status & preview data", tool: e2bProjectStatusTool });

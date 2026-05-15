@@ -75,6 +75,14 @@ async function writeResearchCache(entry: ResearchCacheEntry): Promise<void> {
   }
 }
 
+function parseJsonOrRaw(raw: string): unknown {
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
 export async function researchWithCacheHandler(ctx: PipelineHandlerContext): Promise<unknown> {
   const { tenantId, userId, sessionId, context, initialInput } = ctx;
   if (ctx.abortSignal?.aborted) {
@@ -135,12 +143,19 @@ export async function researchWithCacheHandler(ctx: PipelineHandlerContext): Pro
     ?? (result as { output?: unknown }).output
     ?? result;
 
+  let finalResult = extracted;
   if (sessionId) {
-    const payload = typeof extracted === "string" ? extracted : JSON.stringify(extracted, null, 2);
-    try {
-      await workspaceManager.writeArtifact(tenantId, userId, sessionId, "artifacts/research.json", payload);
-    } catch (err) {
-      logger.warn(`[research-cache] failed to persist live research to workspace: ${err}`);
+    const artifactRaw = await workspaceManager.readArtifact(tenantId, userId, sessionId, "artifacts/research.json");
+    if (artifactRaw) {
+      finalResult = parseJsonOrRaw(artifactRaw);
+      logger.info(`[research-cache] using workspace artifact artifacts/research.json as canonical result (${artifactRaw.length} chars)`);
+    } else {
+      const payload = typeof extracted === "string" ? extracted : JSON.stringify(extracted, null, 2);
+      try {
+        await workspaceManager.writeArtifact(tenantId, userId, sessionId, "artifacts/research.json", payload);
+      } catch (err) {
+        logger.warn(`[research-cache] failed to persist live research to workspace: ${err}`);
+      }
     }
   }
 
@@ -148,10 +163,10 @@ export async function researchWithCacheHandler(ctx: PipelineHandlerContext): Pro
     key,
     topic,
     databaseId,
-    result: extracted,
+    result: finalResult,
     storedAt: new Date().toISOString(),
     hitCount: 0,
   });
 
-  return extracted;
+  return finalResult;
 }
