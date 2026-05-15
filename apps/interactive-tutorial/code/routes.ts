@@ -56,7 +56,7 @@ export function registerInteractiveTutorialRoutes(app: FastifyInstance): void {
     }
 
     const sessionId = await workspaceManager.create(tenantId, userId, body.sessionId);
-    const conversationId = body.conversationId ?? randomUUID();
+    const conversationId = body.conversationId ?? sessionId;
     const taskId = `task_${randomUUID().slice(0, 8)}`;
 
     let userFiles: UserFileSummary[] = [];
